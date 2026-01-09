@@ -1,7 +1,7 @@
 services:
   postgres:
-    image: postgis/postgis:16-3.4
-    container_name: postgres-postgis-dev
+    image: postgres:16
+    container_name: postgres-dev
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
@@ -35,20 +35,6 @@ services:
       interval: 10s
       timeout: 5s
       retries: 10
-    networks:
-      - micro_net
-
-  nfs-server:
-    image: itsthenetwork/nfs-server-alpine:latest
-    container_name: nfs-server-dev
-    privileged: true
-    restart: unless-stopped
-    environment:
-      SHARED_DIRECTORY: /nfs-data
-    volumes:
-      - nfs_data:/nfs-data
-    ports:
-      - "2049:2049"
     networks:
       - micro_net
 
