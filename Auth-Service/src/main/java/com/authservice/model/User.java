@@ -50,9 +50,11 @@ public class User implements UserDetails {
     private String providerId;
     
     @Column(name = "email_verified")
+    @Builder.Default
     private boolean emailVerified = false;
     
     @Enumerated(EnumType.STRING)
+    @Builder.Default
     private Role role = Role.USER;
     
     @Column(name = "created_at")
@@ -61,6 +63,7 @@ public class User implements UserDetails {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
     
+    @Builder.Default
     private boolean enabled = true;
     
     @PrePersist

@@ -24,12 +24,12 @@ WORKDIR /app
 # Copy artifacts
 COPY --from=build /app/target/*.jar /app/app.jar
 
-# Expose the service port
-EXPOSE 8080
+# Expose the service port (matches server.port default 8081)
+EXPOSE 8081
 
 # Healthcheck (application exposes /actuator/health)
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
-  CMD wget -qO- http://localhost:8080/actuator/health | grep '"status":"UP"' || exit 1
+  CMD wget -qO- http://localhost:8081/actuator/health | grep '"status":"UP"' || exit 1
 
 # Entrypoint: start app (Flyway will apply V5__fix_template.sql)
 ENTRYPOINT ["java", "-jar", "app.jar"]

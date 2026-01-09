@@ -42,7 +42,7 @@ spring:
 app:
   # JWT Configuration (must match auth-service - BASE64 encoded secret)
   jwt:
-    secret: ${JWT_SECRET:}
+    secret: ${JWT_SECRET:dGhpc2lzYXRlc3QyNTZiaXRrZXlmb3Jsb2NhbA==}
     expiration: 86400000 # 24 horas en milisegundos
     refresh-expiration: 604800000 # 7 días en milisegundos
   

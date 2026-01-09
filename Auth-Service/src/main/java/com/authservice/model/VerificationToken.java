@@ -33,6 +33,7 @@ public class VerificationToken {
     @Column(name = "created_at")
     private LocalDateTime createdAt;
     
+    @Builder.Default
     private boolean used = false;
     
     @PrePersist
