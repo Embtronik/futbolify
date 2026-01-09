@@ -1,8 +1,6 @@
 spring:
   application:
     name: auth-service
-  config:
-    import: optional:file:.env[.properties]
   
   datasource:
     url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:proyectos_dev}
@@ -44,7 +42,7 @@ spring:
 app:
   # JWT Configuration (must match auth-service - BASE64 encoded secret)
   jwt:
-    secret: ${JWT_SECRET:dGhpc2lzYXRlc3QyNTZiaXRrZXlmb3Jsb2NhbA==}
+    secret: ${JWT_SECRET:}
     expiration: 86400000 # 24 horas en milisegundos
     refresh-expiration: 604800000 # 7 días en milisegundos
   
@@ -55,6 +53,11 @@ app:
   # Servicio de Notificaciones
   notification-service:
     url: ${NOTIFICATION_SERVICE_URL:http://localhost:8081}
+    # El cliente genera automáticamente un JWT efímero de servicio cuando no hay Authorization
+    # Puedes ajustar subject/audience/ttl vía propiedades (opcionales):
+    # app.notification-service.service-token.subject (por defecto: auth-service)
+    # app.notification-service.service-token.aud (por defecto: notification-service)
+    # app.notification-service.service-token.ttl (por defecto: 300000 ms)
   
   # Configuración de verificación de email
   email:

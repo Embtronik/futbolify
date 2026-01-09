@@ -60,6 +60,18 @@ public class JwtService {
                 .signWith(getSignInKey())
                 .compact();
     }
+
+        // Genera un token de servicio (sin usuario) con subject arbitrario y TTL corto
+        public String generateServiceToken(String subject, long ttlMillis, Map<String, Object> extraClaims) {
+        Map<String, Object> claims = extraClaims != null ? new HashMap<>(extraClaims) : new HashMap<>();
+        return Jwts.builder()
+            .claims(claims)
+            .subject(subject)
+            .issuedAt(new Date(System.currentTimeMillis()))
+            .expiration(new Date(System.currentTimeMillis() + ttlMillis))
+            .signWith(getSignInKey())
+            .compact();
+        }
     
     public boolean isTokenValid(String token, UserDetails userDetails) {
         final String username = extractUsername(token);

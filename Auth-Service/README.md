@@ -55,6 +55,9 @@ JWT_SECRET=tu-jwt-secret-key-base64
 # Notification Service URL
 NOTIFICATION_SERVICE_URL=http://localhost:8081
 
+# (Opcional) Ya no se requiere JWT estático para notificaciones.
+# El cliente genera un JWT efímero de servicio cuando no hay Authorization.
+
 # Frontend URL
 FRONTEND_URL=http://localhost:3000
 ```

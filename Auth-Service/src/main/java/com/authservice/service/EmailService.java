@@ -26,6 +26,12 @@ public class EmailService {
     
     @Async
     public void sendVerificationEmail(User user, String token) {
+        // Mantener compatibilidad: sin JWT explícito
+        sendVerificationEmail(user, token, null);
+    }
+
+    @Async
+    public void sendVerificationEmail(User user, String token, String bearerJwt) {
         String verificationUrl = frontendUrl + "/verify-email?token=" + token;
         
         Map<String, Object> variables = new HashMap<>();
@@ -42,7 +48,7 @@ public class EmailService {
                 .serviceOrigin("auth-service")
                 .build();
         
-        NotificationResponse response = notificationClient.sendNotification(request);
+        NotificationResponse response = notificationClient.sendNotification(request, bearerJwt);
         
         if (!response.isSuccess()) {
             log.error("Failed to send verification email to {}: {}", user.getEmail(), response.getMessage());

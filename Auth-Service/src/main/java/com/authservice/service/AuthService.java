@@ -68,15 +68,18 @@ public class AuthService {
         
         verificationTokenRepository.save(token);
         
-        // Send verification email
+        // Generar access token para usarlo en la notificación y también retornarlo al cliente
+        String accessToken = jwtService.generateToken(user);
+
+        // Send verification email con Authorization: Bearer <accessToken>
         try {
-            emailService.sendVerificationEmail(user, verificationToken);
+            emailService.sendVerificationEmail(user, verificationToken, accessToken);
         } catch (Exception e) {
             // Log error but don't fail registration
             e.printStackTrace();
         }
-        
-        return buildAuthResponse(user);
+
+        return buildAuthResponse(user, accessToken);
     }
     
     public AuthResponse login(LoginRequest request) {
@@ -162,6 +165,25 @@ public class AuthService {
                         .build())
                 .build();
     }
+
+        private AuthResponse buildAuthResponse(User user, String accessToken) {
+        String refreshToken = createRefreshToken(user);
+
+        return AuthResponse.builder()
+            .accessToken(accessToken)
+            .refreshToken(refreshToken)
+            .tokenType("Bearer")
+            .expiresIn(jwtService.getJwtExpiration())
+            .user(AuthResponse.UserInfo.builder()
+                .id(user.getId())
+                .email(user.getEmail())
+                .firstName(user.getFirstName())
+                .lastName(user.getLastName())
+                .emailVerified(user.isEmailVerified())
+                .provider(user.getProvider().name())
+                .build())
+            .build();
+        }
     
     private String createRefreshToken(User user) {
         String tokenValue = UUID.randomUUID().toString();
