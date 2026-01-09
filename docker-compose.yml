@@ -1,28 +1,44 @@
+version: "3.8"
+
 services:
   postgres:
-    image: postgis/postgis:16-3.4   # versión estable
+    image: postgis/postgis:16-3.4
     container_name: postgres-postgis-dev
     restart: unless-stopped
     environment:
-      POSTGRES_DB: proyectos_dev
-      POSTGRES_USER: dev_user
-      POSTGRES_PASSWORD: Dev2025!
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     ports:
-      - "5432:5432"
+      - "5432:5432" # si solo es interno, puedes quitarlo
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./postgres/initdb:/docker-entrypoint-initdb.d/
+      - ./postgres/initdb:/docker-entrypoint-initdb.d/:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - micro_net
 
   rabbitmq:
     image: rabbitmq:3-management
     container_name: rabbitmq-dev
     restart: unless-stopped
     environment:
-      RABBITMQ_DEFAULT_USER: admin
-      RABBITMQ_DEFAULT_PASS: admin123
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS}
     ports:
-      - "5672:5672"    # puerto para las apps
-      - "15672:15672"  # consola web de administración
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck:
+      test: ["CMD-SHELL", "rabbitmq-diagnostics -q ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - micro_net
 
   nfs-server:
     image: itsthenetwork/nfs-server-alpine:latest
@@ -35,7 +51,103 @@ services:
       - nfs_data:/nfs-data
     ports:
       - "2049:2049"
+    networks:
+      - micro_net
+
+  # ==========================
+  # AQUÍ VAN TUS MICROSERVICIOS
+  # ==========================
+
+  auth-service:
+    build:
+      context: ./Auth-Service
+      dockerfile: Dockerfile
+    container_name: auth-service
+    restart: unless-stopped
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT}
+      DB_NAME: ${POSTGRES_DB}
+      DB_USERNAME: ${POSTGRES_USER}
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+
+      JWT_SECRET: ${JWT_SECRET}
+
+      NOTIFICATION_SERVICE_URL: http://notificacion-service:8081
+      FRONTEND_URL: ${FRONTEND_URL}
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - micro_net
+
+  notificacion-service:
+    build:
+      context: ./Notificacion-Service
+      dockerfile: Dockerfile
+    container_name: notificacion-service
+    restart: unless-stopped
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT}
+      DB_NAME: ${POSTGRES_DB}
+      DB_USERNAME: ${POSTGRES_USER}
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+
+      RABBIT_HOST: ${RABBIT_HOST}
+      RABBIT_PORT: ${RABBIT_PORT}
+      RABBITMQ_USER: ${RABBITMQ_USER}
+      RABBITMQ_PASS: ${RABBITMQ_PASS}
+
+      # Aquí pones tus variables reales (Twilio, SendGrid, etc.) vía .env (NO en Git)
+      TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID}
+      TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN}
+      TWILIO_FROM: ${TWILIO_FROM}
+    ports:
+      - "8081:8081"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - micro_net
+
+  teams-service:
+    build:
+      context: ./Teams-Service
+      dockerfile: Dockerfile
+    container_name: teams-service
+    restart: unless-stopped
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT}
+      DB_NAME: ${POSTGRES_DB}
+      DB_USERNAME: ${POSTGRES_USER}
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "8082:8082"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - micro_net
 
 volumes:
   postgres_data:
   nfs_data:
+
+networks:
+  micro_net:
+    name: micro_net
+    driver: bridge
