@@ -81,6 +81,7 @@ services:
     restart: unless-stopped
     environment:
       SPRING_PROFILES_ACTIVE: prod
+      AUTH_SERVICE_ENABLED: "false"
       DB_HOST: ${DB_HOST}
       DB_PORT: ${DB_PORT}
       DB_NAME: ${POSTGRES_DB}
