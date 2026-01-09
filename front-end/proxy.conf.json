@@ -1,0 +1,13 @@
+{
+  "/api/football": {
+    "target": "https://v3.football.api-sports.io",
+    "secure": true,
+    "changeOrigin": true,
+    "pathRewrite": {
+      "^/api/football": ""
+    },
+    "headers": {
+      "x-apisports-key": "c4029806cbd1a1a4cdb25107398464d4"
+    }
+  }
+}

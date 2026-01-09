@@ -1,0 +1,41 @@
+services:
+  postgres:
+    image: postgis/postgis:16-3.4   # versión estable
+    container_name: postgres-postgis-dev
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: proyectos_dev
+      POSTGRES_USER: dev_user
+      POSTGRES_PASSWORD: Dev2025!
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./postgres/initdb:/docker-entrypoint-initdb.d/
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq-dev
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: admin
+      RABBITMQ_DEFAULT_PASS: admin123
+    ports:
+      - "5672:5672"    # puerto para las apps
+      - "15672:15672"  # consola web de administración
+
+  nfs-server:
+    image: itsthenetwork/nfs-server-alpine:latest
+    container_name: nfs-server-dev
+    privileged: true
+    restart: unless-stopped
+    environment:
+      SHARED_DIRECTORY: /nfs-data
+    volumes:
+      - nfs_data:/nfs-data
+    ports:
+      - "2049:2049"
+
+volumes:
+  postgres_data:
+  nfs_data:

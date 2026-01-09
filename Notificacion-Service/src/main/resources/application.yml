@@ -1,0 +1,128 @@
+server:
+  port: ${SERVER_PORT:8081}
+
+spring:
+  application:
+    name: notificacion-service
+  
+  profiles:
+    active: dev  # Activar perfil dev para pruebas sin JWT
+  
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:}:${DB_PORT:}/${DB_NAME:}
+    username: ${DB_USERNAME:}
+    password: ${DB_PASSWORD:}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: ${DB_POOL_SIZE:10}
+      max-lifetime: ${DB_MAX_LIFETIME:1800000}
+      connection-timeout: 30000
+      idle-timeout: 600000
+  
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+        jdbc:
+          time_zone: UTC
+  
+  flyway:
+    enabled: true
+    baseline-on-migrate: false
+    locations: classpath:db/migration
+    placeholder-replacement: false
+    validate-on-migrate: true
+    clean-disabled: true
+  
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:}
+    password: ${RABBITMQ_PASSWORD:}
+    listener:
+      simple:
+        retry:
+          enabled: true
+          initial-interval: 3000
+          max-attempts: 3
+          max-interval: 10000
+          multiplier: 2
+
+# RabbitMQ Configuration
+rabbitmq:
+  queue:
+    name: ${RABBITMQ_QUEUE_NAME:notifications.queue}
+    durable: true
+  exchange:
+    name: ${RABBITMQ_EXCHANGE:notifications.exchange}
+    type: topic
+  routing-key: notification.#
+  dlq:
+    name: ${RABBITMQ_QUEUE_NAME:notifications.queue}.dlq
+
+# Provider Configuration
+notification:
+  providers:
+    email:
+      type: ${EMAIL_PROVIDER:smtp}
+      sendgrid:
+        api-key: ${SENDGRID_API_KEY:}
+        from-email: ${SENDGRID_FROM_EMAIL:}
+        from-name: ${SENDGRID_FROM_NAME:}
+      smtp:
+        host: ${SMTP_HOST:}
+        port: ${SMTP_PORT:}
+        username: ${SMTP_USERNAME:}
+        password: ${SMTP_PASSWORD:}
+        from: ${SMTP_FROM:}
+    
+    whatsapp:
+      type: ${WHATSAPP_PROVIDER:twilio}
+      twilio:
+        account-sid: ${TWILIO_ACCOUNT_SID:}
+        auth-token: ${TWILIO_AUTH_TOKEN:}
+        from-number: ${TWILIO_WHATSAPP_FROM:}
+    
+    sms:
+      type: ${SMS_PROVIDER:twilio}
+      twilio:
+        account-sid: ${TWILIO_ACCOUNT_SID:}
+        auth-token: ${TWILIO_AUTH_TOKEN:}
+        from-number: ${TWILIO_SMS_FROM:}
+
+# Auth Service Configuration
+auth-service:
+  url: ${AUTH_SERVICE_URL:http://localhost:8080}
+  validate-token-endpoint: ${AUTH_SERVICE_VALIDATE_ENDPOINT:/api/v1/auth/validate}
+  connection-timeout: 5000
+  read-timeout: 5000
+  max-retries: 2
+  enabled: ${AUTH_SERVICE_ENABLED:true}
+
+# Actuator Configuration
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
+  health:
+    rabbitmq:
+      enabled: true
+    db:
+      enabled: true
+
+# Logging Configuration
+logging:
+  level:
+    io.github.giovanny.notifications: INFO
+    org.springframework.amqp: WARN
+    org.hibernate: WARN
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"

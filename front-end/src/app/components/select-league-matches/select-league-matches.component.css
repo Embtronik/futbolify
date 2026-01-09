@@ -1,0 +1,145 @@
+.fixtures-table-wrapper {
+  margin-top: 1.5rem;
+  display: flex;
+  justify-content: center;
+}
+
+.fixtures-table {
+  border-collapse: collapse;
+  width: 100%;
+  max-width: 800px;
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.fixtures-table th, .fixtures-table td {
+  padding: 0.75rem 1rem;
+  text-align: center;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.fixtures-table th {
+  background: #f7f7f7;
+  font-weight: 600;
+  color: #333;
+}
+
+.fixtures-table tr:last-child td {
+  border-bottom: none;
+}
+
+.team {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 500;
+}
+
+.team img {
+  border-radius: 50%;
+  border: 1px solid #eee;
+  background: #fafafa;
+}
+
+.vs {
+  font-weight: bold;
+  color: #888;
+  font-size: 1.1rem;
+}
+
+.fixtures-table input[type="checkbox"] {
+  transform: scale(1.2);
+}
+
+@media (max-width: 700px) {
+  .fixtures-table, .fixtures-table-wrapper {
+    width: 100%;
+    max-width: 100vw;
+    overflow-x: auto;
+  }
+  .fixtures-table th, .fixtures-table td {
+    padding: 0.5rem 0.3rem;
+    font-size: 0.95rem;
+  }
+}
+.league-selector {
+  margin-bottom: 1rem;
+}
+
+select {
+  min-width: 250px;
+  padding: 0.5rem;
+  font-size: 1rem;
+}
+
+.error {
+  color: #d32f2f;
+  margin-left: 1rem;
+}
+
+.fixtures-section {
+  margin-top: 1.5rem;
+}
+
+button {
+  margin-bottom: 1rem;
+  padding: 0.5rem 1.2rem;
+  font-size: 1rem;
+  background: #1976d2;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+button:disabled {
+  background: #bdbdbd;
+  cursor: not-allowed;
+}
+
+.fixtures-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.fixture-card {
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  padding: 1rem;
+  background: #fafafa;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.03);
+}
+
+.teams {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 500;
+  margin-bottom: 0.5rem;
+}
+
+.team img {
+  vertical-align: middle;
+  margin-right: 0.3rem;
+}
+
+.vs {
+  margin: 0 0.5rem;
+  color: #757575;
+}
+
+.fixture-info {
+  font-size: 0.95rem;
+  color: #424242;
+}
+
+.date {
+  font-weight: 500;
+  margin-right: 1rem;
+}
+
+.venue {
+  color: #757575;
+}

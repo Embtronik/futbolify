@@ -1,0 +1,105 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: teams-postgres-dev
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: proyectos_dev
+      POSTGRES_USER: dev_user
+      POSTGRES_PASSWORD: Dev2025!
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - teams-network
+
+  # RabbitMQ Message Broker
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: teams-rabbitmq-dev
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    ports:
+      - "5672:5672"   # AMQP port
+      - "15672:15672" # Management UI
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - teams-network
+
+  # NFS Server
+  nfs-server:
+    image: itsthenetwork/nfs-server-alpine:latest
+    container_name: nfs-server-dev
+    privileged: true
+    restart: unless-stopped
+    environment:
+      SHARED_DIRECTORY: /nfs-data
+    volumes:
+      - nfs_data:/nfs-data
+    ports:
+      - "2049:2049"
+    networks:
+      - teams-network
+
+  # Teams Service
+  teams-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: teams-service-dev
+    restart: unless-stopped
+    environment:
+      # Database Configuration
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: proyectos_dev
+      DB_USERNAME: dev_user
+      DB_PASSWORD: Dev2025!
+      
+      # JWT Configuration (must match auth-service)
+      JWT_SECRET: 404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970
+      
+      # RabbitMQ Configuration
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USERNAME: guest
+      RABBITMQ_PASSWORD: guest
+      
+      # NFS Configuration
+      NFS_HOST: nfs-server
+      NFS_PORT: 2049
+      NFS_SHARED_DIRECTORY: /nfs-data
+      NFS_TEAMS_DIRECTORY: /nfs-data/teams/logos
+      
+      # Services URLs
+      AUTH_SERVICE_URL: http://auth-service:8080
+      NOTIFICATION_SERVICE_URL: http://notification-service:8081
+    ports:
+      - "8082:8082"
+    depends_on:
+      - postgres
+      - rabbitmq
+      - nfs-server
+    volumes:
+      - nfs_data:/nfs-data
+    networks:
+      - teams-network
+
+volumes:
+  postgres_data:
+    driver: local
+  rabbitmq_data:
+    driver: local
+  nfs_data:
+    driver: local
+
+networks:
+  teams-network:
+    driver: bridge

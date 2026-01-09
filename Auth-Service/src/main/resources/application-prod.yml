@@ -1,0 +1,20 @@
+spring:
+  datasource:
+    # Fly.io proporciona DATABASE_URL automáticamente
+    url: ${DATABASE_URL}
+  
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: false
+
+# Logging para producción
+logging:
+  level:
+    root: INFO
+    com.authservice: INFO
+    org.springframework.web: INFO
+    org.hibernate: WARN

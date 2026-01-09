@@ -1,0 +1,32 @@
+# Asegura .gitignore
+cat > .gitignore <<'EOF'
+# Secrets
+.env
+*.env
+.env.*
+*.pem
+*.key
+*.p12
+
+# IDE
+.vscode/
+.idea/
+*.iml
+
+# Java build
+**/target/
+**/build/
+
+# Node
+node_modules/
+dist/
+.next/
+out/
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+EOF

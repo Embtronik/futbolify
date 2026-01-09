@@ -1,0 +1,258 @@
+export interface Team {
+  id: number;
+  name: string;
+  joinCode: string; // Código alfanumérico único generado por el backend
+  logoUrl?: string;
+  description?: string;
+  ownerUserId: number; // ID del usuario propietario del equipo
+  memberCount?: number; // Total de miembros aprobados
+  pendingRequestsCount?: number; // Solicitudes pendientes (solo para admin)
+  members?: TeamMember[]; // Cached members for UI purposes
+  // Ubicación
+  address?: string; // Dirección completa formateada
+  latitude?: number; // Latitud
+  longitude?: number; // Longitud
+  placeId?: string; // Google Place ID
+  createdAt: Date | string;
+  updatedAt: Date | string;
+}
+
+export interface Player {
+  id: number;
+  firstName: string;
+  lastName: string;
+  photo?: string;
+  teamId?: number;
+  teamName?: string;
+  teamCode?: string; // Para almacenar el código del grupo al que pertenece
+  position: 'GOALKEEPER' | 'DEFENDER' | 'MIDFIELDER' | 'FORWARD';
+  jerseyNumber?: number;
+  birthDate?: Date;
+  height?: number; // cm
+  weight?: number; // kg
+  nationality?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// Request para unirse a un equipo con código
+export interface JoinTeamRequest {
+  joinCode: string; // Código del grupo para unirse (6 caracteres)
+}
+
+// Miembro de un equipo con estado de aprobación
+export interface TeamMember {
+  id: number;
+  teamId: number;
+  teamName?: string;
+  userId: number;
+  userEmail: string;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED'; // Estado de la membresía
+  requestedAt: Date | string; // Fecha de solicitud
+  approvedAt?: Date | string; // Fecha de aprobación
+  approvedBy?: number; // ID del admin que aprobó
+  userInfo?: {
+    id: number;
+    email: string;
+    firstName: string;
+    lastName: string;
+    countryCode?: string;
+    phoneNumber?: string;
+    provider: 'GOOGLE' | 'LOCAL';
+    emailVerified: boolean;
+  };
+}
+
+// Request para aprobar/rechazar miembro
+export interface ApproveMemberRequest {
+  approved: boolean;
+}
+
+export interface Match {
+  id: number;
+  homeTeamId: number;
+  homeTeamName: string;
+  awayTeamId: number;
+  awayTeamName: string;
+  matchDate: Date;
+  location?: string;
+  status: 'SCHEDULED' | 'IN_PROGRESS' | 'FINISHED' | 'CANCELLED';
+  homeScore?: number;
+  awayScore?: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// Equipos profesionales de API-Football
+export interface FootballTeam {
+  id: number;              // ID de la API
+  name: string;            // Nombre del equipo
+  logo: string;            // URL del logo
+  country: string;         // País
+  founded?: number;        // Año de fundación
+  national: boolean;       // Si es selección nacional
+}
+
+// Ligas/Competiciones de API-Football
+export interface FootballLeague {
+  id: number;
+  name: string;
+  country: string;
+  logo: string;
+}
+
+// Partido de la API externa (API-Football)
+export interface FootballFixture {
+  fixture: {
+    id: number;
+    date: string;
+    timestamp: number;
+    venue?: {
+      name: string;
+      city: string;
+    };
+    status: {
+      short: string; // NS, LIVE, FT, etc.
+      long: string;
+    };
+  };
+  league: {
+    id: number;
+    name: string;
+    country: string;
+    logo: string;
+    season?: number;
+  };
+  teams: {
+    home: {
+      id: number;
+      name: string;
+      logo: string;
+    };
+    away: {
+      id: number;
+      name: string;
+      logo: string;
+    };
+  };
+  goals?: {
+    home: number | null;
+    away: number | null;
+  };
+}
+
+// ==========================================
+// POLLAS (Sistema de apuestas de marcadores)
+// ==========================================
+
+// Polla de apuestas
+export interface Poll {
+    emailUsuarioAutenticado?: string;
+  id: number;
+  nombre: string;
+  descripcion?: string;
+  creadorEmail: string;
+  fechaInicio: Date | string;
+  montoEntrada: number;
+  estado: 'CREADA' | 'ABIERTA' | 'CERRADA' | 'FINALIZADA';
+  gruposInvitados?: number[]; // IDs de grupos seleccionados
+  participantesCount?: number; // Participantes que aceptaron
+  invitadosCount?: number; // Total de invitados (incluyendo pendientes)
+  partidosCount?: number;
+  createdAt?: Date | string;
+  updatedAt?: Date | string;
+}
+
+// Participante de una polla
+export interface PollParticipant {
+  id: number;
+  pollaId: number;
+  emailUsuario: string;
+  nombreUsuario?: string;
+  estado: 'INVITADO' | 'ACEPTADO' | 'RECHAZADO';
+  fechaRespuesta?: Date | string;
+  createdAt?: Date | string;
+}
+
+// Partido dentro de una polla
+export interface PollMatch {
+    golesLocalPronosticado?: number;
+    golesVisitantePronosticado?: number;
+  id: number;
+  pollaId: number;
+  idPartidoExterno?: string; // ID del partido en API externa
+  equipoLocal: string;
+  equipoLocalLogo?: string;
+  equipoVisitante: string;
+  equipoVisitanteLogo?: string;
+  fechaHoraPartido: Date | string;
+  fechaLimitePronostico: Date | string; // fechaHoraPartido - 5 minutos
+  golesLocal?: number; // Resultado real
+  golesVisitante?: number; // Resultado real
+  liga?: string;
+  estado?: 'PROGRAMADO' | 'EN_CURSO' | 'FINALIZADO';
+  createdAt?: Date | string;
+}
+
+// Pronóstico de un participante para un partido
+export interface PollPrediction {
+  id: number;
+  pollaPartidoId: number;
+  emailParticipante: string;
+  nombreParticipante?: string;
+  golesLocalPronosticado: number;
+  golesVisitantePronosticado: number;
+  puntos?: number; // Puntos obtenidos (calculado después del partido)
+  fechaRegistro: Date | string;
+  createdAt?: Date | string;
+  updatedAt?: Date | string;
+}
+
+// Request para crear una polla
+export interface CreatePollRequest {
+  nombre: string;
+  descripcion?: string;
+  fechaInicio: string; // ISO string
+  montoEntrada: number;
+  gruposIds: number[]; // IDs de los grupos
+  emailsInvitados: string[]; // Emails de miembros seleccionados
+}
+
+// Request para agregar un partido a una polla
+export interface AddPollMatchRequest {
+  pollaId: number;
+  idPartidoExterno?: string;
+  equipoLocal: string;
+  equipoLocalLogo?: string;
+  equipoVisitante: string;
+  equipoVisitanteLogo?: string;
+  fechaHoraPartido: string; // ISO string
+  liga?: string;
+}
+
+// Request para crear/actualizar un pronóstico
+export interface CreatePredictionRequest {
+  pollaPartidoId: number;
+  golesLocalPronosticado: number;
+  golesVisitantePronosticado: number;
+}
+
+// Invitación a polla
+export interface PollInvitation {
+  id: number;
+  pollaId: number;
+  pollaNombre: string;
+  emailUsuario: string;
+  estado: 'INVITADO' | 'ACEPTADO' | 'RECHAZADO';
+  fechaRespuesta?: Date | string;
+  createdAt?: Date | string;
+}
+
+export interface Statistics {
+  totalTeams: number;
+  totalPlayers: number;
+  totalMatches: number;
+  totalPolls: number;
+  upcomingMatches: number;
+  activePolls: number;
+}

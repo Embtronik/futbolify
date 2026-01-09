@@ -1,0 +1,77 @@
+spring:
+  application:
+    name: teams-service
+  
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:proyectos_dev}
+    username: ${DB_USERNAME:dev_user}
+    password: ${DB_PASSWORD:Dev2025!}
+    driver-class-name: org.postgresql.Driver
+  
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+  
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 10MB
+      max-request-size: 10MB
+  
+  # RabbitMQ Configuration
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:admin}
+    password: ${RABBITMQ_PASSWORD:admin123}
+
+# Application Configuration
+app:
+  # JWT Configuration (must match auth-service - BASE64 encoded secret)
+  jwt:
+    secret: ${JWT_SECRET:404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970}
+    expiration: 86400000 # 24 horas en milisegundos
+  
+  # NFS Configuration
+  nfs:
+    host: ${NFS_HOST:localhost}
+    port: ${NFS_PORT:2049}
+    shared-directory: ${NFS_SHARED_DIRECTORY:/nfs-data}
+    teams-directory: ${NFS_TEAMS_DIRECTORY:/nfs-data/teams/logos}
+    allowed-extensions: jpg,jpeg,png
+    max-file-size: 10485760 # 10MB en bytes
+  
+  # RabbitMQ Exchange and Routing
+  rabbitmq:
+    exchange: ${RABBITMQ_EXCHANGE:teams.exchange}
+    routing-key:
+      team-created: team.created
+      team-updated: team.updated
+      team-deleted: team.deleted
+  
+  # Services URLs
+  auth-service:
+    url: ${AUTH_SERVICE_URL:http://localhost:8080}
+  
+  notification-service:
+    url: ${NOTIFICATION_SERVICE_URL:http://localhost:8081}
+
+# Server Configuration
+server:
+  port: 8082
+  error:
+    include-message: always
+    include-binding-errors: always
+
+# Logging Configuration
+logging:
+  level:
+    com.teamsservice: DEBUG
+    org.springframework.security: DEBUG
+    org.springframework.web: DEBUG
+    org.springframework.amqp: DEBUG

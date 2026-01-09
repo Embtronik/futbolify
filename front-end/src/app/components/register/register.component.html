@@ -1,0 +1,196 @@
+<div class="auth-container">
+  <div class="auth-card">
+    <div class="auth-header">
+      <div class="logo-link" routerLink="/">
+        <div class="logo-icon">⚽</div>
+        <span class="logo-text">Futbolify</span>
+      </div>
+      <h2>Únete a Futbolify</h2>
+      <p>Crea tu cuenta y comienza a gestionar equipos</p>
+    </div>
+
+    <div *ngIf="errorMessage" class="alert alert-danger">
+      {{ errorMessage }}
+    </div>
+
+    <div *ngIf="successMessage" class="alert alert-success">
+      {{ successMessage }}
+    </div>
+
+    <form [formGroup]="registerForm" (ngSubmit)="onSubmit()">
+      <div class="form-row">
+        <div class="form-group">
+          <label for="firstName" class="form-label">Nombre</label>
+          <input
+            type="text"
+            id="firstName"
+            formControlName="firstName"
+            class="form-control"
+            [class.error]="hasError('firstName', 'required') || hasError('firstName', 'minlength')"
+            placeholder="Juan"
+          />
+          <span *ngIf="hasError('firstName', 'required')" class="error-message">
+            El nombre es requerido
+          </span>
+          <span *ngIf="hasError('firstName', 'minlength')" class="error-message">
+            Mínimo 2 caracteres
+          </span>
+        </div>
+
+        <div class="form-group">
+          <label for="lastName" class="form-label">Apellido</label>
+          <input
+            type="text"
+            id="lastName"
+            formControlName="lastName"
+            class="form-control"
+            [class.error]="hasError('lastName', 'required') || hasError('lastName', 'minlength')"
+            placeholder="Pérez"
+          />
+          <span *ngIf="hasError('lastName', 'required')" class="error-message">
+            El apellido es requerido
+          </span>
+          <span *ngIf="hasError('lastName', 'minlength')" class="error-message">
+            Mínimo 2 caracteres
+          </span>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="email" class="form-label">Correo electrónico</label>
+        <input
+          type="email"
+          id="email"
+          formControlName="email"
+          class="form-control"
+          [class.error]="hasError('email', 'required') || hasError('email', 'email')"
+          placeholder="tu@email.com"
+        />
+        <span *ngIf="hasError('email', 'required')" class="error-message">
+          El correo es requerido
+        </span>
+        <span *ngIf="hasError('email', 'email')" class="error-message">
+          Ingresa un correo válido
+        </span>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group" style="flex: 0 0 140px;">
+          <label for="countryCode" class="form-label">País</label>
+          <select
+            id="countryCode"
+            formControlName="countryCode"
+            class="form-control country-select"
+            [class.error]="hasError('countryCode', 'required')"
+          >
+            <option value="" disabled>Código</option>
+            <option *ngFor="let country of countryCodes" [value]="country.code">
+              {{ country.code }} {{ country.country }}
+            </option>
+          </select>
+          <span *ngIf="hasError('countryCode', 'required')" class="error-message">
+            Requerido
+          </span>
+        </div>
+
+        <div class="form-group" style="flex: 1;">
+          <label for="phoneNumber" class="form-label">Teléfono</label>
+          <input
+            type="tel"
+            id="phoneNumber"
+            formControlName="phoneNumber"
+            class="form-control"
+            [class.error]="hasError('phoneNumber', 'required') || hasError('phoneNumber', 'pattern')"
+            placeholder="3001234567"
+          />
+          <span *ngIf="hasError('phoneNumber', 'required')" class="error-message">
+            El teléfono es requerido
+          </span>
+          <span *ngIf="hasError('phoneNumber', 'pattern')" class="error-message">
+            7-15 dígitos numéricos
+          </span>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="password" class="form-label">Contraseña</label>
+        <input
+          type="password"
+          id="password"
+          formControlName="password"
+          class="form-control"
+          [class.error]="hasError('password', 'required') || hasError('password', 'minlength') || hasError('password', 'weakPassword')"
+          placeholder="Mínimo 8 caracteres"
+        />
+        <span *ngIf="hasError('password', 'required')" class="error-message">
+          La contraseña es requerida
+        </span>
+        <span *ngIf="hasError('password', 'minlength')" class="error-message">
+          Mínimo 8 caracteres
+        </span>
+        <span *ngIf="hasError('password', 'weakPassword')" class="error-message">
+          Debe incluir mayúscula, minúscula, número y carácter especial
+        </span>
+        <small class="password-hint">
+          Usa mayúsculas, minúsculas, números y símbolos (!&#64;#$%^&*)
+        </small>
+      </div>
+
+      <div class="form-group">
+        <label for="confirmPassword" class="form-label">Confirmar contraseña</label>
+        <input
+          type="password"
+          id="confirmPassword"
+          formControlName="confirmPassword"
+          class="form-control"
+          [class.error]="hasError('confirmPassword', 'required') || hasFormError('passwordMismatch')"
+          placeholder="Repite tu contraseña"
+        />
+        <span *ngIf="hasError('confirmPassword', 'required')" class="error-message">
+          Confirma tu contraseña
+        </span>
+        <span *ngIf="hasFormError('passwordMismatch')" class="error-message">
+          Las contraseñas no coinciden
+        </span>
+      </div>
+
+      <button
+        type="submit"
+        class="btn btn-primary btn-full"
+        [disabled]="loading"
+        [class.loading]="loading"
+      >
+        <span *ngIf="!loading">Crear Cuenta</span>
+        <span *ngIf="loading">
+          <span class="spinner"></span> Creando cuenta...
+        </span>
+      </button>
+    </form>
+
+    <div class="divider">
+      <span>o regístrate con</span>
+    </div>
+
+    <button
+      type="button"
+      class="btn btn-google btn-full"
+      (click)="loginWithGoogle()"
+      [disabled]="loading"
+    >
+      <svg width="18" height="18" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
+        <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+        <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+        <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+        <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+      </svg>
+      Continuar con Google
+    </button>
+
+    <div class="auth-footer">
+      <p>
+        ¿Ya tienes una cuenta?
+        <a routerLink="/auth/login">Inicia sesión aquí</a>
+      </p>
+    </div>
+  </div>
+</div>

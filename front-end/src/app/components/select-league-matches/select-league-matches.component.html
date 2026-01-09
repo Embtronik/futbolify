@@ -1,0 +1,52 @@
+<div class="league-selector">
+  <label for="leagueSelect">Liga/Competencia:</label>
+  <select id="leagueSelect" [(ngModel)]="selectedLeagueId" (change)="onLeagueChange()" [disabled]="loadingLeagues">
+    <option value="" disabled selected>Seleccione una liga</option>
+    <option *ngFor="let league of leagues" [value]="league.id">
+      {{ league.name }} ({{ league.country }})
+    </option>
+  </select>
+  <span *ngIf="loadingLeagues">Cargando ligas...</span>
+  <span *ngIf="errorLeagues" class="error">{{ errorLeagues }}</span>
+</div>
+
+<div class="fixtures-section">
+  <button (click)="onLeagueChange()" [disabled]="!selectedLeagueId || loadingFixtures">Buscar partidos</button>
+  <span *ngIf="loadingFixtures">Cargando partidos...</span>
+  <span *ngIf="errorFixtures" class="error">{{ errorFixtures }}</span>
+  <span *ngIf="noFixtures && !loadingFixtures && !errorFixtures">No hay partidos próximos.</span>
+
+  <div class="fixtures-table-wrapper" *ngIf="fixtures.length > 0">
+    <table class="fixtures-table">
+      <thead>
+        <tr>
+          <th></th>
+          <th>Local</th>
+          <th></th>
+          <th>Visitante</th>
+          <th>Fecha</th>
+          <th>Estadio</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let fixture of fixtures">
+          <td>
+            <!-- <input type="checkbox" [(ngModel)]="fixture.selected" /> -->
+          </td>
+          <td class="team home">
+            <img [src]="fixture.teams.home.logo" alt="{{fixture.teams.home.name}}" width="24" height="24">
+            {{ fixture.teams.home.name }}
+          </td>
+          <td class="vs">vs</td>
+          <td class="team away">
+            <img [src]="fixture.teams.away.logo" alt="{{fixture.teams.away.name}}" width="24" height="24">
+            {{ fixture.teams.away.name }}
+          </td>
+          <td>{{ fixture.fixture.date | date:'medium' }}</td>
+          <td *ngIf="fixture.fixture.venue">{{ fixture.fixture.venue.name }}, {{ fixture.fixture.venue.city }}</td>
+          <td *ngIf="!fixture.fixture.venue">-</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
