@@ -58,6 +58,9 @@ public class SecurityConfig {
                                 "/api/v1/user/by-email",
                                 "/login/oauth2/**",
                                 "/oauth2/**",
+                                "/actuator/health",
+                                "/actuator/health/**",
+                                "/actuator/info",
                                 "/error"
                         ).permitAll()
                         .anyRequest().authenticated()
