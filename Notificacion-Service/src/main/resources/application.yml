@@ -92,7 +92,8 @@ notification:
       twilio:
         account-sid: ${TWILIO_ACCOUNT_SID:}
         auth-token: ${TWILIO_AUTH_TOKEN:}
-        from-number: ${TWILIO_SMS_FROM:}
+        # Admite ambas variables por compatibilidad: TWILIO_SMS_FROM (preferida) o TWILIO_FROM (legado)
+        from-number: ${TWILIO_SMS_FROM:${TWILIO_FROM:}}
 
 # Auth Service Configuration
 auth-service:

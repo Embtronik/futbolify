@@ -77,3 +77,4 @@ logging:
     com.authservice: DEBUG
     org.springframework.security: DEBUG
     org.springframework.web: DEBUG
+    org.springframework.security.config.annotation.authentication.configuration.InitializeUserDetailsBeanManagerConfigurer: ERROR

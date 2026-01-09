@@ -105,7 +105,8 @@ services:
       # Aquí pones tus variables reales (Twilio, SendGrid, etc.) vía .env (NO en Git)
       TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID}
       TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN}
-      TWILIO_FROM: ${TWILIO_FROM}
+      TWILIO_SMS_FROM: ${TWILIO_SMS_FROM}
+      TWILIO_WHATSAPP_FROM: ${TWILIO_WHATSAPP_FROM}
     ports:
       - "8081:8081"
     depends_on:
