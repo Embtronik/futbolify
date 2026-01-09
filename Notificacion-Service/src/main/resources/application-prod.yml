@@ -7,7 +7,7 @@ spring:
     validate-on-migrate: true
     clean-disabled: true
     baseline-on-migrate: true
-    baseline-version: 4
+    baseline-version: 0
   
   rabbitmq:
     host: ${RABBITMQ_HOST}

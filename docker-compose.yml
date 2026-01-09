@@ -91,6 +91,8 @@ services:
       SMTP_PASSWORD: ${SMTP_PASSWORD}
       SMTP_FROM: ${SMTP_FROM}
       SMTP_HOST: ${SMTP_HOST}
+      SPRING_FLYWAY_BASELINE_ON_MIGRATE: "true"
+      SPRING_FLYWAY_BASELINE_VERSION: "0"
 
       RABBITMQ_HOST: ${RABBITMQ_HOST}
       RABBITMQ_PORT: ${RABBITMQ_PORT}
@@ -142,3 +144,6 @@ networks:
   micro_net:
     name: micro_net
     driver: bridge
+
+
+
