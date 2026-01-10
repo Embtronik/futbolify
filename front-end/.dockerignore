@@ -1,7 +1,6 @@
 # Dependencias
 node_modules
 npm-debug.log
-package-lock.json
 
 # Archivos de build
 dist
