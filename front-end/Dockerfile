@@ -9,13 +9,14 @@ RUN npm install --legacy-peer-deps
 COPY . .
 RUN npm run build -- --configuration production
 
-# Stage 2: NGINX
+# Stage 2: Serve with NGINX
 FROM nginx:1.29-alpine
 
+# Copiar configuración de Nginx
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-# Cambia "front-end" por el nombre real del proyecto dentro de dist/
-COPY --from=build /app/dist/front-end /usr/share/nginx/html
+# ⚠️ Copiar la carpeta real generada por Angular
+COPY --from=build /app/dist/football-team-manager /usr/share/nginx/html
 
 EXPOSE 80
 
