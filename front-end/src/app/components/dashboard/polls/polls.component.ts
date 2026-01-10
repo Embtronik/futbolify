@@ -86,8 +86,46 @@ export class PollsComponent implements OnInit {
   // Partidos seleccionados en el modal de agregar partido
   selectedFixtures: FootballFixture[] = [];
 
+  selectFixture(fixture: FootballFixture): void {
+    const fixtureId = fixture.fixture.id;
+    const alreadySelected = this.selectedFixtures.some(f => f.fixture.id === fixtureId);
+    this.selectedFixtures = alreadySelected
+      ? this.selectedFixtures.filter(f => f.fixture.id !== fixtureId)
+      : [...this.selectedFixtures, fixture];
+  }
+
   removeSelectedFixture(fixture: FootballFixture): void {
     this.selectedFixtures = this.selectedFixtures.filter(f => f.fixture.id !== fixture.fixture.id);
+  }
+
+  revertPollToCreated(poll: Poll, event?: Event): void {
+    event?.stopPropagation();
+
+    this.loading = true;
+    this.successMessage = '';
+    this.errorMessage = '';
+
+    this.teamService.revertPollToCreated(poll.id).subscribe({
+      next: (updatedPoll: Poll) => {
+        const replace = (arr: Poll[]) => arr.map(p => (p.id === updatedPoll.id ? updatedPoll : p));
+        this.myPolls = replace(this.myPolls);
+        this.participantPolls = replace(this.participantPolls);
+        this.polls = replace(this.polls);
+        if (this.selectedPoll?.id === updatedPoll.id) {
+          this.selectedPoll = updatedPoll;
+        }
+
+        this.successMessage = 'Polla regresada a estado creada';
+        this.loading = false;
+        setTimeout(() => (this.successMessage = ''), 2000);
+      },
+      error: (err: unknown) => {
+        console.error('Error revertPollToCreated:', err);
+        this.errorMessage = 'Error al revertir la polla';
+        this.loading = false;
+        setTimeout(() => (this.errorMessage = ''), 2000);
+      },
+    });
   }
 
   private teamService = inject(TeamService);
