@@ -25,9 +25,9 @@ services:
     networks:
       - football-team-network
 
-  team-service:
-    image: team-service:latest
-    container_name: team-service
+  teams-service:
+    image: teams-service:latest
+    container_name: teams-service
     profiles:
       - fullstack
     ports:
