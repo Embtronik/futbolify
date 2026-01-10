@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: football-team-frontend
+    ports:
+      - "4200:80"
+    environment:
+      - NODE_ENV=production
+    restart: unless-stopped
+    networks:
+      - football-team-network
+
+networks:
+  football-team-network:
+    driver: bridge

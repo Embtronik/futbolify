@@ -1,4 +1,10 @@
+version: "3.9"
+
 services:
+
+  # =====================================
+  # POSTGRESQL
+  # =====================================
   postgres:
     image: postgres:16
     container_name: postgres-dev
@@ -8,7 +14,7 @@ services:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     ports:
-      - "5432:5432" # si solo es interno, puedes quitarlo
+      - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./postgres/initdb:/docker-entrypoint-initdb.d/:ro
@@ -20,6 +26,9 @@ services:
     networks:
       - micro_net
 
+  # =====================================
+  # RABBITMQ
+  # =====================================
   rabbitmq:
     image: rabbitmq:3-management
     container_name: rabbitmq-dev
@@ -38,10 +47,9 @@ services:
     networks:
       - micro_net
 
-  # ==========================
-  # AQUÍ VAN TUS MICROSERVICIOS
-  # ==========================
-
+  # =====================================
+  # AUTH SERVICE
+  # =====================================
   auth-service:
     build:
       context: ./Auth-Service
@@ -50,18 +58,21 @@ services:
     restart: unless-stopped
     environment:
       SPRING_PROFILES_ACTIVE: prod
-      DB_HOST: ${DB_HOST}
-      DB_PORT: ${DB_PORT}
+
+      DB_HOST: postgres
+      DB_PORT: 5432
       DB_NAME: ${POSTGRES_DB}
       DB_USERNAME: ${POSTGRES_USER}
       DB_PASSWORD: ${POSTGRES_PASSWORD}
 
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
-
       JWT_SECRET: ${JWT_SECRET}
 
+      # URL INTERNO que usarán los demás microservicios
       NOTIFICATION_SERVICE_URL: http://notificacion-service:8081
+
+      # URL EXTERNO que se usa en emails
       FRONTEND_URL: ${FRONTEND_URL}
     ports:
       - "8080:8080"
@@ -73,36 +84,38 @@ services:
     networks:
       - micro_net
 
+  # =====================================
+  # NOTIFICACIÓN SERVICE
+  # =====================================
   notificacion-service:
     build:
       context: ./Notificacion-Service
-      dockerfile: Dockerfile
     container_name: notificacion-service
     restart: unless-stopped
     environment:
       SPRING_PROFILES_ACTIVE: prod
-      AUTH_SERVICE_ENABLED: "false"
-      DB_HOST: ${DB_HOST}
-      DB_PORT: ${DB_PORT}
+
+      DB_HOST: postgres
+      DB_PORT: 5432
       DB_NAME: ${POSTGRES_DB}
       DB_USERNAME: ${POSTGRES_USER}
       DB_PASSWORD: ${POSTGRES_PASSWORD}
+
       SMTP_PORT: ${SMTP_PORT}
       SMTP_USERNAME: ${SMTP_USERNAME}
       SMTP_PASSWORD: ${SMTP_PASSWORD}
       SMTP_FROM: ${SMTP_FROM}
       SMTP_HOST: ${SMTP_HOST}
-      SPRING_FLYWAY_BASELINE_ON_MIGRATE: "true"
-      SPRING_FLYWAY_BASELINE_VERSION: "0"
 
-      RABBITMQ_HOST: ${RABBITMQ_HOST}
-      RABBITMQ_PORT: ${RABBITMQ_PORT}
+      SPRING_FLYWAY_BASELINE_ON_MIGRATE: "true"
+
+      RABBITMQ_HOST: rabbitmq-dev
+      RABBITMQ_PORT: 5672
       RABBITMQ_USERNAME: ${RABBITMQ_USERNAME}
       RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
       RABBITMQ_QUEUE_NAME: ${RABBITMQ_QUEUE_NAME}
       RABBITMQ_EXCHANGE: ${RABBITMQ_QUEUE_NAME}
-      
-      # Aquí pones tus variables reales (Twilio, SendGrid, etc.) vía .env (NO en Git)
+
       TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID}
       TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN}
       TWILIO_SMS_FROM: ${TWILIO_SMS_FROM}
@@ -117,16 +130,19 @@ services:
     networks:
       - micro_net
 
+  # =====================================
+  # TEAMS SERVICE
+  # =====================================
   teams-service:
     build:
       context: ./Teams-Service
-      dockerfile: Dockerfile
     container_name: teams-service
     restart: unless-stopped
     environment:
       SPRING_PROFILES_ACTIVE: prod
-      DB_HOST: ${DB_HOST}
-      DB_PORT: ${DB_PORT}
+
+      DB_HOST: postgres
+      DB_PORT: 5432
       DB_NAME: ${POSTGRES_DB}
       DB_USERNAME: ${POSTGRES_USER}
       DB_PASSWORD: ${POSTGRES_PASSWORD}
@@ -138,14 +154,29 @@ services:
     networks:
       - micro_net
 
+  # =====================================
+  # FRONT-END (Angular + NGINX)
+  # =====================================
+  front-end:
+    build:
+      context: ./front-end
+      dockerfile: Dockerfile
+    container_name: front-end
+    restart: unless-stopped
+    ports:
+      - "4200:80"   # EXTERNO:4200 → INTERNO:80
+    depends_on:
+      auth-service:
+        condition: service_started
+    networks:
+      - micro_net
+
+# =====================================
+# VOLUMES & NETWORKS
+# =====================================
 volumes:
   postgres_data:
-  nfs_data:
 
 networks:
   micro_net:
-    name: micro_net
     driver: bridge
-
-
-

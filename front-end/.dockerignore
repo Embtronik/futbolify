@@ -1,0 +1,42 @@
+# Dependencias
+node_modules
+npm-debug.log
+package-lock.json
+
+# Archivos de build
+dist
+.angular
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# Git
+.git
+.gitignore
+
+# Testing
+coverage
+.nyc_output
+
+# Archivos del sistema
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Archivos de entorno (ajustar según necesites)
+.env
+.env.local
+.env.*.local
+
+# Documentación
+*.md
+!README.md
+
+# Configuración local
+.editorconfig
