@@ -14,6 +14,28 @@ services:
     networks:
       - football-team-network
 
+  auth-service:
+    image: auth-service:latest
+    container_name: auth-service
+    profiles:
+      - fullstack
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+    networks:
+      - football-team-network
+
+  team-service:
+    image: team-service:latest
+    container_name: team-service
+    profiles:
+      - fullstack
+    ports:
+      - "8082:8082"
+    restart: unless-stopped
+    networks:
+      - football-team-network
+
 networks:
   football-team-network:
     driver: bridge

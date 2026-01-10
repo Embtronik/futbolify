@@ -14,12 +14,13 @@ import {
   Team,
   TeamMember,
 } from '../models/football.model';
+import { environment } from '../../environments/environment';
 
 @Injectable({
   providedIn: 'root',
 })
 export class TeamService {
-  private readonly API_URL = 'http://localhost:8082/api';
+  private readonly API_URL = environment.teamsApiUrl;
   private readonly http = inject(HttpClient);
 
   // ==========================================

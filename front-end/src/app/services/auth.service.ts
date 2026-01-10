@@ -5,13 +5,14 @@ import { tap, catchError, map } from 'rxjs/operators';
 import { Router } from '@angular/router';
 import { AuthResponse, LoginRequest, RegisterRequest, RefreshTokenRequest } from '../models/auth.model';
 import { User, UpdateUserRequest, ChangePasswordRequest } from '../models/user.model';
+import { environment } from '../../environments/environment';
 
 @Injectable({
   providedIn: 'root'
 })
 export class AuthService {
-  private readonly API_URL = 'http://localhost:8080/api/v1';
-  private readonly OAUTH_URL = 'http://localhost:8080/oauth2/authorization';
+  private readonly API_URL = environment.apiUrl;
+  private readonly OAUTH_URL = environment.oauthUrl;
   
   private http = inject(HttpClient);
   private router = inject(Router);

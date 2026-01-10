@@ -2,12 +2,13 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { Match } from '../models/football.model';
+import { environment } from '../../environments/environment';
 
 @Injectable({
   providedIn: 'root'
 })
 export class MatchService {
-  private readonly API_URL = 'http://localhost:8080/api/v1';
+  private readonly API_URL = environment.apiUrl;
   private http = inject(HttpClient);
 
   /**

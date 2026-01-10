@@ -11,6 +11,7 @@ import {
   CreatePredictionRequest,
   PollInvitation
 } from '../models/football.model';
+import { environment } from '../../environments/environment';
 
 /**
  * Servicio para gestión de pollas (apuestas de marcadores)
@@ -19,7 +20,7 @@ import {
   providedIn: 'root'
 })
 export class PollService {
-  private readonly API_URL = 'http://localhost:8082/api';
+  private readonly API_URL = environment.teamsApiUrl;
   private http = inject(HttpClient);
 
   // ==========================================
