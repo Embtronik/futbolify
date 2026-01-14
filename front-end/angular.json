@@ -37,6 +37,17 @@
             "scripts": []
           },
           "configurations": {
+            "local": {
+              "fileReplacements": [
+                {
+                  "replace": "src/environments/environment.ts",
+                  "with": "src/environments/environment.local.ts"
+                }
+              ],
+              "optimization": false,
+              "extractLicenses": false,
+              "sourceMap": true
+            },
             "production": {
               "budgets": [
                 {
@@ -62,9 +73,15 @@
         },
         "serve": {
           "builder": "@angular-devkit/build-angular:dev-server",
+          "options": {
+            "proxyConfig": "proxy.conf.json"
+          },
           "configurations": {
             "production": {
               "buildTarget": "football-team-manager:build:production"
+            },
+            "local": {
+              "buildTarget": "football-team-manager:build:local"
             },
             "development": {
               "buildTarget": "football-team-manager:build:development"

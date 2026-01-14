@@ -10,8 +10,8 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
 
   // No agregar token a las peticiones de autenticación, OAuth y APIs externas
   const isAuthEndpoint = req.url.includes('/auth/') || req.url.includes('/oauth2/');
-  // Las URLs del proxy local (/api/football) no son externas
-  const isExternalApi = req.url.startsWith('http') && !req.url.includes('localhost') && !req.url.includes('127.0.0.1');
+  // Tratar /api/football como API externa (aunque esté detrás de proxy) para no filtrar JWT propio
+  const isExternalApi = req.url.startsWith('/api/football') || (req.url.startsWith('http') && !req.url.includes('localhost') && !req.url.includes('127.0.0.1'));
   
   // Log para debug
   

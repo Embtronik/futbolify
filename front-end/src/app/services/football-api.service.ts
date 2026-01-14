@@ -35,15 +35,40 @@ export class FootballApiService {
      * API-Football: /leagues?id={leagueId}
      */
     getActiveSeason(leagueId: number): Observable<number | undefined> {
-      const url = `${this.API_URL}/leagues?id=${leagueId}`;
+      // API-Football recomienda filtrar por current=true
+      const url = `${this.API_URL}/leagues?id=${leagueId}&current=true`;
+      if (!environment.production) {
+        console.log(`[FootballApi] GET ${url} (active season)`);
+      }
       return this.http.get<any>(url).pipe(
         map((response: any) => {
           if (response && response.response && response.response[0] && Array.isArray(response.response[0].seasons)) {
             const seasons = response.response[0].seasons;
             const active = seasons.find((s: any) => s.current === true);
+            if (!environment.production) {
+              console.log(`[FootballApi] Active season for league ${leagueId}:`, active?.year);
+            }
             return active?.year;
           }
+          if (!environment.production) {
+            console.warn(`[FootballApi] Unexpected response shape for active season. URL: ${url}`, response);
+          }
           return undefined;
+        }),
+        catchError((error) => {
+          const status = typeof (error as any)?.status === 'number' ? (error as any).status : 'unknown';
+          const statusText = (error as any)?.statusText ?? '';
+          const body = (error as any)?.error;
+          const text = (error as any)?.text;
+          const looksLikeHtml = typeof text === 'string' && /<!doctype html|<html/i.test(text);
+          if (looksLikeHtml) {
+            console.error(
+              `❌ API-Football devolvió HTML (probable index.html). URL: ${url}. ` +
+              `Esto indica que el proxy para /api/football NO está activo o no está aplicando en este servidor.`
+            );
+          }
+          console.error(`❌ Error obteniendo temporada activa. URL: ${url} (status: ${status} ${statusText})`, body ?? error);
+          return of(undefined);
         })
       );
     }
@@ -142,6 +167,10 @@ export class FootballApiService {
     // Usar el parámetro 'next=20' como en el ejemplo de Postman
     const url = `${this.API_URL}/fixtures?league=${leagueId}&season=${currentYear}&next=20`;
 
+    if (!environment.production) {
+      console.log(`[FootballApi] GET ${url} (upcoming fixtures)`);
+    }
+
     return this.http.get<any>(url).pipe(
       map(response => {
 
@@ -195,7 +224,7 @@ export class FootballApiService {
         return fixtures;
       }),
       catchError(error => {
-        console.error('❌ Error obteniendo fixtures:', error);
+        console.error(`❌ Error obteniendo fixtures. URL: ${url}`, error);
         return of(this.getMockFixturesByLeague(leagueId));
       })
     );

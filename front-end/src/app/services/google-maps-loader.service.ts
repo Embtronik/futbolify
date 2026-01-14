@@ -33,8 +33,25 @@ export class GoogleMapsLoaderService {
       script.defer = true;
 
       script.onload = () => {
+        const maps = (window as any).google?.maps;
+        if (!maps) {
+          const error = new Error('Google Maps script loaded, but window.google.maps is not available. Check API key restrictions and enabled APIs.');
+          console.error('❌ Google Maps API cargó, pero google.maps no está disponible', error);
+          reject(error);
+          return;
+        }
+
         this.scriptLoaded = true;
         console.log('✅ Google Maps API cargada exitosamente');
+
+        // Places is required for Autocomplete
+        if (!maps.places) {
+          console.warn(
+            '⚠️ Google Maps cargó, pero la librería Places no está disponible (google.maps.places undefined). ' +
+              'Revisa que Places API esté habilitada y que el API key permita el referrer (localhost/futbolify.local/IP).'
+          );
+        }
+
         resolve();
       };
 

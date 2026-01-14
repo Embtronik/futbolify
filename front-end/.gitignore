@@ -46,3 +46,6 @@ Thumbs.db
 .env
 .env.local
 .env.*.local
+
+# Angular local environment override (untracked)
+/src/environments/environment.local.ts

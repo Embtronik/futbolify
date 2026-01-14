@@ -1,5 +1,6 @@
 import { Component, OnInit, OnDestroy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { HttpErrorResponse } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { interval, Subscription } from 'rxjs';
@@ -591,6 +592,41 @@ interface MatchWithPrediction {
   `]
 })
 export class PollPredictionsComponent implements OnInit, OnDestroy {
+  private getBackendErrorMessage(err: unknown, fallback: string): string {
+    if (err instanceof HttpErrorResponse) {
+      const payload = err.error;
+      if (payload && typeof payload === 'object') {
+        const maybeMessage = (payload as any).message;
+        if (typeof maybeMessage === 'string' && maybeMessage.trim()) {
+          return maybeMessage;
+        }
+        const maybeError = (payload as any).error;
+        if (typeof maybeError === 'string' && maybeError.trim()) {
+          return maybeError;
+        }
+      }
+
+      if (typeof payload === 'string' && payload.trim()) {
+        try {
+          const parsed = JSON.parse(payload);
+          const parsedMessage = (parsed as any)?.message;
+          if (typeof parsedMessage === 'string' && parsedMessage.trim()) {
+            return parsedMessage;
+          }
+        } catch {
+          // ignore JSON parse errors
+        }
+        return payload;
+      }
+
+      if (typeof err.message === 'string' && err.message.trim()) {
+        return err.message;
+      }
+    }
+
+    return fallback;
+  }
+
   private pollService = inject(PollService);
   private route = inject(ActivatedRoute);
   private router = inject(Router);
@@ -732,7 +768,8 @@ export class PollPredictionsComponent implements OnInit, OnDestroy {
       error: (err) => {
         console.error('Error saving prediction:', err);
         this.savingPrediction = null;
-        alert('Error al guardar el pronóstico. Por favor intenta de nuevo.');
+        const msg = this.getBackendErrorMessage(err, 'Error al guardar el pronóstico. Por favor intenta de nuevo.');
+        alert(msg);
       }
     });
   }

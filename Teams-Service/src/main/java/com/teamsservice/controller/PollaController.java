@@ -19,6 +19,18 @@ import java.util.List;
 public class PollaController {
     private final PollaService pollaService;
 
+    /**
+     * POST /api/pollas - Crear una nueva polla
+     */
+    @PostMapping
+    public ResponseEntity<PollaResponse> crearPolla(
+            @Valid @RequestBody PollaCreateRequest request,
+            @AuthenticationPrincipal UserPrincipal userPrincipal) {
+        log.info("Creating polla '{}' by user {}", request.getNombre(), userPrincipal.getEmail());
+        PollaResponse response = pollaService.crearPolla(request, userPrincipal.getEmail());
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
     /* ...resto de endpoints y lógica existente...
      * GET /api/pollas/mis-pollas - Obtener todas las pollas del usuario (creadas o como participante)
      */
@@ -110,6 +122,21 @@ public class PollaController {
     }
 
     /**
+     * GET /api/pollas/{id}/mis-pronosticos - Obtiene los pronósticos del usuario autenticado para la polla
+     */
+    @GetMapping("/{id}/mis-pronosticos")
+    public ResponseEntity<List<PronosticoResponse>> getMisPronosticos(
+            @PathVariable Long id,
+            @AuthenticationPrincipal UserPrincipal userPrincipal) {
+
+        log.info("Getting user's forecasts for polla {} by user {}", id, userPrincipal.getEmail());
+
+        List<PronosticoResponse> responses = pollaService.getMisPronosticos(id, userPrincipal.getEmail());
+
+        return ResponseEntity.ok(responses);
+    }
+
+    /**
      * POST /api/pollas/{id}/pronosticos - Registrar o actualizar pronóstico
      */
     @PostMapping("/{id}/pronosticos")
@@ -123,6 +150,23 @@ public class PollaController {
         PronosticoResponse response = pollaService.registrarPronostico(id, request, userPrincipal.getEmail());
         
         return ResponseEntity.ok(response);
+    }
+
+    /**
+     * POST /api/pollas/{id}/pronosticos/batch - Registrar o actualizar múltiples pronósticos en un solo request
+     */
+    @PostMapping("/{id}/pronosticos/batch")
+    public ResponseEntity<List<PronosticoResponse>> registrarPronosticosBatch(
+            @PathVariable Long id,
+            @Valid @RequestBody List<PronosticoRequest> requests,
+            @AuthenticationPrincipal UserPrincipal userPrincipal) {
+
+        log.info("User {} registering batch forecasts ({} items) for polla {}",
+                userPrincipal.getEmail(), requests != null ? requests.size() : 0, id);
+
+        List<PronosticoResponse> responses = pollaService.registrarPronosticosBatch(id, requests, userPrincipal.getEmail());
+
+        return ResponseEntity.ok(responses);
     }
 
         /**

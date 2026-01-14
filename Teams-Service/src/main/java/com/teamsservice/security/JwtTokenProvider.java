@@ -22,15 +22,58 @@ public class JwtTokenProvider {
     @Value("${app.jwt.secret}")
     private String jwtSecret;
 
+    // Toggle to control if the secret is Base64-encoded when no prefix is provided (default false).
+    // Prefer explicit prefixes: base64:... or hex:...
+    @Value("${app.jwt.decode-base64:false}")
+    private boolean decodeBase64;
+
     private SecretKey getSigningKey() {
         log.debug("Using JWT secret (first 20 chars): {}...", jwtSecret.substring(0, Math.min(20, jwtSecret.length())));
         log.debug("JWT secret length: {}", jwtSecret.length());
-        
-        // Decodificar el secreto de BASE64 (igual que auth-service)
-        byte[] keyBytes = Decoders.BASE64.decode(jwtSecret);
-        log.debug("Decoded key bytes length: {}", keyBytes.length);
-        
+
+        byte[] keyBytes;
+        String trimmed = jwtSecret != null ? jwtSecret.trim() : "";
+
+        // Prefix handling aligned with auth-service:
+        // - base64:AAAA...
+        // - hex:404E...
+        if (trimmed.regionMatches(true, 0, "base64:", 0, "base64:".length())) {
+            String base64 = trimmed.substring("base64:".length()).trim();
+            keyBytes = Decoders.BASE64.decode(base64);
+            log.debug("Decoded via base64: prefix, key bytes length: {}", keyBytes.length);
+        } else if (trimmed.regionMatches(true, 0, "hex:", 0, "hex:".length())) {
+            String hex = trimmed.substring("hex:".length()).trim();
+            if (!hex.matches("^[0-9a-fA-F]+$") || (hex.length() % 2 != 0)) {
+                throw new IllegalStateException("JWT_SECRET with hex: prefix is invalid (must be even length and hex-only)");
+            }
+            keyBytes = hexToBytes(hex);
+            log.debug("Decoded via hex: prefix, key bytes length: {}", keyBytes.length);
+        } else if (decodeBase64) {
+            // Backward-compatibility fallback: treat as Base64 if property explicitly enabled
+            keyBytes = Decoders.BASE64.decode(trimmed);
+            log.debug("Decoded via property decode-base64=true, key bytes length: {}", keyBytes.length);
+        } else {
+            // Default: raw UTF-8 bytes
+            keyBytes = trimmed.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+            log.debug("Using RAW key bytes length: {}", keyBytes.length);
+        }
+
+        // Minimum sanity check (HS256 requires >= 32 bytes). HS512 may require >= 64 bytes; JJWT will enforce.
+        if (keyBytes.length < 32) {
+            throw new IllegalStateException("JWT_SECRET must be at least 32 bytes. Use prefixes base64: or hex: if needed.");
+        }
+
         return Keys.hmacShaKeyFor(keyBytes);
+    }
+
+    private static byte[] hexToBytes(String hex) {
+        int len = hex.length();
+        byte[] data = new byte[len / 2];
+        for (int i = 0; i < len; i += 2) {
+            data[i / 2] = (byte) ((Character.digit(hex.charAt(i), 16) << 4)
+                    + Character.digit(hex.charAt(i + 1), 16));
+        }
+        return data;
     }
 
     public Claims getClaimsFromToken(String token) {

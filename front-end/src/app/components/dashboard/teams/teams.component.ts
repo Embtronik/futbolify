@@ -829,25 +829,44 @@ export class TeamsComponent implements AfterViewInit {
     console.log('🗺️ Iniciando autocomplete...', { isEdit, inputElement: inputElement?.nativeElement });
     
     // Cargar Google Maps API si no está cargada
-    this.googleMapsLoader.load().then(() => {
+    this.googleMapsLoader.load().then(async () => {
       if (!this.googleMapsLoader.isLoaded()) {
-        console.error('❌ Google Maps API no está disponible después de cargar');
+        console.error('Google Maps API no está disponible después de cargar');
         return;
       }
 
       if (!inputElement || !inputElement.nativeElement) {
-        console.error('❌ Input element no está disponible');
+        console.error('Input element no está disponible');
         return;
       }
 
-      console.log('✅ Google Maps API cargada correctamente');
+      console.log('Google Maps API cargada correctamente');
+
+      // Asegurar que Places esté disponible (Autocomplete depende de Places)
+      const maps = (window as any).google?.maps;
+      if (maps?.importLibrary) {
+        try {
+          await maps.importLibrary('places');
+        } catch (e) {
+          console.warn('No se pudo cargar la librería Places via importLibrary', e);
+        }
+      }
+
+      if (!maps?.places?.Autocomplete) {
+        console.error(
+          'Google Places Autocomplete no está disponible. ' +
+            'Causas típicas: Places API no habilitada en Google Cloud o restricciones del API key (HTTP referrers) ' +
+            'para este dominio (localhost/futbolify.com.co/IP).'
+        );
+        return;
+      }
 
       const autocomplete = new google.maps.places.Autocomplete(inputElement.nativeElement, {
         types: ['address'],
         fields: ['formatted_address', 'geometry', 'place_id']
       });
 
-      console.log('✅ Autocomplete creado exitosamente');
+      console.log('Autocomplete creado exitosamente');
 
       // Escuchar cuando el usuario selecciona una sugerencia de Google
       autocomplete.addListener('place_changed', () => {

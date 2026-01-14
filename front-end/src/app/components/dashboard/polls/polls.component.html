@@ -53,55 +53,53 @@
 
   <!-- Polls Grid -->
   <div class="polls-grid" *ngIf="!loading && polls.length > 0">
-    <div class="poll-card betting-style" *ngFor="let poll of polls" (click)="openPollDetail(poll)">
-      <div class="poll-card-top">
-        <div class="poll-card-title">
-          <h3>{{ poll.nombre }}</h3>
-          <span class="badge" [ngClass]="getStatusBadgeClass(poll.estado)">
-            {{ getStatusText(poll.estado) }}
-          </span>
+    <ng-container *ngFor="let poll of polls">
+      <div class="poll-card betting-style" *ngIf="poll as p" (click)="openPollDetail(p)">
+        <div class="poll-card-top">
+          <div class="poll-card-title">
+            <h3>{{ p.nombre }}</h3>
+            <span class="badge" [ngClass]="getStatusBadgeClass(p.estado)">
+              {{ getStatusText(p.estado) }}
+            </span>
+          </div>
+          <div class="poll-card-desc">{{ p.descripcion || 'Sin descripción' }}</div>
         </div>
-        <div class="poll-card-desc">{{ poll.descripcion || 'Sin descripción' }}</div>
-      </div>
-      <div class="poll-card-stats">
-        <div class="stat-block">
-          <span class="stat-label">Partidos</span>
-          <span class="stat-value">{{ poll.partidosCount || 0 }}</span>
+        <div class="poll-card-stats">
+          <div class="stat-block">
+            <span class="stat-label">Partidos</span>
+            <span class="stat-value">{{ p.totalPartidos ?? p.partidos?.length ?? p.partidosCount ?? 0 }}</span>
+          </div>
+          <div class="stat-block">
+            <span class="stat-label">Participantes</span>
+            <span class="stat-value">{{ p.totalParticipantes ?? p.participantes?.length ?? p.participantesCount ?? 0 }}</span>
+          </div>
         </div>
-        <div class="stat-block">
-          <span class="stat-label">Invitados</span>
-          <span class="stat-value">{{ poll.invitadosCount || 0 }}</span>
-        </div>
-        <div class="stat-block">
-          <span class="stat-label">Participantes</span>
-          <span class="stat-value">{{ poll.participantesCount || 0 }}</span>
-        </div>
-      </div>
-      <div class="poll-card-footer">
-        <div class="actions">
-          <button 
-            class="btn-icon btn-activate" 
-            *ngIf="poll.estado === 'CREADA'"
-            (click)="activatePoll(poll, $event); $event.stopPropagation()"
-            title="Activar polla">
-            ✓
-          </button>
-          <button 
-            class="btn-icon btn-revert" 
-            *ngIf="poll.estado === 'ABIERTA'"
-            (click)="revertPollToCreated(poll, $event); $event.stopPropagation()"
-            title="Volver a editable">
-            ⬅️
-          </button>
-          <button 
-            class="btn-icon btn-delete" 
-            (click)="deletePoll(poll, $event); $event.stopPropagation()"
-            title="Eliminar">
-            🗑️
-          </button>
+        <div class="poll-card-footer">
+          <div class="actions">
+            <button 
+              class="btn-icon btn-activate" 
+              *ngIf="p.estado === 'CREADA'"
+              (click)="activatePoll(p, $event); $event.stopPropagation()"
+              title="Activar polla">
+              ✓
+            </button>
+            <button 
+              class="btn-icon btn-revert" 
+              *ngIf="p.estado === 'ABIERTA'"
+              (click)="revertPollToCreated(p, $event); $event.stopPropagation()"
+              title="Volver a editable">
+              ⬅️
+            </button>
+            <button 
+              class="btn-icon btn-delete" 
+              (click)="deletePoll(p, $event); $event.stopPropagation()"
+              title="Eliminar">
+              🗑️
+            </button>
+          </div>
         </div>
       </div>
-    </div>
+    </ng-container>
   </div>
 </div>
 
@@ -228,12 +226,8 @@
         <p>{{ selectedPoll?.descripcion }}</p>
         <div class="detail-stats">
           <div class="stat-card">
-            <span class="stat-label">Invitados</span>
-            <span class="stat-value">{{ selectedPoll?.invitadosCount || 0 }}</span>
-          </div>
-          <div class="stat-card">
             <span class="stat-label">Aceptaron</span>
-            <span class="stat-value">{{ selectedPoll?.participantesCount || 0 }}</span>
+            <span class="stat-value">{{ selectedPoll?.totalParticipantes ?? selectedPoll?.participantes?.length ?? selectedPoll?.participantesCount ?? 0 }}</span>
           </div>
           <div class="stat">
             <span class="stat-label">Partidos</span>
@@ -292,7 +286,7 @@
       <button 
         class="btn btn-outline" 
         *ngIf="selectedPoll?.estado === 'ABIERTA'"
-        (click)="revertPollToCreated(selectedPoll!)">
+         (click)="revertPollToCreated(selectedPoll, $event)">
         Volver a editable
       </button>
     </div>
@@ -316,12 +310,8 @@
         <p>{{ selectedPoll?.descripcion }}</p>
         <div class="detail-stats">
           <div class="stat-card">
-            <span class="stat-label">Invitados</span>
-            <span class="stat-value">{{ selectedPoll?.invitadosCount || 0 }}</span>
-          </div>
-          <div class="stat-card">
             <span class="stat-label">Aceptaron</span>
-            <span class="stat-value">{{ selectedPoll?.participantesCount || 0 }}</span>
+            <span class="stat-value">{{ selectedPoll?.totalParticipantes ?? selectedPoll?.participantes?.length ?? selectedPoll?.participantesCount ?? 0 }}</span>
           </div>
           <div class="stat">
             <span class="stat-label">Partidos</span>
@@ -350,43 +340,53 @@
                 </tr>
               </thead>
               <tbody>
-                <tr *ngFor="let match of pollMatches">
-                  <td class="team-cell">
-                    <img [src]="match.equipoLocalLogo || 'assets/team-placeholder.png'" [alt]="match.equipoLocal" class="team-logo">
-                    <span>{{ match.equipoLocal }}</span>
-                  </td>
-                  <td class="vs-cell">VS</td>
-                  <td class="team-cell">
-                    <img [src]="match.equipoVisitanteLogo || 'assets/team-placeholder.png'" [alt]="match.equipoVisitante" class="team-logo">
-                    <span>{{ match.equipoVisitante }}</span>
-                  </td>
-                  <td class="date-cell">{{ formatDateTime(match.fechaHoraPartido) }}</td>
-                  <td>
-                    <input type="number" min="0" [(ngModel)]="match.golesLocalPronosticado" name="golesLocal_{{match.id}}" placeholder="-" required style="width: 50px;">
-                  </td>
-                  <td>
-                    <input type="number" min="0" [(ngModel)]="match.golesVisitantePronosticado" name="golesVisitante_{{match.id}}" placeholder="-" required style="width: 50px;">
-                  </td>
-                </tr>
+                <ng-container *ngFor="let match of pollMatches">
+                  <tr [class.locked-row]="isPredictionLocked(match)">
+                    <td class="team-cell">
+                      <img [src]="match.equipoLocalLogo || 'assets/team-placeholder.png'" [alt]="match.equipoLocal" class="team-logo">
+                      <span>{{ match.equipoLocal }}</span>
+                    </td>
+                    <td class="vs-cell">VS</td>
+                    <td class="team-cell">
+                      <img [src]="match.equipoVisitanteLogo || 'assets/team-placeholder.png'" [alt]="match.equipoVisitante" class="team-logo">
+                      <span>{{ match.equipoVisitante }}</span>
+                    </td>
+                    <td class="date-cell">{{ formatDateTime(match.fechaHoraPartido) }}</td>
+                    <td>
+                      <input type="number" min="0" [(ngModel)]="match.golesLocalPronosticado" name="golesLocal_{{match.id}}" placeholder="-" required style="width: 50px;" [disabled]="isPredictionLocked(match)">
+                    </td>
+                    <td>
+                      <input type="number" min="0" [(ngModel)]="match.golesVisitantePronosticado" name="golesVisitante_{{match.id}}" placeholder="-" required style="width: 50px;" [disabled]="isPredictionLocked(match)">
+                    </td>
+                  </tr>
+                  <tr *ngIf="getPredictionRowMessage(match) as msg" class="prediction-row-message">
+                    <td colspan="6">
+                      <div class="error">{{ msg }}</div>
+                    </td>
+                  </tr>
+                </ng-container>
               </tbody>
             </table>
             <div class="prediction-table-footer"></div>
           </form>
         </div>
       </div>
+
+      <!-- Success/Error Messages (inside modal so they're visible) -->
+      <div class="alert alert-success" *ngIf="successMessage">{{ successMessage }}</div>
+      <div class="alert alert-error" *ngIf="errorMessage">{{ errorMessage }}</div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-outline" (click)="closePollDetail()">Cerrar</button>
       <button 
         class="btn btn-primary"
         *ngIf="selectedPoll?.estado === 'ABIERTA' && pollMatches.length > 0"
-        (click)="saveAllPredictions()">
-        Guardar Pronósticos
+        (click)="saveAllPredictions()"
+        [disabled]="savingPredictions || loading">
+        {{ savingPredictions ? 'Guardando...' : 'Guardar Pronósticos' }}
       </button>
     </div>
   </div>
-</div>
-
 <!-- Modal Agregar Partido -->
 <div class="modal-overlay" *ngIf="showAddMatchModal" (click)="closeAddMatchModal()">
   <div class="modal-content large" (click)="$event.stopPropagation()">
@@ -442,7 +442,7 @@
                     </button>
                   </td>
                 </tr>
-              </tbody>
+                       (click)="activatePoll(selectedPoll, $event)">
             </table>
           </div>
 
@@ -458,7 +458,7 @@
         <!-- Paso 2: Seleccionar Partido -->
         <div class="form-section" *ngIf="addMatchStep === 'fixtures' && selectedLeague">
           <div class="selected-league-header">
-            <img [src]="selectedLeague.logo" [alt]="selectedLeague.name">
+            <img [src]="selectedLeague.logo" [alt]="selectedLeague.name" class="selected-league-logo">
             <div>
               <h3>{{ selectedLeague.name }}</h3>
               <p>{{ selectedLeague.country }}</p>
@@ -471,23 +471,23 @@
           <div class="loading" *ngIf="loadingFixtures">
             <p>⚽ Cargando partidos...</p>
           </div>
-          <div class="fixtures-list" *ngIf="!loadingFixtures && upcomingFixtures.length > 0">
+          <div class="fixtures-list upcoming-fixtures" *ngIf="!loadingFixtures && upcomingFixtures.length > 0">
             <div class="fixtures-list-modern">
               <div class="fixture-card" *ngFor="let fixture of upcomingFixtures" (click)="selectFixture(fixture)">
-                <div class="fixture-card__row fixture-card__row--clickable">
-                  <div class="fixture-col fixture-col--team">
+                <div class="fixture-card__row">
+                  <div class="fixture-col fixture-col--home">
                     <img class="fixture-logo" [src]="fixture.teams.home.logo" [alt]="fixture.teams.home.name">
                     <span class="fixture-team-name">{{ fixture.teams.home.name }}</span>
                   </div>
-                  <div class="fixture-col fixture-col--center-info">
+                  <div class="fixture-col fixture-col--center">
                     <span class="fixture-date-pill">
                       {{ fixture.fixture.date | date:'dd MMM' }}<br>
                       <span class="fixture-date-time">{{ fixture.fixture.date | date:'HH:mm' }}</span>
                     </span>
                     <span class="fixture-venue-inline" *ngIf="fixture.fixture.venue">🏟 {{ fixture.fixture.venue.name }}</span>
                   </div>
-                  <div class="fixture-col fixture-col--team fixture-team-name--right">
-                    <span class="fixture-team-name">{{ fixture.teams.away.name }}</span>
+                  <div class="fixture-col fixture-col--away">
+                    <span class="fixture-team-name fixture-team-name--right">{{ fixture.teams.away.name }}</span>
                     <img class="fixture-logo" [src]="fixture.teams.away.logo" [alt]="fixture.teams.away.name">
                   </div>
                 </div>
@@ -503,19 +503,19 @@
             <div class="fixtures-list-modern">
               <div class="fixture-card" *ngFor="let fixture of selectedFixtures" (click)="removeSelectedFixture(fixture)" title="Quitar partido de la selección">
                 <div class="fixture-card__row">
-                  <div class="fixture-col fixture-col--team">
+                  <div class="fixture-col fixture-col--home">
                     <img class="fixture-logo" [src]="fixture.teams.home.logo" [alt]="fixture.teams.home.name">
                     <span class="fixture-team-name">{{ fixture.teams.home.name }}</span>
                   </div>
-                  <div class="fixture-col fixture-col--center-info">
+                  <div class="fixture-col fixture-col--center">
                     <span class="fixture-date-pill">
                       {{ fixture.fixture.date | date:'dd MMM' }}<br>
                       <span class="fixture-date-time">{{ fixture.fixture.date | date:'HH:mm' }}</span>
                     </span>
                     <span class="fixture-venue-inline" *ngIf="fixture.fixture.venue">🏟 {{ fixture.fixture.venue.name }}</span>
                   </div>
-                  <div class="fixture-col fixture-col--team fixture-team-name--right">
-                    <span class="fixture-team-name">{{ fixture.teams.away.name }}</span>
+                  <div class="fixture-col fixture-col--away">
+                    <span class="fixture-team-name fixture-team-name--right">{{ fixture.teams.away.name }}</span>
                     <img class="fixture-logo" [src]="fixture.teams.away.logo" [alt]="fixture.teams.away.name">
                   </div>
                 </div>

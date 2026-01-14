@@ -156,9 +156,18 @@ export interface Poll {
   montoEntrada: number;
   estado: 'CREADA' | 'ABIERTA' | 'CERRADA' | 'FINALIZADA';
   gruposInvitados?: number[]; // IDs de grupos seleccionados
+
+  // Back-compat (older backend payloads)
   participantesCount?: number; // Participantes que aceptaron
   invitadosCount?: number; // Total de invitados (incluyendo pendientes)
   partidosCount?: number;
+
+  // Current backend payloads
+  totalPartidos?: number;
+  totalParticipantes?: number;
+  partidos?: PollMatch[];
+  participantes?: PollParticipant[];
+
   createdAt?: Date | string;
   updatedAt?: Date | string;
 }
@@ -187,6 +196,11 @@ export interface PollMatch {
   equipoVisitanteLogo?: string;
   fechaHoraPartido: Date | string;
   fechaLimitePronostico: Date | string; // fechaHoraPartido - 5 minutos
+  // Algunos backends exponen flags adicionales
+  partidoFinalizado?: boolean;
+  puedePronosticar?: boolean;
+  // Respuesta enriquecida puede incluir los pronósticos existentes
+  pronosticos?: PollPrediction[];
   golesLocal?: number; // Resultado real
   golesVisitante?: number; // Resultado real
   liga?: string;
@@ -202,6 +216,15 @@ export interface PollPrediction {
   nombreParticipante?: string;
   golesLocalPronosticado: number;
   golesVisitantePronosticado: number;
+  // Campos opcionales en payloads nuevos
+  fechaActualizacion?: Date | string;
+  puntosObtenidos?: number;
+  userInfo?: {
+    id: number;
+    email: string;
+    nombre?: string;
+    avatarUrl?: string;
+  };
   puntos?: number; // Puntos obtenidos (calculado después del partido)
   fechaRegistro: Date | string;
   createdAt?: Date | string;

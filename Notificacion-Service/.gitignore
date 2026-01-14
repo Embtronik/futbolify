@@ -1,0 +1,18 @@
+# Ignore local environment files
+.env
+.env.*
+
+# Maven build outputs
+/target/
+
+# IDE/editor files
+/.idea/
+/.vscode/
+*.iml
+
+# Logs
+*.log
+
+# OS junk
+.DS_Store
+Thumbs.db

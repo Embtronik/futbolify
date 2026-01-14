@@ -186,6 +186,9 @@ export class PollService {
    * (debe ser antes del límite de 5 minutos)
    */
   canPredict(match: PollMatch): boolean {
+    if (typeof (match as any)?.puedePronosticar === 'boolean') {
+      return (match as any).puedePronosticar;
+    }
     const now = new Date();
     const limitDate = new Date(match.fechaLimitePronostico);
     return now < limitDate;

@@ -147,6 +147,13 @@
             <artifactId>spring-boot-starter-webflux</artifactId>
         </dependency>
         
+        <!-- Load .env into Spring Environment (local dev) -->
+        <dependency>
+            <groupId>me.paulschwarz</groupId>
+            <artifactId>spring-dotenv</artifactId>
+            <version>4.0.0</version>
+        </dependency>
+
         <!-- Testing -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

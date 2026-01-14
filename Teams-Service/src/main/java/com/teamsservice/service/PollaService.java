@@ -13,7 +13,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Service
 @RequiredArgsConstructor
@@ -26,6 +28,65 @@ public class PollaService {
     private final TeamRepository teamRepository;
     private final TeamMemberRepository teamMemberRepository;
     private final AuthServiceClient authServiceClient;
+    /**
+     * Crea una nueva polla, valida grupos e invitados y agrega al creador como participante aceptado.
+     */
+    @Transactional
+    public PollaResponse crearPolla(PollaCreateRequest request, String userEmail) {
+    log.info("Creating polla '{}' by user {}", request.getNombre(), userEmail);
+
+    // Validar grupos y que el usuario sea miembro de todos
+    List<Team> gruposSeleccionados = validateAndGetGrupos(request.getGruposIds(), userEmail);
+
+    // Validar que los invitados pertenezcan al menos a uno de los grupos
+    validateInvitados(request.getEmailsInvitados(), gruposSeleccionados);
+
+    // Construir entidad base
+    Polla polla = Polla.builder()
+        .nombre(request.getNombre())
+        .descripcion(request.getDescripcion())
+        .creadorEmail(userEmail)
+        .fechaInicio(request.getFechaInicio())
+        .montoEntrada(request.getMontoEntrada())
+        .estado(Polla.PollaEstado.CREADA)
+        .build();
+
+    // Asociar grupos invitados
+    polla.setGruposInvitados(gruposSeleccionados);
+
+    // Crear participantes (invitados)
+    List<PollaParticipante> participantes = request.getEmailsInvitados().stream()
+        .distinct()
+        .map(email -> PollaParticipante.builder()
+            .polla(polla)
+            .emailUsuario(email)
+            .estado(email.equalsIgnoreCase(userEmail)
+                ? PollaParticipante.EstadoParticipante.ACEPTADO
+                : PollaParticipante.EstadoParticipante.INVITADO)
+            .build())
+        .collect(Collectors.toList());
+
+    // Asegurar que el creador esté como ACEPTADO incluso si no está en la lista de invitados
+    boolean creadorListado = participantes.stream()
+        .anyMatch(p -> p.getEmailUsuario().equalsIgnoreCase(userEmail));
+    if (!creadorListado) {
+        participantes.add(PollaParticipante.builder()
+            .polla(polla)
+            .emailUsuario(userEmail)
+            .estado(PollaParticipante.EstadoParticipante.ACEPTADO)
+            .build());
+    }
+
+    polla.setParticipantes(participantes);
+
+    // Persistir sin reasignar la variable capturada en lambdas
+    Polla saved = pollaRepository.save(polla);
+    log.info("Polla creada con id {}", saved.getId());
+
+    PollaResponse response = mapToResponse(saved);
+    response.setEmailUsuarioAutenticado(userEmail);
+    return response;
+    }
 
     /**
      * Cambia el estado de la polla a ABIERTA si está en estado CREADA y el usuario es el creador
@@ -68,7 +129,7 @@ public class PollaService {
     }
 
     @Transactional(readOnly = true)
-        public List<PollaResponse> getMisPollas(String userEmail) {
+    public List<PollaResponse> getMisPollas(String userEmail) {
         log.info("Getting all pollas for user: {}", userEmail);
 
         // Pollas creadas por el usuario
@@ -77,13 +138,10 @@ public class PollaService {
         // Pollas donde es participante
         List<Polla> pollasParticipante = pollaRepository.findPollasWhereUserIsParticipant(userEmail);
 
-        // Combinar y eliminar duplicados
-        List<Polla> todasLasPollas = pollasCreadas.stream()
+        // Combinar y eliminar duplicados sin capturar variables mutables en lambdas
+        List<Polla> todasLasPollas = Stream.concat(pollasCreadas.stream(), pollasParticipante.stream())
+            .distinct()
             .collect(Collectors.toList());
-        
-        pollasParticipante.stream()
-            .filter(p -> !todasLasPollas.contains(p))
-            .forEach(todasLasPollas::add);
 
         return todasLasPollas.stream()
             .map(polla -> {
@@ -92,7 +150,7 @@ public class PollaService {
                 return resp;
             })
             .collect(Collectors.toList());
-        }
+    }
 
     @Transactional
     public void aceptarInvitacion(Long pollaId, String userEmail) {
@@ -172,8 +230,10 @@ public class PollaService {
         log.info("User {} registering forecast for match {} in polla {}", 
                  userEmail, request.getPollaPartidoId(), pollaId);
 
-        // Verificar que el usuario es participante aceptado
-        if (!participanteRepository.isUserAceptado(pollaId, userEmail)) {
+        // Verificar que el usuario es participante aceptado o es el creador de la polla
+        boolean esCreador = pollaRepository.isUserCreator(pollaId, userEmail);
+        boolean esParticipanteAceptado = participanteRepository.isUserAceptado(pollaId, userEmail);
+        if (!esCreador && !esParticipanteAceptado) {
             throw new UnauthorizedException("Debes ser participante aceptado para pronosticar");
         }
 
@@ -203,6 +263,23 @@ public class PollaService {
         return mapPronosticoToResponse(pronostico);
     }
 
+    /**
+     * Registra o actualiza múltiples pronósticos en un solo request
+     */
+    @Transactional
+    public List<PronosticoResponse> registrarPronosticosBatch(Long pollaId, List<PronosticoRequest> requests, String userEmail) {
+        log.info("User {} registering batch forecasts ({} items) for polla {}", userEmail, requests != null ? requests.size() : 0, pollaId);
+
+        if (requests == null || requests.isEmpty()) {
+            throw new BusinessRuleException("La lista de pronósticos no puede estar vacía");
+        }
+
+        // Reutilizar la lógica existente para cada pronóstico
+        return requests.stream()
+                .map(req -> registrarPronostico(pollaId, req, userEmail))
+                .collect(Collectors.toList());
+    }
+
     @Transactional(readOnly = true)
     public List<PartidoResponse> getPartidos(Long pollaId, String userEmail) {
         log.info("Getting matches for polla {} by user {}", pollaId, userEmail);
@@ -216,6 +293,28 @@ public class PollaService {
                 .map(this::mapPartidoToResponse)
                 .collect(Collectors.toList());
     }
+
+            /**
+             * Obtiene los pronósticos del usuario autenticado para todos los partidos de una polla
+             */
+            @Transactional(readOnly = true)
+            public List<PronosticoResponse> getMisPronosticos(Long pollaId, String userEmail) {
+            log.info("Getting user's forecasts for polla {} by user {}", pollaId, userEmail);
+
+            // Verificar acceso
+            validateUserAccess(pollaId, userEmail);
+
+            // Obtener partidos y filtrar el pronóstico del usuario por cada partido
+            List<PollaPartido> partidos = partidoRepository.findByPollaIdOrderByFechaHoraPartidoAsc(pollaId);
+
+            return partidos.stream()
+                .map(p -> pronosticoRepository
+                    .findByPollaPartidoIdAndEmailParticipante(p.getId(), userEmail)
+                    .orElse(null))
+                .filter(Objects::nonNull)
+                .map(this::mapPronosticoToResponse)
+                .collect(Collectors.toList());
+            }
 
     // Métodos auxiliares de validación
 

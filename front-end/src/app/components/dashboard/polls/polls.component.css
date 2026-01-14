@@ -65,6 +65,21 @@
   border: 1.5px solid #38bdf8;
   outline: none;
 }
+
+.prediction-table input[type="number"][disabled] {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.prediction-table .locked-row {
+  opacity: 0.8;
+}
+
+.prediction-row-message td {
+  padding-top: 0;
+  padding-bottom: 10px;
+  text-align: left;
+}
 .prediction-table-footer {
   margin-top: 10px;
 }
@@ -478,6 +493,8 @@
   box-shadow: 0 2px 10px rgba(0,0,0,0.07);
   padding: 14px 18px;
   margin-bottom: 18px;
+  width: 100%;
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
   gap: 0;
@@ -490,8 +507,11 @@
   margin-bottom: 0;
 }
 .fixture-card:hover {
-  box-shadow: 0 4px 18px rgba(0,0,0,0.13);
+  /* Usar resaltado interno para evitar que el "marco" se salga o se recorte en contenedores con scroll */
   border: 1.5px solid #b3c0d1;
+  box-shadow:
+    0 0 0 2px #b3c0d1 inset,
+    0 2px 10px rgba(0,0,0,0.07);
 }
 .fixture-card__row {
   display: grid;
@@ -500,6 +520,7 @@
   gap: 0;
   min-height: 38px;
   padding: 0;
+  width: 100%;
 }
 .fixture-col {
   display: flex;
@@ -534,6 +555,24 @@
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 80px;
+}
+
+/* Próximos Partidos: dar más ancho a cada fila sin afectar seleccionados */
+.upcoming-fixtures .fixture-card__row {
+  grid-template-columns: 1.5fr 0.9fr 1.5fr;
+}
+
+.upcoming-fixtures .fixture-team-name {
+  max-width: 140px;
+}
+
+/* Próximos Partidos: evitar que el margin se "encime" usando gap */
+.upcoming-fixtures .fixtures-list-modern {
+  gap: 18px;
+}
+
+.upcoming-fixtures .fixture-card {
+  margin-bottom: 0;
 }
 .fixture-team-name--right {
   text-align: right;
@@ -572,6 +611,17 @@
   font-size: 11px;
   color: #667085;
   font-weight: 400;
+}
+
+.fixture-venue-inline {
+  display: inline-block;
+  margin-top: 4px;
+  font-size: 12px;
+  color: #667085;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
 }
 .fixture-card__venue {
   text-align: center;
@@ -1427,4 +1477,69 @@
 
 .leagues-table-container::-webkit-scrollbar-thumb:hover {
   background: #a8a8a8;
+}
+
+/* Agregar Partido (fixtures step) - header + layout */
+.selected-league-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  background: #f8fafc;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  margin-bottom: 12px;
+}
+
+.selected-league-logo {
+  width: 44px;
+  height: 44px;
+  object-fit: contain;
+  flex: 0 0 44px;
+}
+
+.selected-league-header > div {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.selected-league-header h3 {
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.selected-league-header p {
+  margin: 2px 0 0 0;
+  color: var(--gray-color);
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Dejar espacio a la lista de partidos dentro del modal */
+.modal-content.large .fixtures-list-modern {
+  /* Sin límite de alto: usa el máximo disponible del modal.
+     El scroll lo maneja .modal-body (evita doble scroll). */
+  max-height: none;
+  overflow: visible;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px 6px;
+}
+
+@media (max-width: 768px) {
+  .selected-league-logo {
+    width: 36px;
+    height: 36px;
+    flex-basis: 36px;
+  }
+
+  .modal-content.large .fixtures-list-modern {
+    max-height: none;
+  }
 }
