@@ -303,6 +303,7 @@ export class PollsComponent implements OnInit {
   loadData(): void {
       // LOG para depuración de filtrado
       // Se limpia en producción
+    console.log('[DEBUG] loadData() llamado en PollsComponent');
     this.loading = true;
     (this.teamService as any).getMyPolls().subscribe({
       next: (allPolls: Poll[]) => {
@@ -373,6 +374,7 @@ export class PollsComponent implements OnInit {
     // Cargar ligas disponibles
     this.footballApiService.getLeagues().subscribe({
       next: (leagues) => {
+        console.log('✅ Ligas cargadas:', (leagues || []).length, leagues);
         this.footballLeagues = leagues;
         this.filteredLeagues = leagues;
       },
