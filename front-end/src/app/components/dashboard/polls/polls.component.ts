@@ -587,6 +587,7 @@ export class PollsComponent implements OnInit {
   // ========== Gestión de Partidos ==========
 
   openPollDetail(poll: Poll): void {
+    console.log('[DEBUG] openPollDetail called with poll:', poll);
     if (!poll || typeof (poll as any).id !== 'number') return;
     this.selectedPoll = poll;
     if (!this.currentUserEmail) {
@@ -620,6 +621,7 @@ export class PollsComponent implements OnInit {
   }
 
   closePollDetail(): void {
+    console.log('[DEBUG] closePollDetail called');
     this.showPollDetailModal = false;
     this.selectedPoll = null;
     this.pollMatches = [];
