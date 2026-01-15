@@ -1,14 +1,19 @@
 package com.teamsservice.service;
 
+import com.teamsservice.dto.PageResponse;
 import com.teamsservice.dto.TeamCreateRequest;
 import com.teamsservice.dto.TeamEventDto;
 import com.teamsservice.dto.TeamResponse;
 import com.teamsservice.entity.Team;
 import com.teamsservice.entity.TeamStatus;
+import com.teamsservice.entity.TeamMember;
 import com.teamsservice.exception.DuplicateResourceException;
 import com.teamsservice.exception.ResourceNotFoundException;
 import com.teamsservice.mapper.TeamMapper;
 import com.teamsservice.repository.TeamRepository;
+import com.teamsservice.repository.TeamMemberRepository;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -40,6 +45,12 @@ class TeamServiceTest {
 
     @Mock
     private TeamMapper teamMapper;
+
+    @Mock
+    private JoinCodeGeneratorService joinCodeGeneratorService;
+
+    @Mock
+    private TeamMemberRepository teamMemberRepository;
 
     @InjectMocks
     private TeamService teamService;
@@ -77,6 +88,7 @@ class TeamServiceTest {
     void createTeam_Success() throws IOException {
         // Arrange
         when(teamRepository.existsByNameAndOwnerUserIdAndStatus(anyString(), anyLong(), eq(TeamStatus.ACTIVE))).thenReturn(false);
+        when(joinCodeGeneratorService.generateUniqueCode()).thenReturn("ABC123");
         when(teamRepository.save(any(Team.class))).thenReturn(testTeam);
         when(teamMapper.toResponse(any(Team.class))).thenReturn(teamResponse);
 
@@ -131,16 +143,21 @@ class TeamServiceTest {
     void getUserTeams_Success() {
         // Arrange
         List<Team> teams = Arrays.asList(testTeam);
-        when(teamRepository.findByOwnerUserIdAndStatus(anyLong(), eq(TeamStatus.ACTIVE))).thenReturn(teams);
+        when(teamRepository.findByOwnerUserIdAndStatus(eq(userId), eq(TeamStatus.ACTIVE), any(Pageable.class)))
+            .thenReturn(new PageImpl<>(teams));
         when(teamMapper.toResponse(any(Team.class))).thenReturn(teamResponse);
+        when(teamMemberRepository.countByTeamIdAndStatus(eq(testTeam.getId()), eq(TeamMember.MembershipStatus.APPROVED)))
+            .thenReturn(1L);
 
         // Act
-        List<TeamResponse> result = teamService.getUserTeams(userId);
+        PageResponse<TeamResponse> result = teamService.getUserTeams(userId, 0, 10);
 
         // Assert
         assertNotNull(result);
-        assertEquals(1, result.size());
-        verify(teamRepository).findByOwnerUserIdAndStatus(userId, TeamStatus.ACTIVE);
+        assertEquals(1, result.getContent().size());
+        assertEquals(1, result.getTotalElements());
+        assertEquals(1, result.getContent().get(0).getMemberCount());
+        verify(teamRepository).findByOwnerUserIdAndStatus(eq(userId), eq(TeamStatus.ACTIVE), any(Pageable.class));
     }
 
     @Test

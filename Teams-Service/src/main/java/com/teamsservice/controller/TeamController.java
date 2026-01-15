@@ -1,5 +1,6 @@
 package com.teamsservice.controller;
 
+import com.teamsservice.dto.PageResponse;
 import com.teamsservice.dto.TeamCreateRequest;
 import com.teamsservice.dto.TeamResponse;
 import com.teamsservice.dto.TeamUpdateRequest;
@@ -7,7 +8,8 @@ import com.teamsservice.security.UserPrincipal;
 import com.teamsservice.service.TeamService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -21,8 +23,9 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/teams")
 @RequiredArgsConstructor
-@Slf4j
 public class TeamController {
+
+    private static final Logger log = LoggerFactory.getLogger(TeamController.class);
 
     private final TeamService teamService;
 
@@ -61,12 +64,15 @@ public class TeamController {
     }
 
     @GetMapping
-    public ResponseEntity<List<TeamResponse>> getUserTeams(
-            @AuthenticationPrincipal UserPrincipal userPrincipal) {
-        
-        log.info("Getting all teams for user: {}", userPrincipal.getUserId());
-        
-        List<TeamResponse> response = teamService.getUserTeams(userPrincipal.getUserId());
+    public ResponseEntity<PageResponse<TeamResponse>> getUserTeams(
+            @AuthenticationPrincipal UserPrincipal userPrincipal,
+            @RequestParam(name = "page", defaultValue = "0") int page,
+            @RequestParam(name = "size", defaultValue = "10") int size) {
+
+        log.info("Getting teams for user: {} page={} size={}",
+                userPrincipal.getUserId(), page, size);
+
+        PageResponse<TeamResponse> response = teamService.getUserTeams(userPrincipal.getUserId(), page, size);
         return ResponseEntity.ok(response);
     }
 

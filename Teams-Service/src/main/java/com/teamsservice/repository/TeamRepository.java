@@ -2,6 +2,8 @@ package com.teamsservice.repository;
 
 import com.teamsservice.entity.Team;
 import com.teamsservice.entity.TeamStatus;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -13,6 +15,8 @@ public interface TeamRepository extends JpaRepository<Team, Long> {
     
     // Queries que solo devuelven equipos activos
     List<Team> findByOwnerUserIdAndStatus(Long ownerUserId, TeamStatus status);
+
+    Page<Team> findByOwnerUserIdAndStatus(Long ownerUserId, TeamStatus status, Pageable pageable);
     
     Optional<Team> findByIdAndOwnerUserIdAndStatus(Long id, Long ownerUserId, TeamStatus status);
     

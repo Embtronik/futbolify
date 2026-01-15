@@ -1,5 +1,6 @@
 package com.teamsservice.service;
 
+import com.teamsservice.dto.PageResponse;
 import com.teamsservice.dto.TeamCreateRequest;
 import com.teamsservice.dto.TeamEventDto;
 import com.teamsservice.dto.TeamResponse;
@@ -14,6 +15,10 @@ import com.teamsservice.repository.TeamRepository;
 import com.teamsservice.repository.TeamMemberRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -109,18 +114,37 @@ public class TeamService {
     }
 
     @Transactional(readOnly = true)
-    public List<TeamResponse> getUserTeams(Long userId) {
-        log.info("Getting all teams for user: {}", userId);
-        
-        List<Team> teams = teamRepository.findByOwnerUserIdAndStatus(userId, TeamStatus.ACTIVE);
-        return teams.stream()
+    public PageResponse<TeamResponse> getUserTeams(Long userId, int page, int size) {
+        log.info("Getting teams (page={}, size={}) for user {}", page, size, userId);
+
+        if (size <= 0) {
+            size = 10;
+        }
+        if (page < 0) {
+            page = 0;
+        }
+
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+
+        Page<Team> teamsPage = teamRepository.findByOwnerUserIdAndStatus(userId, TeamStatus.ACTIVE, pageable);
+
+        List<TeamResponse> content = teamsPage.getContent().stream()
                 .map(team -> {
                     TeamResponse response = teamMapper.toResponse(team);
-                    // Agregar conteo de miembros aprobados
-                    response.setMemberCount((int) teamMemberRepository.countByTeamIdAndStatus(team.getId(), TeamMember.MembershipStatus.APPROVED));
+                    response.setMemberCount((int) teamMemberRepository
+                            .countByTeamIdAndStatus(team.getId(), TeamMember.MembershipStatus.APPROVED));
                     return response;
                 })
                 .collect(Collectors.toList());
+
+        return PageResponse.<TeamResponse>builder()
+                .content(content)
+                .page(teamsPage.getNumber())
+                .size(teamsPage.getSize())
+                .totalElements(teamsPage.getTotalElements())
+                .totalPages(teamsPage.getTotalPages())
+                .last(teamsPage.isLast())
+                .build();
     }
 
     @Transactional

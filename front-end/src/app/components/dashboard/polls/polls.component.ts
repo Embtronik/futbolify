@@ -303,7 +303,6 @@ export class PollsComponent implements OnInit {
   loadData(): void {
       // LOG para depuración de filtrado
       // Se limpia en producción
-    console.log('[DEBUG] loadData() llamado en PollsComponent');
     this.loading = true;
     (this.teamService as any).getMyPolls().subscribe({
       next: (allPolls: Poll[]) => {
@@ -321,11 +320,8 @@ export class PollsComponent implements OnInit {
         // Tomar el email del usuario autenticado del primer objeto (todos traen el mismo)
         const userEmail = (safePolls[0].emailUsuarioAutenticado || '').toLowerCase().trim();
         this.currentUserEmail = userEmail;
-        console.log('[DEBUG] userEmail autenticado:', userEmail);
-        console.log('[DEBUG] Array completo de pollas:', safePolls);
         this.myPolls = safePolls.filter((p: Poll) => (p.creadorEmail || '').toLowerCase().trim() === userEmail);
         this.participantPolls = safePolls; // Todas las pollas, incluyendo las creadas por el usuario
-        console.log('[DEBUG] participantPolls:', this.participantPolls);
         this.polls = (this.activeTab === 'my-polls' ? this.myPolls : this.participantPolls).filter(this.isPoll);
         this.loading = false;
 
@@ -374,7 +370,6 @@ export class PollsComponent implements OnInit {
     // Cargar ligas disponibles
     this.footballApiService.getLeagues().subscribe({
       next: (leagues) => {
-        console.log('✅ Ligas cargadas:', (leagues || []).length, leagues);
         this.footballLeagues = leagues;
         this.filteredLeagues = leagues;
       },
@@ -437,7 +432,6 @@ export class PollsComponent implements OnInit {
     this.activeTab = tab;
     const next = tab === 'my-polls' ? this.myPolls : this.participantPolls;
     this.polls = (next || []).filter((p: any): p is Poll => !!p && typeof p.id === 'number');
-    console.log('[DEBUG] Tab cambiado:', tab, 'Polls mostradas:', this.polls);
   }
 
   openCreateModal(): void {
@@ -486,8 +480,6 @@ export class PollsComponent implements OnInit {
       gruposIds: selectedTeamIds,
       emailsInvitados: emailsInvitados
     };
-
-    console.log('📤 Dashboard enviando creación de polla:', pollData);
 
     (this.teamService as any).createPoll(pollData).subscribe({
       next: (newPoll: Poll | null) => {
@@ -589,7 +581,6 @@ export class PollsComponent implements OnInit {
   // ========== Gestión de Partidos ==========
 
   openPollDetail(poll: Poll): void {
-    console.log('[DEBUG] openPollDetail called with poll:', poll);
     if (!poll || typeof (poll as any).id !== 'number') return;
     this.selectedPoll = poll;
     if (!this.currentUserEmail) {
@@ -623,7 +614,6 @@ export class PollsComponent implements OnInit {
   }
 
   closePollDetail(): void {
-    console.log('[DEBUG] closePollDetail called');
     this.showPollDetailModal = false;
     this.selectedPoll = null;
     this.pollMatches = [];
@@ -666,9 +656,6 @@ export class PollsComponent implements OnInit {
   }
 
   openAddMatchModal(): void {
-    console.clear();
-    console.log('openAddMatchModal called');
-    console.log('selectedPoll:', this.selectedPoll);
     // Resetear estado del modal para evitar pantallas vacías si se abrió antes
     this.addMatchStep = 'league';
     this.selectedLeague = null;
@@ -677,7 +664,6 @@ export class PollsComponent implements OnInit {
     this.filteredLeagues = this.footballLeagues;
 
     this.showAddMatchModal = true;
-    console.log('showAddMatchModal:', this.showAddMatchModal, 'leagues:', (this.footballLeagues || []).length);
     this.addMatchForm.reset();
     this.successMessage = '';
     this.errorMessage = '';
@@ -688,13 +674,7 @@ export class PollsComponent implements OnInit {
   }
 
   onSubmitAddMatch(): void {
-    console.clear();
-    console.log('onSubmitAddMatch called');
-    console.log('selectedFixtures:', this.selectedFixtures);
-    console.log('selectedPoll:', this.selectedPoll);
-
     if (!this.selectedPoll) {
-      console.log('No poll selected');
       return;
     }
     if (!this.selectedFixtures.length) {
@@ -797,8 +777,6 @@ export class PollsComponent implements OnInit {
     this.addMatchStep = 'fixtures';
     this.loadingFixtures = true;
     this.upcomingFixtures = [];
-    console.log('🔍 Liga seleccionada:', league.name);
-    console.log('🌍 País:', league.country);
     // Obtener partidos desde la fecha actual en adelante
     // Ahora la temporada se obtiene por getActiveSeason, no por league.season
     this.footballApiService.getActiveSeason(league.id).subscribe({

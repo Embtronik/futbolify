@@ -1,17 +1,20 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
+import { map } from 'rxjs/operators';
 import {
   AddPollMatchRequest,
   CreatePollRequest,
   CreatePredictionRequest,
-  Match,
+  CreateTeamMatchRequest,
   Player,
   Poll,
   PollInvitation,
   PollMatch,
   PollPrediction,
   Team,
+  TeamMatch,
+  TeamMatchAttendance,
   TeamMember,
 } from '../models/football.model';
 import { environment } from '../../environments/environment';
@@ -27,13 +30,21 @@ export class TeamService {
   // GESTIÓN DE GRUPOS (TEAMS)
   // ==========================================
 
-  getAll(): Observable<Team[]> {
-    return this.http.get<Team[]>(`${this.API_URL}/teams`);
+  getAll(page = 0, size = 50): Observable<Team[]> {
+    return this.http
+      .get<import('../models/football.model').Page<Team>>(`${this.API_URL}/teams`, {
+        params: { page, size },
+      })
+      .pipe(map((res) => res?.content ?? []));
   }
 
-  getMyTeams(): Observable<Team[]> {
+  getMyTeams(page = 0, size = 50): Observable<Team[]> {
     // Si el backend no tiene /my-teams aún, ajustar aquí sin romper el tipado.
-    return this.http.get<Team[]>(`${this.API_URL}/teams`);
+    return this.http
+      .get<import('../models/football.model').Page<Team>>(`${this.API_URL}/teams`, {
+        params: { page, size },
+      })
+      .pipe(map((res) => res?.content ?? []));
   }
 
   getById(id: number): Observable<Team> {
@@ -234,22 +245,38 @@ export class TeamService {
   }
 
   // ==========================================
-  // GESTIÓN DE PARTIDOS REGULARES
+  // GESTIÓN DE PARTIDOS REGULARES (TEAM MATCHES)
   // ==========================================
 
-  getMatches(teamId: number): Observable<Match[]> {
-    return this.http.get<Match[]>(`${this.API_URL}/teams/${teamId}/matches`);
+  getMatches(teamId: number, page = 0, size = 50): Observable<TeamMatch[]> {
+    return this.http
+      .get<import('../models/football.model').Page<TeamMatch>>(`${this.API_URL}/teams/${teamId}/matches`, {
+        params: { page, size },
+      })
+      .pipe(map((res) => res?.content ?? []));
   }
 
-  createMatch(matchData: Partial<Match>): Observable<Match> {
-    return this.http.post<Match>(`${this.API_URL}/teams/matches`, matchData);
+   getMatchAttendance(teamId: number, matchId: number): Observable<TeamMatchAttendance[]> {
+    return this.http.get<TeamMatchAttendance[]>(`${this.API_URL}/teams/${teamId}/matches/${matchId}/attendance`);
   }
 
-  updateMatch(matchId: number, matchData: Partial<Match>): Observable<Match> {
-    return this.http.put<Match>(`${this.API_URL}/teams/matches/${matchId}`, matchData);
+  createMatch(teamId: number, matchData: CreateTeamMatchRequest): Observable<TeamMatch> {
+    return this.http.post<TeamMatch>(`${this.API_URL}/teams/${teamId}/matches`, matchData);
+  }
+
+  updateMatch(matchId: number, matchData: Partial<TeamMatch>): Observable<TeamMatch> {
+    return this.http.put<TeamMatch>(`${this.API_URL}/teams/matches/${matchId}`, matchData);
   }
 
   deleteMatch(matchId: number): Observable<void> {
     return this.http.delete<void>(`${this.API_URL}/teams/matches/${matchId}`);
+  }
+
+  confirmMatchAttendance(teamId: number, matchId: number, attending: boolean): Observable<void> {
+    return this.http.post<void>(
+      `${this.API_URL}/teams/${teamId}/matches/${matchId}/attendance`,
+      {},
+      { params: { attending: attending ? 'true' : 'false' } }
+    );
   }
 }

@@ -18,6 +18,14 @@ public class UserPrincipal implements UserDetails {
     private String email;
     private Collection<? extends GrantedAuthority> authorities;
 
+    public Long getUserId() {
+        return userId;
+    }
+
+    public String getEmail() {
+        return email;
+    }
+
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
         return authorities != null ? authorities : Collections.emptyList();

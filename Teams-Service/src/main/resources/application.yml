@@ -61,6 +61,10 @@ app:
   notification-service:
     url: ${NOTIFICATION_SERVICE_URL:http://localhost:8081}
 
+  # Frontend URL for links in notifications
+  frontend:
+    url: ${FRONTEND_URL:http://localhost:4200}
+
 # Server Configuration
 server:
   port: 8082

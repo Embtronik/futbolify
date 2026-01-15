@@ -5,6 +5,7 @@ export interface Team {
   logoUrl?: string;
   description?: string;
   ownerUserId: number; // ID del usuario propietario del equipo
+  ownerEmail?: string; // Email del usuario propietario del equipo (creador)
   memberCount?: number; // Total de miembros aprobados
   pendingRequestsCount?: number; // Solicitudes pendientes (solo para admin)
   members?: TeamMember[]; // Cached members for UI purposes
@@ -15,6 +16,16 @@ export interface Team {
   placeId?: string; // Google Place ID
   createdAt: Date | string;
   updatedAt: Date | string;
+}
+
+// Respuesta paginada genérica del backend
+export interface Page<T> {
+  content: T[];
+  page: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
+  last: boolean;
 }
 
 export interface Player {
@@ -81,6 +92,44 @@ export interface Match {
   awayScore?: number;
   createdAt: Date;
   updatedAt: Date;
+}
+
+// Partidos regulares asociados a un team (TeamMatchResponse en el backend)
+export interface TeamMatch {
+  id: number;
+  teamId: number;
+  address: string;
+  latitude: number;
+  longitude: number;
+  placeId: string;
+  matchDateTime: string; // ISO string (ej: 2026-02-01T20:00:00)
+  createdByUserId?: number; // ID del usuario que creó el partido
+  // Estado opcional del partido (para UI)
+  status?: 'SCHEDULED' | 'CONFIRMED' | 'PENDING' | 'CANCELLED';
+  createdAt?: Date | string;
+  updatedAt?: Date | string;
+}
+
+// Request para crear un partido regular de equipo
+export interface CreateTeamMatchRequest {
+  address: string;
+  latitude: number;
+  longitude: number;
+  placeId: string;
+  matchDateTime: string; // ISO string
+}
+ 
+export type MatchAttendanceStatus = 'ATTENDING' | 'NOT_ATTENDING' | 'PENDING';
+
+export interface TeamMatchAttendance {
+  userId: number;
+  userEmail: string;
+  userInfo?: {
+    fullName?: string;
+    firstName?: string;
+    lastName?: string;
+  };
+  status: MatchAttendanceStatus;
 }
 
 // Equipos profesionales de API-Football

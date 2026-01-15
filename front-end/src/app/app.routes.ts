@@ -71,6 +71,10 @@ export const routes: Routes = [
         loadComponent: () => import('./components/dashboard/matches/matches.component').then(m => m.MatchesComponent)
       },
       {
+        path: 'matches/attendance',
+        loadComponent: () => import('./components/dashboard/matches/match-attendance.component').then(m => m.MatchAttendanceComponent)
+      },
+      {
         path: 'polls',
         loadComponent: () => import('./components/dashboard/polls/polls.component').then(m => m.PollsComponent)
       },
@@ -83,6 +87,11 @@ export const routes: Routes = [
         loadComponent: () => import('./components/dashboard/profile/profile.component').then(m => m.ProfileComponent)
       }
     ]
+  },
+  {
+    path: 'equipos/:teamId/partidos/:matchId',
+    canActivate: [authGuard],
+    loadComponent: () => import('./components/dashboard/matches/match-detail.component').then(m => m.MatchDetailComponent)
   },
   {
     path: '**',
