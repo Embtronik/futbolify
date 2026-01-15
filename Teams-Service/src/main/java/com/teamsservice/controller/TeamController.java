@@ -26,6 +26,17 @@ public class TeamController {
 
     private final TeamService teamService;
 
+    @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<TeamResponse> createTeamJson(
+            @Valid @RequestBody TeamCreateRequest request,
+            @AuthenticationPrincipal UserPrincipal userPrincipal) {
+
+        log.info("Creating team (JSON): {} for user: {}", request.getName(), userPrincipal.getUserId());
+
+        TeamResponse response = teamService.createTeam(request, null, userPrincipal.getUserId(), userPrincipal.getEmail());
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<TeamResponse> createTeam(
             @Valid @RequestPart("team") TeamCreateRequest request,
