@@ -26,10 +26,10 @@ public class TeamController {
 
     private final TeamService teamService;
 
-    @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<TeamResponse> createTeamJson(
+        @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
+        public ResponseEntity<TeamResponse> createTeamJson(
             @Valid @RequestBody TeamCreateRequest request,
-            @AuthenticationPrincipal UserPrincipal userPrincipal) {
+            @AuthenticationPrincipal UserPrincipal userPrincipal) throws IOException {
 
         log.info("Creating team (JSON): {} for user: {}", request.getName(), userPrincipal.getUserId());
 
