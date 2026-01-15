@@ -669,8 +669,15 @@ export class PollsComponent implements OnInit {
     console.clear();
     console.log('openAddMatchModal called');
     console.log('selectedPoll:', this.selectedPoll);
+    // Resetear estado del modal para evitar pantallas vacías si se abrió antes
+    this.addMatchStep = 'league';
+    this.selectedLeague = null;
+    this.upcomingFixtures = [];
+    this.selectedFixtures = [];
+    this.filteredLeagues = this.footballLeagues;
+
     this.showAddMatchModal = true;
-    console.log('showAddMatchModal:', this.showAddMatchModal);
+    console.log('showAddMatchModal:', this.showAddMatchModal, 'leagues:', (this.footballLeagues || []).length);
     this.addMatchForm.reset();
     this.successMessage = '';
     this.errorMessage = '';
