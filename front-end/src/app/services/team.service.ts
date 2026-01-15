@@ -40,6 +40,19 @@ export class TeamService {
     return this.http.get<Team>(`${this.API_URL}/teams/${id}`);
   }
 
+  // Crear equipo enviando JSON puro (sin logo)
+  createJson(teamData: {
+    name: string;
+    description?: string;
+    address?: string;
+    latitude?: number;
+    longitude?: number;
+    placeId?: string;
+  }): Observable<Team> {
+    return this.http.post<Team>(`${this.API_URL}/teams`, teamData);
+  }
+
+  // Crear equipo enviando multipart/form-data (con logo opcional)
   create(teamData: FormData): Observable<Team> {
     return this.http.post<Team>(`${this.API_URL}/teams`, teamData);
   }

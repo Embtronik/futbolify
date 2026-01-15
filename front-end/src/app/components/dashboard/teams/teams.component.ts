@@ -995,29 +995,46 @@ export class TeamsComponent implements AfterViewInit {
 
     this.creating = true;
     
-    // Crear FormData para enviar al backend
-    const formData = new FormData();
-    
-    // Parte 1: JSON del equipo (como Blob)
+    // Construir el payload base que usa tanto JSON como multipart
     const teamData: any = {
       name: this.createForm.value.name,
       description: this.createForm.value.description || ''
     };
-    
-    // Agregar ubicación si fue seleccionada
+
     if (this.selectedPlace) {
       teamData.address = this.selectedPlace.address;
       teamData.latitude = this.selectedPlace.lat;
       teamData.longitude = this.selectedPlace.lng;
       teamData.placeId = this.selectedPlace.placeId;
     }
-    
-    formData.append('team', new Blob([JSON.stringify(teamData)], { type: 'application/json' }));
-    
-    // Parte 2: Logo (si existe)
-    if (this.selectedFile) {
-      formData.append('logo', this.selectedFile);
+
+    // Si NO hay logo, enviamos JSON puro
+    if (!this.selectedFile) {
+      this.teamService.createJson(teamData).subscribe({
+        next: (team) => {
+          this.createdTeam = team;
+          this.teams.unshift(team);
+          this.creating = false;
+          
+          setTimeout(() => {
+            if (this.createdTeam?.joinCode === team.joinCode) {
+              this.closeCreateModal();
+            }
+          }, 5000);
+        },
+        error: (error) => {
+          console.error('Error creating team (JSON):', error);
+          alert('Error al crear el grupo. Por favor intenta de nuevo.');
+          this.creating = false;
+        }
+      });
+      return;
     }
+
+    // Si hay logo, usamos multipart/form-data
+    const formData = new FormData();
+    formData.append('team', new Blob([JSON.stringify(teamData)], { type: 'application/json' }));
+    formData.append('logo', this.selectedFile);
 
     this.teamService.create(formData).subscribe({
       next: (team) => {
