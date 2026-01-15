@@ -144,6 +144,8 @@ services:
       DB_NAME: ${POSTGRES_DB}
       DB_USERNAME: ${POSTGRES_USER}
       DB_PASSWORD: ${POSTGRES_PASSWORD}
+      
+      AUTH_SERVICE_URL: http://auth-service:8080
     ports:
       - "8082:8082"
     depends_on:
