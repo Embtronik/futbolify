@@ -22,7 +22,7 @@ public class PollaController {
     /**
      * POST /api/pollas - Crear una nueva polla
      */
-    @PostMapping
+    @PostMapping(consumes = "application/json", produces = "application/json")
     public ResponseEntity<PollaResponse> crearPolla(
             @Valid @RequestBody PollaCreateRequest request,
             @AuthenticationPrincipal UserPrincipal userPrincipal) {
