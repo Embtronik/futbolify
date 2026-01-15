@@ -668,6 +668,7 @@ export class PollsComponent implements OnInit {
     console.log('openAddMatchModal called');
     console.log('selectedPoll:', this.selectedPoll);
     this.showAddMatchModal = true;
+    console.log('showAddMatchModal:', this.showAddMatchModal);
     this.addMatchForm.reset();
     this.successMessage = '';
     this.errorMessage = '';
