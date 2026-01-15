@@ -387,6 +387,8 @@
       </button>
     </div>
   </div>
+</div>
+
 <!-- Modal Agregar Partido -->
 <div class="modal-overlay" *ngIf="showAddMatchModal" (click)="closeAddMatchModal()">
   <div class="modal-content large" (click)="$event.stopPropagation()">
@@ -442,7 +444,6 @@
                     </button>
                   </td>
                 </tr>
-                       (click)="activatePoll(selectedPoll, $event)">
             </table>
           </div>
 
