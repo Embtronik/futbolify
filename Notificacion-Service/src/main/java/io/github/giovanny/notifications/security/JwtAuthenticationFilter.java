@@ -38,21 +38,23 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         
         try {
             String token = extractTokenFromRequest(request);
-            
+
             if (token != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-                
-                if (authServiceClient.validateToken(token)) {
-                    String username = authServiceClient.extractUsername(token);
-                    
+
+                AuthServiceClient.TokenValidationResponse validation = authServiceClient.validateToken(token);
+
+                if (validation != null && validation.isValid()) {
+                    String username = validation.getUsername() != null ? validation.getUsername() : "unknown";
+
                     UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
                             username,
                             null,
                             Collections.singletonList(new SimpleGrantedAuthority("ROLE_SERVICE"))
                     );
-                    
+
                     authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                     SecurityContextHolder.getContext().setAuthentication(authentication);
-                    
+
                     log.debug("JWT authentication successful for user: {}", username);
                 } else {
                     log.warn("Invalid JWT token received from: {}", request.getRemoteAddr());

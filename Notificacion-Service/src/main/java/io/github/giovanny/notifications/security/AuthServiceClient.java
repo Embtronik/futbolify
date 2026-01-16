@@ -24,20 +24,22 @@ public class AuthServiceClient {
     private final AuthServiceProperties authServiceProperties;
     
     /**
-     * Valida un token JWT consultando al Auth Service.
+     * Valida un token JWT consultando al Auth Service y devuelve
+     * la respuesta completa con información del usuario.
      * 
      * @param token Token JWT (sin el prefijo "Bearer ")
-     * @return true si el token es válido, false en caso contrario
+     * @return TokenValidationResponse con el resultado de la validación
      */
-    public boolean validateToken(String token) {
+    public TokenValidationResponse validateToken(String token) {
         if (!authServiceProperties.getEnabled()) {
             log.warn("Auth service validation is disabled - accepting all tokens");
-            return true;
+            // En este caso marcamos el token como válido pero sin usuario conocido
+            return new TokenValidationResponse(true, "unknown", null, null);
         }
-        
+
         try {
             String url = authServiceProperties.getUrl() + authServiceProperties.getValidateTokenEndpoint();
-            
+
             TokenValidationResponse response = webClient.post()
                     .uri(url)
                     .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
@@ -56,47 +58,20 @@ public class AuthServiceClient {
                     ))
                     .timeout(Duration.ofMillis(authServiceProperties.getReadTimeout()))
                     .block();
-            
+
             boolean isValid = response != null && response.isValid();
-            
+
             if (isValid) {
                 log.debug("Token validated successfully for user: {}", response.getUsername());
+                return response;
             } else {
                 log.warn("Token validation failed: invalid token");
+                return new TokenValidationResponse(false, null, null, null);
             }
-            
-            return isValid;
-            
+
         } catch (Exception e) {
             log.error("Error validating token with auth service: {}", e.getMessage());
-            return false;
-        }
-    }
-    
-    /**
-     * Extrae el username del token (sin validar).
-     * Para uso después de validación exitosa.
-     * 
-     * @param token Token JWT
-     * @return Username extraído del token
-     */
-    public String extractUsername(String token) {
-        try {
-            String url = authServiceProperties.getUrl() + authServiceProperties.getValidateTokenEndpoint();
-            
-            TokenValidationResponse response = webClient.post()
-                    .uri(url)
-                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
-                    .retrieve()
-                    .bodyToMono(TokenValidationResponse.class)
-                    .timeout(Duration.ofMillis(authServiceProperties.getReadTimeout()))
-                    .block();
-            
-            return response != null ? response.getUsername() : "unknown";
-            
-        } catch (Exception e) {
-            log.error("Error extracting username from token: {}", e.getMessage());
-            return "unknown";
+            return new TokenValidationResponse(false, null, null, null);
         }
     }
     
