@@ -4,6 +4,7 @@ import com.teamsservice.dto.AdminSetAttendanceRequest;
 import com.teamsservice.dto.BulkCreateMatchTeamsRequest;
 import com.teamsservice.dto.MatchAttendanceSummaryResponse;
 import com.teamsservice.dto.MatchResultResponse;
+import com.teamsservice.dto.MatchResultNotificationResponse;
 import com.teamsservice.dto.MatchResultUpsertRequest;
 import com.teamsservice.dto.MatchTeamsNotificationResponse;
 import com.teamsservice.dto.MatchTeamPlayerUpsertRequest;
@@ -16,6 +17,7 @@ import com.teamsservice.dto.TeamMatchTeamCreateRequest;
 import com.teamsservice.dto.TeamMatchTeamResponse;
 import com.teamsservice.security.UserPrincipal;
 import com.teamsservice.service.TeamMatchLineupNotificationService;
+import com.teamsservice.service.TeamMatchResultNotificationService;
 import com.teamsservice.service.TeamMatchResultService;
 import com.teamsservice.service.TeamMatchService;
 import com.teamsservice.service.TeamMatchTeamService;
@@ -39,6 +41,7 @@ public class TeamMatchController {
         private final TeamMatchTeamService teamMatchTeamService;
         private final TeamMatchLineupNotificationService teamMatchLineupNotificationService;
                 private final TeamMatchResultService teamMatchResultService;
+                                private final TeamMatchResultNotificationService teamMatchResultNotificationService;
 
     @PostMapping
     public ResponseEntity<TeamMatchResponse> createTeamMatch(
@@ -317,6 +320,24 @@ public class TeamMatchController {
 
         return ResponseEntity.ok(response);
     }
+
+        /**
+         * Notify players (EMAIL + optional SMS/WHATSAPP) with the finished match result and scorers.
+         * Only owner.
+         */
+        @PostMapping("/{matchId}/result/notify")
+        public ResponseEntity<MatchResultNotificationResponse> notifyMatchResult(
+                        @PathVariable Long teamId,
+                        @PathVariable Long matchId,
+                        @AuthenticationPrincipal UserPrincipal userPrincipal) {
+
+                MatchResultNotificationResponse response = teamMatchResultNotificationService.notifyMatchResult(
+                                teamId,
+                                matchId,
+                                userPrincipal.getUserId());
+
+                return ResponseEntity.ok(response);
+        }
 
     /**
      * View match result (owner or approved member).

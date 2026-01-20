@@ -83,6 +83,9 @@ interface ManageTeam {
           </button>
 
           <div class="accordion-body" *ngIf="accordionOpen === 'attendance'">
+            <div class="alert info" *ngIf="matchFinalized">
+              Este partido ya está finalizado. La edición está deshabilitada.
+            </div>
             <p class="hint">Arrastra jugadores entre columnas para cambiar su estado.</p>
 
             <div class="attendance-board">
@@ -97,10 +100,11 @@ interface ManageTeam {
                   cdkDropList
                   id="attendingList"
                   [cdkDropListData]="attending"
+                  [cdkDropListDisabled]="matchFinalized"
                   [cdkDropListConnectedTo]="['pendingList','notAttendingList']"
                   (cdkDropListDropped)="dropAttendance($event, 'ATTENDING')"
                 >
-                  <div class="player" *ngFor="let p of attending" cdkDrag>
+                  <div class="player" *ngFor="let p of attending" cdkDrag [cdkDragDisabled]="matchFinalized">
                     <div class="name">{{ p.displayName }}</div>
                     <div class="meta">{{ p.email }}</div>
                   </div>
@@ -119,10 +123,11 @@ interface ManageTeam {
                   cdkDropList
                   id="pendingList"
                   [cdkDropListData]="pending"
+                  [cdkDropListDisabled]="matchFinalized"
                   [cdkDropListConnectedTo]="['attendingList','notAttendingList']"
                   (cdkDropListDropped)="dropAttendance($event, 'PENDING')"
                 >
-                  <div class="player" *ngFor="let p of pending" cdkDrag>
+                  <div class="player" *ngFor="let p of pending" cdkDrag [cdkDragDisabled]="matchFinalized">
                     <div class="name">{{ p.displayName }}</div>
                     <div class="meta">{{ p.email }}</div>
                   </div>
@@ -141,10 +146,11 @@ interface ManageTeam {
                   cdkDropList
                   id="notAttendingList"
                   [cdkDropListData]="notAttending"
+                  [cdkDropListDisabled]="matchFinalized"
                   [cdkDropListConnectedTo]="['attendingList','pendingList']"
                   (cdkDropListDropped)="dropAttendance($event, 'NOT_ATTENDING')"
                 >
-                  <div class="player" *ngFor="let p of notAttending" cdkDrag>
+                  <div class="player" *ngFor="let p of notAttending" cdkDrag [cdkDragDisabled]="matchFinalized">
                     <div class="name">{{ p.displayName }}</div>
                     <div class="meta">{{ p.email }}</div>
                   </div>
@@ -169,6 +175,9 @@ interface ManageTeam {
           </button>
 
           <div class="accordion-body" *ngIf="accordionOpen === 'teams'">
+            <div class="alert info" *ngIf="matchFinalized">
+              Este partido ya está finalizado. La edición de equipos está deshabilitada.
+            </div>
             <p class="hint">Define cuántos equipos vas a conformar y luego arrastra a los jugadores que asisten.</p>
 
             <form class="team-form" [formGroup]="teamsForm" (ngSubmit)="$event.preventDefault()">
@@ -178,7 +187,7 @@ interface ManageTeam {
               </div>
 
               <div class="row actions">
-                <button type="button" class="btn" (click)="generateTeams()" [disabled]="teamsForm.invalid || creatingTeams">
+                <button type="button" class="btn" (click)="generateTeams()" [disabled]="teamsForm.invalid || creatingTeams || matchFinalized">
                   {{ creatingTeams ? 'Creando…' : 'Generar' }}
                 </button>
               </div>
@@ -188,10 +197,10 @@ interface ManageTeam {
 
             <div *ngIf="teams.length > 0" class="teams-editor">
               <div class="team-chip" *ngFor="let t of teams">
-                <input class="team-name" [(ngModel)]="t.name" [ngModelOptions]="{standalone: true}" placeholder="Nombre del equipo">
-                <input class="team-color" type="color" [(ngModel)]="t.color" [ngModelOptions]="{standalone: true}">
-                <button type="button" class="btn mini" (click)="saveTeam(t)">Guardar</button>
-                <button type="button" class="btn mini danger" (click)="deleteTeam(t)">Eliminar</button>
+                <input class="team-name" [(ngModel)]="t.name" [ngModelOptions]="{standalone: true}" placeholder="Nombre del equipo" [disabled]="matchFinalized">
+                <input class="team-color" type="color" [(ngModel)]="t.color" [ngModelOptions]="{standalone: true}" [disabled]="matchFinalized">
+                <button type="button" class="btn mini" (click)="saveTeam(t)" [disabled]="matchFinalized">Guardar</button>
+                <button type="button" class="btn mini danger" (click)="deleteTeam(t)" [disabled]="matchFinalized">Eliminar</button>
                 <span class="count">{{ t.players.length }}</span>
               </div>
             </div>
@@ -204,10 +213,11 @@ interface ManageTeam {
                   cdkDropList
                   id="unassignedList"
                   [cdkDropListData]="unassignedAttending"
+                  [cdkDropListDisabled]="matchFinalized"
                   [cdkDropListConnectedTo]="teamDropListIds"
                   (cdkDropListDropped)="dropTeam($event, null)"
                 >
-                  <div class="player" *ngFor="let p of unassignedAttending" cdkDrag>
+                  <div class="player" *ngFor="let p of unassignedAttending" cdkDrag [cdkDragDisabled]="matchFinalized">
                     <div class="name">{{ p.displayName }}</div>
                     <div class="meta">{{ p.email }}</div>
                   </div>
@@ -230,16 +240,17 @@ interface ManageTeam {
                       cdkDropList
                       [id]="getTeamListId(t)"
                       [cdkDropListData]="t.players"
+                      [cdkDropListDisabled]="matchFinalized"
                       [cdkDropListConnectedTo]="getConnectedTeamLists(t.id)"
                       (cdkDropListDropped)="dropTeam($event, t)"
                     >
-                      <div class="player" *ngFor="let p of t.players" cdkDrag>
+                      <div class="player" *ngFor="let p of t.players" cdkDrag [cdkDragDisabled]="matchFinalized">
                         <div class="rowline">
                           <div>
                             <div class="name">{{ p.displayName }}</div>
                             <div class="meta">{{ p.email }}</div>
                           </div>
-                          <select class="pos" [(ngModel)]="p.position" [ngModelOptions]="{standalone: true}" (change)="onPositionChange(t, p)">
+                          <select class="pos" [(ngModel)]="p.position" [ngModelOptions]="{standalone: true}" (change)="onPositionChange(t, p)" [disabled]="matchFinalized">
                             <option [ngValue]="undefined">Posición</option>
                             <option value="GOALKEEPER">Arquero</option>
                             <option value="DEFENDER">Defensa</option>
@@ -256,6 +267,19 @@ interface ManageTeam {
                 <p class="hint" style="margin-top: 12px;">
                   Tip: si cambias a alguien a “No asiste”, se desasigna automáticamente de los equipos.
                 </p>
+
+                <div class="finish" *ngIf="teams.length > 0">
+                  <div class="hint">Cuando termines de armar los equipos, puedes notificar a los jugadores asignados.</div>
+                  <button
+                    type="button"
+                    class="btn primary"
+                    (click)="notifyTeams()"
+                    [disabled]="!canManage || loading || notifyingTeams || matchFinalized"
+                  >
+                    {{ notifyingTeams ? 'Enviando…' : 'Notificar equipos' }}
+                  </button>
+                  <div class="hint" *ngIf="matchFinalized">El partido ya está finalizado; usa “Notificar resultado”.</div>
+                </div>
               </div>
             </div>
           </div>
@@ -291,7 +315,7 @@ interface ManageTeam {
 
                 <div class="result-actions">
                   <button
-                    *ngIf="resultLocked"
+                    *ngIf="resultLocked && !matchFinalized"
                     type="button"
                     class="btn"
                     (click)="unlockResultEditing()"
@@ -377,14 +401,14 @@ interface ManageTeam {
               </div>
 
               <div class="finish">
-                <div class="hint">Paso final: al terminar se valida asignación y posiciones, y se envía la notificación.</div>
+                <div class="hint">Paso final: valida asignación y posiciones, y notifica el resultado del partido.</div>
                 <button
                   type="button"
                   class="btn primary"
                   (click)="finishAndNotify()"
                   [disabled]="!canManage || loading || notifying || !resultFinished"
                 >
-                  {{ notifying ? 'Enviando…' : 'Terminar y notificar' }}
+                  {{ notifying ? 'Enviando…' : 'Notificar resultado' }}
                 </button>
                 <div class="hint" *ngIf="!resultFinished">Marca el partido como finalizado antes de cerrar.</div>
               </div>
@@ -545,10 +569,12 @@ export class MatchManageComponent implements OnInit, OnDestroy {
   saving = false;
   creatingTeams = false;
   notifying = false;
+  notifyingTeams = false;
   savingResult = false;
   result: TeamMatchResult | null = null;
   resultFinished = false;
   resultLocked = false;
+  matchFinalized = false;
   private resultWasFinished = false;
 
   private resultByEmail = new Map<string, { goals: number; ownGoals: number }>();
@@ -709,6 +735,7 @@ export class MatchManageComponent implements OnInit, OnDestroy {
       this.resultFinished = false;
       this.resultLocked = false;
       this.resultWasFinished = false;
+      this.matchFinalized = false;
       this.syncResultPlayersWithTeams();
       return;
     }
@@ -716,6 +743,7 @@ export class MatchManageComponent implements OnInit, OnDestroy {
     this.resultFinished = !!result.finished;
     this.resultWasFinished = !!result.finished;
     this.resultLocked = !!result.finished;
+    this.matchFinalized = !!result.finished;
 
     for (const t of result.teams || []) {
       for (const p of t.players || []) {
@@ -731,6 +759,9 @@ export class MatchManageComponent implements OnInit, OnDestroy {
 
   unlockResultEditing(): void {
     if (!this.canManage) {
+      return;
+    }
+    if (this.matchFinalized) {
       return;
     }
     if (!this.resultLocked) {
@@ -942,6 +973,9 @@ export class MatchManageComponent implements OnInit, OnDestroy {
   }
 
   dropAttendance(event: CdkDragDrop<ManagePlayer[]>, newStatus: MatchAttendanceStatus): void {
+    if (this.matchFinalized) {
+      return;
+    }
     if (!this.canManage) {
       return;
     }
@@ -1013,6 +1047,9 @@ export class MatchManageComponent implements OnInit, OnDestroy {
   }
 
   generateTeams(): void {
+    if (this.matchFinalized) {
+      return;
+    }
     if (!this.canManage || this.teamsForm.invalid) {
       return;
     }
@@ -1056,6 +1093,9 @@ export class MatchManageComponent implements OnInit, OnDestroy {
   }
 
   saveTeam(team: ManageTeam): void {
+    if (this.matchFinalized) {
+      return;
+    }
     if (!this.canManage) {
       return;
     }
@@ -1074,6 +1114,9 @@ export class MatchManageComponent implements OnInit, OnDestroy {
   }
 
   deleteTeam(team: ManageTeam): void {
+    if (this.matchFinalized) {
+      return;
+    }
     if (!this.canManage) {
       return;
     }
@@ -1092,6 +1135,9 @@ export class MatchManageComponent implements OnInit, OnDestroy {
   }
 
   dropTeam(event: CdkDragDrop<ManagePlayer[]>, targetTeam: ManageTeam | null): void {
+    if (this.matchFinalized) {
+      return;
+    }
     if (!this.canManage || this.teams.length === 0) {
       return;
     }
@@ -1168,6 +1214,9 @@ export class MatchManageComponent implements OnInit, OnDestroy {
   }
 
   onPositionChange(team: ManageTeam, player: ManagePlayer): void {
+    if (this.matchFinalized) {
+      return;
+    }
     if (!this.canManage || !player.position) {
       return;
     }
@@ -1180,6 +1229,46 @@ export class MatchManageComponent implements OnInit, OnDestroy {
         this.errorMessage = 'No se pudo actualizar la posición.';
         this.showToast('error', 'No se pudo actualizar la posición');
         this.reloadTeams();
+      }
+    });
+  }
+
+  notifyTeams(): void {
+    if (!this.canManage || this.loading || this.notifyingTeams) {
+      return;
+    }
+
+    if (this.matchFinalized) {
+      this.showToast('info', 'El partido ya está finalizado. Usa “Notificar resultado”.');
+      return;
+    }
+
+    if (this.teams.length === 0) {
+      this.showToast('error', 'Primero crea equipos para el partido');
+      return;
+    }
+
+    if (this.unassignedAttending.length > 0) {
+      this.showToast('error', 'Faltan jugadores por asignar a equipos');
+      return;
+    }
+
+    const anyMissingPosition = this.teams.some(t => t.players.some(p => !p.position));
+    if (anyMissingPosition) {
+      this.showToast('error', 'Hay jugadores sin posición asignada');
+      return;
+    }
+
+    this.notifyingTeams = true;
+    this.teamService.notifyMatchTeams(this.teamId, this.matchId).subscribe({
+      next: (res) => {
+        this.notifyingTeams = false;
+        const recipients = typeof res?.recipients === 'number' ? res.recipients : null;
+        this.showToast('success', recipients != null ? `Equipos notificados (${recipients} destinatarios)` : 'Equipos notificados');
+      },
+      error: () => {
+        this.notifyingTeams = false;
+        this.showToast('error', 'No se pudo enviar la notificación');
       }
     });
   }
@@ -1206,10 +1295,11 @@ export class MatchManageComponent implements OnInit, OnDestroy {
     }
 
     this.notifying = true;
-    this.teamService.notifyMatchTeams(this.teamId, this.matchId).subscribe({
-      next: () => {
+    this.teamService.notifyMatchResult(this.teamId, this.matchId).subscribe({
+      next: (res) => {
         this.notifying = false;
-        this.showToast('success', 'Notificación enviada a los equipos');
+        const recipients = typeof res?.recipients === 'number' ? res.recipients : null;
+        this.showToast('success', recipients != null ? `Resultado notificado (${recipients} destinatarios)` : 'Resultado notificado');
         setTimeout(() => this.goBack(), 700);
       },
       error: () => {

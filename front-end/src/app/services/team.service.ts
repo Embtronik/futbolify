@@ -18,6 +18,7 @@ import {
   TeamMatch,
   TeamMatchAttendance,
   TeamMatchAttendanceSummary,
+  MatchNotifyResponse,
   TeamMatchResult,
   TeamMatchResultUpsertRequest,
   TeamMember,
@@ -323,8 +324,8 @@ export class TeamService {
     return this.http.post<unknown>(`${this.API_URL}/teams/${teamId}/matches/${matchId}/teams/bulk`, { teams });
   }
 
-  notifyMatchTeams(teamId: number, matchId: number): Observable<void> {
-    return this.http.post<void>(`${this.API_URL}/teams/${teamId}/matches/${matchId}/teams/notify`, {});
+  notifyMatchTeams(teamId: number, matchId: number): Observable<MatchNotifyResponse> {
+    return this.http.post<MatchNotifyResponse>(`${this.API_URL}/teams/${teamId}/matches/${matchId}/teams/notify`, {});
   }
 
   // ==========================================
@@ -337,6 +338,10 @@ export class TeamService {
 
   upsertMatchResult(teamId: number, matchId: number, payload: TeamMatchResultUpsertRequest): Observable<TeamMatchResult> {
     return this.http.put<TeamMatchResult>(`${this.API_URL}/teams/${teamId}/matches/${matchId}/result`, payload);
+  }
+
+  notifyMatchResult(teamId: number, matchId: number): Observable<MatchNotifyResponse> {
+    return this.http.post<MatchNotifyResponse>(`${this.API_URL}/teams/${teamId}/matches/${matchId}/result/notify`, {});
   }
 
   getMatchPlayerHistoricalStats(teamId: number, limit = 50): Observable<unknown> {

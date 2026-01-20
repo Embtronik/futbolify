@@ -239,6 +239,29 @@ Respuesta (ejemplo):
 
 Devuelve el mismo `MatchResultResponse`.
 
+### 5.3 Notificar resultado a los jugadores (correo + sms + whatsapp)
+
+Cuando el administrador termine de ingresar el resultado y el partido esté finalizado (`finished=true`),
+puede disparar una notificación a todos los jugadores que quedaron asignados en los equipos del partido.
+
+**POST** `/api/teams/{teamId}/matches/{matchId}/result/notify`
+
+Respuesta:
+```json
+{
+  "teamId": 1,
+  "matchId": 10,
+  "recipients": 12,
+  "recipientEmails": ["a@b.com"],
+  "subject": "Futbolify | Resultado Rojo 3-2 Azul - Mi Equipo (19/01/2026 20:00)"
+}
+```
+
+El mensaje incluye:
+- Marcador final
+- Lista de goleadores (y autogoles si existen)
+- Cierre: "Felicitaciones al grupo {teamName} por parte de Futbolify"
+
 ## 6) Estadísticas históricas (por equipo)
 
 ### 6.1 Goles históricos por jugador (owner o miembro aprobado)

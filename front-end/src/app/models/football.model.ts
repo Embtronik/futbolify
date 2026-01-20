@@ -213,6 +213,14 @@ export interface TeamMatchResult {
   teams: TeamMatchResultTeam[];
 }
 
+export interface MatchNotifyResponse {
+  teamId: number;
+  matchId: number;
+  recipients: number;
+  recipientEmails: string[];
+  subject: string;
+}
+
 // Equipos profesionales de API-Football
 export interface FootballTeam {
   id: number;              // ID de la API
