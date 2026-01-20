@@ -90,6 +90,7 @@ import { environment } from '../../../../environments/environment';
                   *ngIf="isMatchCreator(match)"
                   type="button"
                   class="match-manage-btn"
+                  (click)="goToManageMatch(match)"
                 >
                   Administrar Partido
                 </button>
@@ -891,6 +892,14 @@ export class MatchesComponent implements OnInit {
     this.selectedMatchForDetail = match;
     this.showDetailModal = true;
     this.loadAttendance();
+  }
+
+  goToManageMatch(match: TeamMatch): void {
+    if (!this.selectedTeam) {
+      return;
+    }
+
+    this.router.navigate(['/dashboard', 'matches', this.selectedTeam.id, match.id, 'manage']);
   }
 
   closeDetailModal(): void {

@@ -7,6 +7,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
+import org.hibernate.annotations.ColumnDefault;
 
 import java.time.LocalDateTime;
 
@@ -43,6 +44,17 @@ public class TeamMatch {
 
     @Column(name = "match_datetime", nullable = false)
     private LocalDateTime matchDateTime;
+
+    @Column(name = "finished", nullable = false, columnDefinition = "boolean default false")
+    @ColumnDefault("false")
+    @Builder.Default
+    private boolean finished = false;
+
+    @Column(name = "finished_at")
+    private LocalDateTime finishedAt;
+
+    @Column(name = "result_updated_at")
+    private LocalDateTime resultUpdatedAt;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)

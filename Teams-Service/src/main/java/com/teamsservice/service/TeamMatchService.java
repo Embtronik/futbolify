@@ -1,10 +1,11 @@
 package com.teamsservice.service;
 
+import com.teamsservice.dto.MatchAttendanceSummaryResponse;
 import com.teamsservice.dto.NotificationSendRequest;
 import com.teamsservice.dto.PageResponse;
+import com.teamsservice.dto.TeamMatchAttendanceResponse;
 import com.teamsservice.dto.TeamMatchCreateRequest;
 import com.teamsservice.dto.TeamMatchResponse;
-import com.teamsservice.dto.TeamMatchAttendanceResponse;
 import com.teamsservice.dto.UserInfoDto;
 import com.teamsservice.entity.Team;
 import com.teamsservice.entity.TeamMatch;
@@ -31,7 +32,10 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
@@ -173,12 +177,44 @@ public class TeamMatchService {
         }).collect(Collectors.toList());
     }
 
-        @Transactional
-        public void confirmAttendance(Long teamId,
-                      Long matchId,
-                      Long userId,
-                      String userEmail,
-                      boolean attending) {
+        @Transactional(readOnly = true)
+        public MatchAttendanceSummaryResponse getMatchAttendanceSummary(Long teamId,
+                                        Long matchId,
+                                        Long currentUserId,
+                                        String currentUserEmail) {
+        List<TeamMatchAttendanceResponse> all = getMatchAttendance(teamId, matchId, currentUserId, currentUserEmail);
+
+        Map<String, List<TeamMatchAttendanceResponse>> byStatus = all.stream()
+            .collect(Collectors.groupingBy(r -> r.getStatus() == null ? "PENDING" : r.getStatus()));
+
+        List<TeamMatchAttendanceResponse> attending = byStatus.getOrDefault("ATTENDING", List.of());
+        List<TeamMatchAttendanceResponse> notAttending = byStatus.getOrDefault("NOT_ATTENDING", List.of());
+        List<TeamMatchAttendanceResponse> pending = byStatus.getOrDefault("PENDING", List.of());
+
+        Comparator<TeamMatchAttendanceResponse> byEmail = Comparator.comparing(
+            r -> r.getUserEmail() == null ? "" : r.getUserEmail().toLowerCase(Locale.ROOT)
+        );
+
+        attending = attending.stream().sorted(byEmail).collect(Collectors.toList());
+        notAttending = notAttending.stream().sorted(byEmail).collect(Collectors.toList());
+        pending = pending.stream().sorted(byEmail).collect(Collectors.toList());
+
+        return MatchAttendanceSummaryResponse.builder()
+            .attendingCount(attending.size())
+            .notAttendingCount(notAttending.size())
+            .pendingCount(pending.size())
+            .attending(attending)
+            .notAttending(notAttending)
+            .pending(pending)
+            .build();
+        }
+
+    @Transactional
+    public void confirmAttendance(Long teamId,
+                                  Long matchId,
+                                  Long userId,
+                                  String userEmail,
+                                  boolean attending) {
         log.info("User {} setting attendance={} for match {} in team {}", userId, attending, matchId, teamId);
 
         TeamMatch match = teamMatchRepository.findById(matchId)
@@ -209,7 +245,68 @@ public class TeamMatchService {
             : TeamMatchAttendance.AttendanceStatus.NOT_ATTENDING);
 
         teamMatchAttendanceRepository.save(attendance);
+    }
+
+    @Transactional
+    public MatchAttendanceSummaryResponse setAttendanceAsOwner(Long teamId,
+                                                              Long matchId,
+                                                              Long targetUserId,
+                                                              String status,
+                                                              Long currentUserId,
+                                                              String currentUserEmail) {
+        TeamMatch match = teamMatchRepository.findById(matchId)
+                .orElseThrow(() -> new ResourceNotFoundException("Match not found with id: " + matchId));
+
+        if (!match.getTeam().getId().equals(teamId)) {
+            throw new IllegalArgumentException("Match does not belong to this team");
         }
+
+        Team team = match.getTeam();
+        if (!team.getOwnerUserId().equals(currentUserId)) {
+            throw new UnauthorizedException("Only team owner can manage attendance");
+        }
+
+        TeamMember member = teamMemberRepository.findByTeamIdAndUserId(teamId, targetUserId)
+                .orElseThrow(() -> new ResourceNotFoundException("Team member not found with userId: " + targetUserId));
+
+        if (member.getStatus() != TeamMember.MembershipStatus.APPROVED) {
+            throw new UnauthorizedException("Target user is not an approved member of this team");
+        }
+
+        String normalized = status == null ? "" : status.trim().toUpperCase(Locale.ROOT);
+        switch (normalized) {
+            case "ATTENDING" -> {
+                upsertAttendance(match, targetUserId, member.getUserEmail(), TeamMatchAttendance.AttendanceStatus.ATTENDING);
+            }
+            case "NOT_ATTENDING" -> {
+                upsertAttendance(match, targetUserId, member.getUserEmail(), TeamMatchAttendance.AttendanceStatus.NOT_ATTENDING);
+            }
+            case "PENDING" -> {
+                teamMatchAttendanceRepository.findByMatchIdAndUserId(matchId, targetUserId)
+                        .ifPresent(teamMatchAttendanceRepository::delete);
+            }
+            default -> throw new IllegalArgumentException("Invalid status. Allowed: ATTENDING, NOT_ATTENDING, PENDING");
+        }
+
+        return getMatchAttendanceSummary(teamId, matchId, currentUserId, currentUserEmail);
+    }
+
+    private void upsertAttendance(TeamMatch match,
+                                 Long userId,
+                                 String userEmail,
+                                 TeamMatchAttendance.AttendanceStatus status) {
+        TeamMatchAttendance attendance = teamMatchAttendanceRepository
+                .findByMatchIdAndUserId(match.getId(), userId)
+                .orElse(TeamMatchAttendance.builder()
+                        .match(match)
+                        .userId(userId)
+                        .userEmail(userEmail)
+                        .build());
+
+        attendance.setUserEmail(userEmail);
+        attendance.setStatus(status);
+        teamMatchAttendanceRepository.save(attendance);
+    }
 
     private void notifyTeamMembers(Team team, TeamMatch match) {
         List<TeamMember> members = teamMemberRepository.findApprovedMembersByTeamId(team.getId());

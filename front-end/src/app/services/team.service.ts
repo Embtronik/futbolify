@@ -7,6 +7,8 @@ import {
   CreatePollRequest,
   CreatePredictionRequest,
   CreateTeamMatchRequest,
+  MatchTeam,
+  PlayerPosition,
   Player,
   Poll,
   PollInvitation,
@@ -15,6 +17,9 @@ import {
   Team,
   TeamMatch,
   TeamMatchAttendance,
+  TeamMatchAttendanceSummary,
+  TeamMatchResult,
+  TeamMatchResultUpsertRequest,
   TeamMember,
 } from '../models/football.model';
 import { environment } from '../../environments/environment';
@@ -260,6 +265,24 @@ export class TeamService {
     return this.http.get<TeamMatchAttendance[]>(`${this.API_URL}/teams/${teamId}/matches/${matchId}/attendance`);
   }
 
+  getMatchAttendanceSummary(teamId: number, matchId: number): Observable<TeamMatchAttendanceSummary> {
+    return this.http.get<TeamMatchAttendanceSummary>(
+      `${this.API_URL}/teams/${teamId}/matches/${matchId}/attendance/summary`
+    );
+  }
+
+  setMatchAttendanceStatus(
+    teamId: number,
+    matchId: number,
+    userId: number,
+    status: 'ATTENDING' | 'NOT_ATTENDING' | 'PENDING'
+  ): Observable<TeamMatchAttendanceSummary> {
+    return this.http.put<TeamMatchAttendanceSummary>(
+      `${this.API_URL}/teams/${teamId}/matches/${matchId}/attendance/${userId}`,
+      { status }
+    );
+  }
+
   createMatch(teamId: number, matchData: CreateTeamMatchRequest): Observable<TeamMatch> {
     return this.http.post<TeamMatch>(`${this.API_URL}/teams/${teamId}/matches`, matchData);
   }
@@ -277,6 +300,78 @@ export class TeamService {
       `${this.API_URL}/teams/${teamId}/matches/${matchId}/attendance`,
       {},
       { params: { attending: attending ? 'true' : 'false' } }
+    );
+  }
+
+  // ==========================================
+  // MATCH ADMIN: EQUIPOS DEL PARTIDO (MATCH TEAMS)
+  // ==========================================
+
+  getMatchTeams(teamId: number, matchId: number): Observable<MatchTeam[]> {
+    return this.http.get<MatchTeam[]>(`${this.API_URL}/teams/${teamId}/matches/${matchId}/teams`);
+  }
+
+  createMatchTeam(teamId: number, matchId: number, team: { name: string; color: string }): Observable<MatchTeam> {
+    return this.http.post<MatchTeam>(`${this.API_URL}/teams/${teamId}/matches/${matchId}/teams`, team);
+  }
+
+  createMatchTeamsBulk(
+    teamId: number,
+    matchId: number,
+    teams: Array<{ name: string; color: string }>
+  ): Observable<unknown> {
+    return this.http.post<unknown>(`${this.API_URL}/teams/${teamId}/matches/${matchId}/teams/bulk`, { teams });
+  }
+
+  notifyMatchTeams(teamId: number, matchId: number): Observable<void> {
+    return this.http.post<void>(`${this.API_URL}/teams/${teamId}/matches/${matchId}/teams/notify`, {});
+  }
+
+  // ==========================================
+  // MATCH RESULT (GOLES / AUTOGOLES)
+  // ==========================================
+
+  getMatchResult(teamId: number, matchId: number): Observable<TeamMatchResult> {
+    return this.http.get<TeamMatchResult>(`${this.API_URL}/teams/${teamId}/matches/${matchId}/result`);
+  }
+
+  upsertMatchResult(teamId: number, matchId: number, payload: TeamMatchResultUpsertRequest): Observable<TeamMatchResult> {
+    return this.http.put<TeamMatchResult>(`${this.API_URL}/teams/${teamId}/matches/${matchId}/result`, payload);
+  }
+
+  getMatchPlayerHistoricalStats(teamId: number, limit = 50): Observable<unknown> {
+    return this.http.get<unknown>(`${this.API_URL}/teams/${teamId}/matches/stats/players`, { params: { limit } });
+  }
+
+  updateMatchTeam(
+    teamId: number,
+    matchId: number,
+    matchTeamId: number,
+    team: { name: string; color: string }
+  ): Observable<MatchTeam> {
+    return this.http.put<MatchTeam>(`${this.API_URL}/teams/${teamId}/matches/${matchId}/teams/${matchTeamId}`, team);
+  }
+
+  deleteMatchTeam(teamId: number, matchId: number, matchTeamId: number): Observable<void> {
+    return this.http.delete<void>(`${this.API_URL}/teams/${teamId}/matches/${matchId}/teams/${matchTeamId}`);
+  }
+
+  assignPlayerToMatchTeam(
+    teamId: number,
+    matchId: number,
+    matchTeamId: number,
+    userId: number,
+    position: PlayerPosition
+  ): Observable<unknown> {
+    return this.http.put<unknown>(
+      `${this.API_URL}/teams/${teamId}/matches/${matchId}/teams/${matchTeamId}/players/${userId}`,
+      { position }
+    );
+  }
+
+  removePlayerFromMatchTeam(teamId: number, matchId: number, matchTeamId: number, userId: number): Observable<void> {
+    return this.http.delete<void>(
+      `${this.API_URL}/teams/${teamId}/matches/${matchId}/teams/${matchTeamId}/players/${userId}`
     );
   }
 }

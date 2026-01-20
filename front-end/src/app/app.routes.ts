@@ -67,6 +67,10 @@ export const routes: Routes = [
         loadComponent: () => import('./components/dashboard/members/members.component').then(m => m.MembersComponent)
       },
       {
+        path: 'matches/:teamId/:matchId/manage',
+        loadComponent: () => import('./components/dashboard/matches/match-manage.component').then(m => m.MatchManageComponent)
+      },
+      {
         path: 'matches',
         loadComponent: () => import('./components/dashboard/matches/matches.component').then(m => m.MatchesComponent)
       },

@@ -106,6 +106,10 @@ export interface TeamMatch {
   createdByUserId?: number; // ID del usuario que creó el partido
   // Estado opcional del partido (para UI)
   status?: 'SCHEDULED' | 'CONFIRMED' | 'PENDING' | 'CANCELLED';
+  // Resultado / finalización (opcionales según payload backend)
+  finished?: boolean;
+  finishedAt?: string;
+  resultUpdatedAt?: string;
   createdAt?: Date | string;
   updatedAt?: Date | string;
 }
@@ -130,6 +134,83 @@ export interface TeamMatchAttendance {
     lastName?: string;
   };
   status: MatchAttendanceStatus;
+}
+
+// Resumen agrupado de asistencia (para admin/owner)
+export interface TeamMatchAttendanceSummary {
+  attending: TeamMatchAttendance[];
+  notAttending: TeamMatchAttendance[];
+  pending: TeamMatchAttendance[];
+  counts?: {
+    attending: number;
+    notAttending: number;
+    pending: number;
+    total?: number;
+  };
+}
+
+export type PlayerPosition = 'GOALKEEPER' | 'DEFENDER' | 'MIDFIELDER' | 'FORWARD';
+
+export interface MatchTeamPlayer {
+  userId: number;
+  userEmail: string;
+  position: PlayerPosition;
+  userInfo?: {
+    fullName?: string;
+    firstName?: string;
+    lastName?: string;
+  } | null;
+}
+
+// Equipo creado para un partido (match team)
+export interface MatchTeam {
+  id: number;
+  matchId: number;
+  name: string;
+  color: string;
+  createdAt?: string;
+  players: MatchTeamPlayer[];
+}
+
+// ==============================
+// RESULTADO DEL PARTIDO (MATCH RESULT)
+// ==============================
+
+export interface TeamMatchPlayerResultInput {
+  userEmail: string;
+  goals: number;
+  ownGoals: number;
+}
+
+export interface TeamMatchResultUpsertRequest {
+  finished: boolean;
+  players: TeamMatchPlayerResultInput[];
+}
+
+export interface TeamMatchResultPlayer {
+  userEmail: string;
+  goals: number;
+  ownGoals: number;
+  userInfo?: {
+    fullName?: string;
+    firstName?: string;
+    lastName?: string;
+  } | null;
+}
+
+export interface TeamMatchResultTeam {
+  id: number;
+  name: string;
+  color: string;
+  goals: number;
+  players: TeamMatchResultPlayer[];
+}
+
+export interface TeamMatchResult {
+  finished: boolean;
+  finishedAt?: string;
+  resultUpdatedAt?: string;
+  teams: TeamMatchResultTeam[];
 }
 
 // Equipos profesionales de API-Football
