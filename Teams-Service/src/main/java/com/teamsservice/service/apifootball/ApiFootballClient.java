@@ -35,7 +35,8 @@ public class ApiFootballClient {
 
     public FixtureSnapshot fetchFixtureById(String fixtureId) {
         if (apiKey == null || apiKey.isBlank()) {
-            throw new IllegalStateException("API-Football api key is not configured (FOOTBALLAPIKEY)");
+            throw new IllegalStateException(
+                    "API-Football api key is not configured (set env FOOTBALLAPIKEY or FOOTBALL_API_KEY)");
         }
 
         HttpHeaders headers = new HttpHeaders();

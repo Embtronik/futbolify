@@ -69,7 +69,8 @@ app:
   # API-Football (API-SPORTS)
   football-api:
     base-url: ${FOOTBALL_API_BASE_URL:https://v3.football.api-sports.io}
-    api-key: ${FOOTBALLAPIKEY:}
+    # Support both env var styles: FOOTBALLAPIKEY (legacy) and FOOTBALL_API_KEY (common)
+    api-key: ${FOOTBALLAPIKEY:${FOOTBALL_API_KEY:}}
 
   # Polla scoring rules (paramétricas)
   polla:

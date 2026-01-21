@@ -85,6 +85,23 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
     }
 
+        @ExceptionHandler(IllegalStateException.class)
+        public ResponseEntity<ErrorResponse> handleIllegalState(
+                        IllegalStateException ex,
+                        HttpServletRequest request) {
+
+                log.error("Service misconfiguration: {}", ex.getMessage());
+
+                ErrorResponse error = new ErrorResponse(
+                                HttpStatus.SERVICE_UNAVAILABLE.value(),
+                                ex.getMessage(),
+                                LocalDateTime.now(),
+                                request.getRequestURI()
+                );
+
+                return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(error);
+        }
+
     @ExceptionHandler(BusinessRuleException.class)
     public ResponseEntity<ErrorResponse> handleBusinessRule(
             BusinessRuleException ex,
