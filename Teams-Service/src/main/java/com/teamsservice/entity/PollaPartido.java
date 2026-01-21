@@ -64,6 +64,18 @@ public class PollaPartido {
     @Column(name = "goles_visitante")
     private Integer golesVisitante;
 
+    // ==========================
+    // API-Football sync/cache
+    // ==========================
+    @Column(name = "api_status_short", length = 20)
+    private String apiStatusShort;
+
+    @Column(name = "api_status_long", length = 100)
+    private String apiStatusLong;
+
+    @Column(name = "last_api_sync_at")
+    private LocalDateTime lastApiSyncAt;
+
     @Column(name = "partido_finalizado")
     @Builder.Default
     private Boolean partidoFinalizado = false;

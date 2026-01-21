@@ -36,6 +36,12 @@ public interface PollaPartidoRepository extends JpaRepository<PollaPartido, Long
     long countFinalizadosByPollaId(@Param("pollaId") Long pollaId);
 
     /**
+     * Cuenta todos los partidos de una polla
+     */
+    @Query("SELECT COUNT(pp) FROM PollaPartido pp WHERE pp.polla.id = :pollaId")
+    long countTotalByPollaId(@Param("pollaId") Long pollaId);
+
+    /**
      * Encuentra partidos próximos a iniciarse (útil para bloquear pronósticos)
      */
     @Query("SELECT pp FROM PollaPartido pp " +

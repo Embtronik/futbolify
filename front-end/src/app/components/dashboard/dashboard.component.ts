@@ -1,8 +1,9 @@
-import { Component, inject, OnInit } from '@angular/core';
+import { Component, inject, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Router, RouterModule, RouterOutlet } from '@angular/router';
+import { NavigationEnd, Router, RouterModule, RouterOutlet } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
 import { User } from '../../models/user.model';
+import { filter, Subscription } from 'rxjs';
 
 @Component({
   selector: 'app-dashboard',
@@ -10,19 +11,28 @@ import { User } from '../../models/user.model';
   imports: [CommonModule, RouterModule, RouterOutlet],
   template: `
     <div class="dashboard-layout">
+      <div class="sidebar-overlay" *ngIf="mobileSidebarOpen" (click)="closeMobileSidebar()" aria-hidden="true"></div>
+
       <!-- Sidebar -->
-      <aside class="sidebar" [class.collapsed]="sidebarCollapsed">
+      <aside
+        id="dashboard-sidebar"
+        class="sidebar"
+        [class.collapsed]="sidebarCollapsed"
+        [class.mobile-open]="mobileSidebarOpen"
+        role="navigation"
+        aria-label="Menú"
+      >
         <div class="sidebar-header">
           <div class="logo">
             <span class="logo-icon">⚽</span>
             <span class="logo-text" *ngIf="!sidebarCollapsed">Futbolify</span>
           </div>
-          <button class="toggle-btn" (click)="toggleSidebar()">
-            <span>{{ sidebarCollapsed ? '›' : '‹' }}</span>
+          <button class="toggle-btn" type="button" (click)="toggleSidebar()" [attr.aria-label]="sidebarCollapsed ? 'Expandir menú' : 'Contraer menú'">
+            <span aria-hidden="true">{{ sidebarCollapsed ? '›' : '‹' }}</span>
           </button>
         </div>
 
-        <nav class="sidebar-nav">
+        <nav class="sidebar-nav" (click)="closeMobileSidebar()">
           <a routerLink="/dashboard/home" routerLinkActive="active" class="nav-item">
             <span class="nav-icon">🏠</span>
             <span class="nav-text" *ngIf="!sidebarCollapsed">Inicio</span>
@@ -58,7 +68,7 @@ import { User } from '../../models/user.model';
         </nav>
 
         <div class="sidebar-footer">
-          <button class="nav-item logout-btn" (click)="logout()">
+          <button class="nav-item logout-btn" type="button" (click)="logout()">
             <span class="nav-icon">🚪</span>
             <span class="nav-text" *ngIf="!sidebarCollapsed">Cerrar Sesión</span>
           </button>
@@ -70,7 +80,19 @@ import { User } from '../../models/user.model';
         <!-- Top Bar -->
         <header class="topbar">
           <div class="topbar-content">
-            <h1 class="page-title">{{ getPageTitle() }}</h1>
+            <div class="topbar-left">
+              <button
+                class="menu-btn"
+                type="button"
+                (click)="openMobileSidebar()"
+                [attr.aria-controls]="'dashboard-sidebar'"
+                [attr.aria-expanded]="mobileSidebarOpen"
+                aria-label="Abrir menú"
+              >
+                <span class="menu-icon" aria-hidden="true">☰</span>
+              </button>
+              <h1 class="page-title">{{ getPageTitle() }}</h1>
+            </div>
             <div class="user-menu">
               <div class="user-info">
                 <span class="user-name">{{ user?.firstName }} {{ user?.lastName }}</span>
@@ -95,6 +117,10 @@ import { User } from '../../models/user.model';
       display: flex;
       height: 100vh;
       overflow: hidden;
+    }
+
+    .sidebar-overlay{
+      display:none;
     }
 
     /* Sidebar Styles */
@@ -241,6 +267,31 @@ import { User } from '../../models/user.model';
       align-items: center;
     }
 
+    .topbar-left{
+      display:flex;
+      align-items:center;
+      gap:12px;
+      min-width: 0;
+    }
+
+    .menu-btn{
+      display:none;
+      background:#fff;
+      border:1px solid var(--border-color);
+      width:44px;
+      height:44px;
+      border-radius: 12px;
+      box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
+      cursor:pointer;
+      align-items:center;
+      justify-content:center;
+      flex: 0 0 auto;
+    }
+
+    .menu-btn:hover{background:#f8fafc;}
+    .menu-btn:focus-visible{outline:3px solid rgba(34, 197, 94, 0.35);outline-offset:2px;}
+    .menu-icon{font-size:20px;line-height:1;color:var(--dark-color);}
+
     .page-title {
       font-size: 24px;
       font-weight: 700;
@@ -300,10 +351,31 @@ import { User } from '../../models/user.model';
         top: 0;
         height: 100vh;
         z-index: 1000;
+        width: 280px;
+        max-width: 86vw;
+        transform: translateX(-100%);
+        transition: transform 0.25s ease;
       }
 
-      .sidebar.collapsed {
-        transform: translateX(-100%);
+      .sidebar.mobile-open{
+        transform: translateX(0);
+      }
+
+      .sidebar.collapsed{
+        width: 280px;
+      }
+
+      .sidebar-overlay{
+        display:block;
+        position: fixed;
+        inset: 0;
+        background: rgba(15, 23, 42, 0.35);
+        backdrop-filter: blur(2px);
+        z-index: 950;
+      }
+
+      .menu-btn{
+        display:flex;
       }
 
       .user-info {
@@ -316,17 +388,28 @@ import { User } from '../../models/user.model';
     }
   `]
 })
-export class DashboardComponent implements OnInit {
+export class DashboardComponent implements OnInit, OnDestroy {
   private authService = inject(AuthService);
   private router = inject(Router);
 
+  private subscriptions = new Subscription();
+
   user: User | null = null;
   sidebarCollapsed = false;
+  mobileSidebarOpen = false;
 
   ngOnInit(): void {
-    this.authService.currentUser$.subscribe(user => {
+    this.subscriptions.add(this.authService.currentUser$.subscribe(user => {
       this.user = user;
-    });
+    }));
+
+    this.subscriptions.add(
+      this.router.events
+        .pipe(filter((event): event is NavigationEnd => event instanceof NavigationEnd))
+        .subscribe(() => {
+          this.closeMobileSidebar();
+        })
+    );
 
     // Si no hay usuario en el subject, intentar obtenerlo
     if (!this.user) {
@@ -339,7 +422,28 @@ export class DashboardComponent implements OnInit {
   }
 
   toggleSidebar(): void {
+    if (this.isMobile()) {
+      this.mobileSidebarOpen ? this.closeMobileSidebar() : this.openMobileSidebar();
+      return;
+    }
+
     this.sidebarCollapsed = !this.sidebarCollapsed;
+  }
+
+  openMobileSidebar(): void {
+    if (!this.isMobile()) return;
+    this.mobileSidebarOpen = true;
+    document.body.style.overflow = 'hidden';
+  }
+
+  closeMobileSidebar(): void {
+    if (!this.mobileSidebarOpen) return;
+    this.mobileSidebarOpen = false;
+    document.body.style.overflow = '';
+  }
+
+  private isMobile(): boolean {
+    return window.matchMedia?.('(max-width: 768px)')?.matches ?? false;
   }
 
   getPageTitle(): string {
@@ -354,6 +458,12 @@ export class DashboardComponent implements OnInit {
   }
 
   logout(): void {
+    this.closeMobileSidebar();
     this.authService.logout();
+  }
+
+  ngOnDestroy(): void {
+    this.subscriptions.unsubscribe();
+    document.body.style.overflow = '';
   }
 }

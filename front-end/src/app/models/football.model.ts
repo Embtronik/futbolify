@@ -346,6 +346,54 @@ export interface PollMatch {
   createdAt?: Date | string;
 }
 
+// Marcador real/estado real de un partido de una polla
+export type PollMatchScoreServedFrom = 'DB' | 'API';
+
+export interface PartidoMarcadorResponse {
+  pollaId: number;
+  pollaPartidoId: number;
+  idPartidoExterno: string;
+  apiStatusShort: string;
+  apiStatusLong: string;
+  golesLocal: number | null;
+  golesVisitante: number | null;
+  partidoFinalizado: boolean;
+  lastApiSyncAt: string | null;
+  servedFrom: PollMatchScoreServedFrom;
+  ttlSeconds: number | null;
+}
+
+// Tabla de posiciones de una polla
+export interface PollaTablaPosicionesEntry {
+  email?: string;
+  emailUsuario?: string;
+  emailParticipante?: string;
+  nombre?: string;
+  nombreUsuario?: string;
+  nombreParticipante?: string;
+  puntos?: number;
+  puntosTotales?: number;
+  userInfo?: {
+    email?: string;
+    // Newer AuthServiceClient payloads
+    firstName?: string;
+    lastName?: string;
+    // Back-compat payloads
+    nombre?: string;
+    apellido?: string;
+    fotoUrl?: string;
+  } | null;
+}
+
+export interface PollaTablaPosicionesResponse {
+  pollaId?: number;
+  estadoPolla?: string;
+  definitivo?: boolean;
+  tabla?: PollaTablaPosicionesEntry[];
+  posiciones?: PollaTablaPosicionesEntry[];
+  ranking?: PollaTablaPosicionesEntry[];
+}
+
 // Pronóstico de un participante para un partido
 export interface PollPrediction {
   id: number;
@@ -416,4 +464,55 @@ export interface Statistics {
   totalPolls: number;
   upcomingMatches: number;
   activePolls: number;
+}
+
+// ==============================
+// ESTADÍSTICAS (MENÚ LATERAL)
+// ==============================
+
+export type StatsTeamRole = 'OWNER' | 'MEMBER';
+
+export interface StatsTeamAccess {
+  teamId: number;
+  teamName: string;
+  role: StatsTeamRole;
+}
+
+export interface StatsMatchTeamScore {
+  matchTeamId: number;
+  name: string;
+  color: string;
+  goals: number;
+}
+
+export interface StatsMatchHistoryItem {
+  matchId: number;
+  matchDateTime: string;
+  matchAddress?: string;
+  teamA: StatsMatchTeamScore;
+  teamB: StatsMatchTeamScore;
+  winnerMatchTeamId?: number | null;
+}
+
+export interface StatsTopScorer {
+  userEmail: string;
+  userId: number;
+  goals: number;
+  ownGoals: number;
+  userInfo?: {
+    id: number;
+    email: string;
+    firstName: string;
+    lastName: string;
+    countryCode?: string;
+    phoneNumber?: string;
+    provider: 'GOOGLE' | 'LOCAL';
+    emailVerified: boolean;
+  };
+}
+
+export interface StatsMatchTeamWinner {
+  name: string;
+  color: string;
+  wins: number;
 }

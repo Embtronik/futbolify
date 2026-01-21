@@ -1,6 +1,11 @@
 spring:
   application:
     name: teams-service
+
+  # Allow local development using the repo-root .env file (key=value format)
+  # This is optional and safe in prod (file usually not present).
+  config:
+    import: optional:file:.env[.properties]
   
   datasource:
     url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:proyectos_dev}
@@ -60,6 +65,19 @@ app:
   
   notification-service:
     url: ${NOTIFICATION_SERVICE_URL:http://localhost:8081}
+
+  # API-Football (API-SPORTS)
+  football-api:
+    base-url: ${FOOTBALL_API_BASE_URL:https://v3.football.api-sports.io}
+    api-key: ${FOOTBALLAPIKEY:}
+
+  # Polla scoring rules (paramétricas)
+  polla:
+    scoring:
+      correct-home-goals-points: ${POLLA_POINTS_HOME:1}
+      correct-away-goals-points: ${POLLA_POINTS_AWAY:1}
+      exact-score-points: ${POLLA_POINTS_EXACT:3}
+      correct-winner-points: ${POLLA_POINTS_WINNER:3}
 
   # Frontend URL for links in notifications
   frontend:

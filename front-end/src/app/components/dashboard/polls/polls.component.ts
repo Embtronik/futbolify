@@ -1,4 +1,4 @@
-import { Component, inject, OnInit } from '@angular/core';
+import { AfterViewInit, Component, ElementRef, inject, NgZone, OnDestroy, OnInit, QueryList, ViewChildren } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators, FormsModule } from '@angular/forms';
@@ -10,6 +10,9 @@ import { PollService } from '../../../services/poll.service';
 import { 
   Poll, 
   PollMatch, 
+  PartidoMarcadorResponse,
+  PollaTablaPosicionesEntry,
+  PollaTablaPosicionesResponse,
   Team, 
   TeamMember,
   FootballTeam,
@@ -27,8 +30,30 @@ import {
   templateUrl: './polls.component.html',
   styleUrls: ['./polls.component.css']
 })
-export class PollsComponent implements OnInit {
+export class PollsComponent implements OnInit, AfterViewInit, OnDestroy {
   // ...existing code...
+
+  private zone = inject(NgZone);
+
+  @ViewChildren('participarMatchRow', { read: ElementRef })
+  private participarMatchRows!: QueryList<ElementRef<HTMLElement>>;
+
+  realScoreByMatchId: Record<number, PartidoMarcadorResponse | null> = {};
+  realScoreLoadingByMatchId: Record<number, boolean> = {};
+  realScoreErrorByMatchId: Record<number, string> = {};
+  private realScoreFetchedAtMsByMatchId: Record<number, number> = {};
+
+  private realScoreRowObserver?: IntersectionObserver;
+  private realScoreVisibleMatchIds = new Set<number>();
+  private realScorePollers = new Map<number, number>();
+
+  participarModalTab: 'participar' | 'tabla' = 'participar';
+
+  standingsRows: Array<{ displayName: string; points: number; email?: string }> = [];
+  standingsDefinitivo: boolean | null = null;
+  standingsLoading = false;
+  standingsError = '';
+  private standingsPollerId?: number;
 
   private getBackendErrorMessage(err: unknown, fallback: string): string {
     if (err instanceof HttpErrorResponse) {
@@ -278,6 +303,18 @@ export class PollsComponent implements OnInit {
   ngOnInit(): void {
     this.initializeForms();
     this.loadData();
+  }
+
+  ngAfterViewInit(): void {
+    // Re-observe whenever rows change (e.g. when opening modal or reloading matches)
+    this.participarMatchRows.changes.subscribe(() => this.rebindRealScoreRowObserver());
+    this.rebindRealScoreRowObserver();
+  }
+
+  ngOnDestroy(): void {
+    this.teardownRealScoreRowObserver();
+    this.stopAllRealScorePolling();
+    this.stopStandingsPolling();
   }
 
   initializeForms(): void {
@@ -583,11 +620,14 @@ export class PollsComponent implements OnInit {
   openPollDetail(poll: Poll): void {
     if (!poll || typeof (poll as any).id !== 'number') return;
     this.selectedPoll = poll;
+    this.resetRealScoreState();
+    this.resetStandingsState();
     if (!this.currentUserEmail) {
       this.currentUserEmail = (poll.emailUsuarioAutenticado || '').toLowerCase().trim();
     }
     this.isParticiparView = (this.activeTab === 'invited');
     this.showPollDetailModal = true;
+    this.participarModalTab = 'participar';
     this.refreshSelectedPollDetail(poll.id);
     this.loadPollMatches(poll.id);
   }
@@ -619,6 +659,156 @@ export class PollsComponent implements OnInit {
     this.pollMatches = [];
     this.predictionErrors = {};
     this.savingPredictions = false;
+
+    this.teardownRealScoreRowObserver();
+    this.stopAllRealScorePolling();
+    this.resetRealScoreState();
+
+    this.stopStandingsPolling();
+    this.resetStandingsState();
+  }
+
+  setParticiparModalTab(tab: 'participar' | 'tabla'): void {
+    if (this.participarModalTab === tab) return;
+    this.participarModalTab = tab;
+
+    if (tab === 'tabla') {
+      // Pause real-score observers/polling while the table is visible
+      this.teardownRealScoreRowObserver();
+      this.stopAllRealScorePolling();
+      this.loadStandings(false);
+      return;
+    }
+
+    // Leaving standings tab
+    this.stopStandingsPolling();
+    // Rebind real-score observer once rows are back in DOM
+    setTimeout(() => {
+      this.preloadRealScores(3);
+      this.rebindRealScoreRowObserver();
+    }, 0);
+  }
+
+  refreshStandings(): void {
+    this.loadStandings(true);
+  }
+
+  private resetStandingsState(): void {
+    this.standingsRows = [];
+    this.standingsDefinitivo = null;
+    this.standingsLoading = false;
+    this.standingsError = '';
+  }
+
+  private loadStandings(force: boolean): void {
+    if (!this.selectedPoll) return;
+    if (!this.showPollDetailModal || !this.isParticiparView) return;
+    if (this.participarModalTab !== 'tabla') return;
+    if (!force && this.standingsLoading) return;
+
+    this.standingsLoading = true;
+    this.standingsError = '';
+
+    this.pollService.getStandings(this.selectedPoll.id).pipe(
+      catchError((err: unknown) => {
+        const msg = this.getBackendErrorMessage(err, 'No se pudo cargar la tabla de posiciones');
+        this.standingsError = msg;
+        return of(null);
+      })
+    ).subscribe((res: PollaTablaPosicionesResponse | PollaTablaPosicionesEntry[] | null) => {
+      this.standingsLoading = false;
+      if (!res) {
+        this.updateStandingsPolling();
+        return;
+      }
+
+      // Debug: inspeccionar payload real del backend
+      // (pediste verlo en consola para validar campos)
+      console.log('[pollas][tabla-posiciones] raw response:', res);
+
+      const normalized = this.normalizeStandingsResponse(res);
+      console.log('[pollas][tabla-posiciones] normalized:', normalized);
+      this.standingsRows = normalized.rows;
+      this.standingsDefinitivo = normalized.definitivo;
+      this.updateStandingsPolling();
+    });
+  }
+
+  private getParticipantNameFromPoll(email: string): string | null {
+    const e = (email || '').toLowerCase().trim();
+    if (!e) return null;
+    const participants = (this.selectedPoll?.participantes || []) as any[];
+    const hit = participants.find((p) => (p?.emailUsuario || '').toLowerCase().trim() === e);
+    const name = (hit?.nombreUsuario || '').toString().trim();
+    return name ? name : null;
+  }
+
+  private normalizeStandingsResponse(
+    res: PollaTablaPosicionesResponse | PollaTablaPosicionesEntry[] | any
+  ): { definitivo: boolean | null; rows: Array<{ displayName: string; points: number; email?: string }> } {
+    const toRows = (arr: any[]): Array<{ displayName: string; points: number; email?: string }> => {
+      const mapped = (arr || [])
+        .filter(Boolean)
+        .map((item: any) => {
+          const email = (item?.emailParticipante ?? item?.emailUsuario ?? item?.email ?? item?.userInfo?.email ?? '').toString().trim();
+          const nombreParticipante = (item?.nombreParticipante ?? item?.nombreUsuario ?? item?.nombre ?? '').toString().trim();
+
+          const firstName = (item?.userInfo?.firstName ?? item?.userInfo?.nombre ?? '').toString().trim();
+          const lastName = (item?.userInfo?.lastName ?? item?.userInfo?.apellido ?? '').toString().trim();
+          const fullName = `${firstName}${lastName ? ' ' + lastName : ''}`.trim();
+          const pollName = this.getParticipantNameFromPoll(email) || '';
+          const pointsRaw = item?.puntos ?? item?.puntosTotales ?? item?.totalPuntos ?? item?.puntaje ?? 0;
+          const points = Number(pointsRaw);
+          const displayName = (nombreParticipante || fullName || pollName || '').toString().trim() || 'Sin nombre';
+          return {
+            email: email || undefined,
+            displayName,
+            points: Number.isFinite(points) ? points : 0,
+          };
+        });
+
+      mapped.sort((a, b) => {
+        if (b.points !== a.points) return b.points - a.points;
+        return a.displayName.localeCompare(b.displayName);
+      });
+      return mapped;
+    };
+
+    if (Array.isArray(res)) {
+      return { definitivo: null, rows: toRows(res) };
+    }
+
+    const definitivo = typeof res?.definitivo === 'boolean' ? (res.definitivo as boolean) : null;
+    const list =
+      (Array.isArray(res?.ranking) && res.ranking) ||
+      (Array.isArray(res?.tabla) && res.tabla) ||
+      (Array.isArray(res?.posiciones) && res.posiciones) ||
+      [];
+    return { definitivo, rows: toRows(list) };
+  }
+
+  private updateStandingsPolling(): void {
+    // Requerimiento: no refrescar automáticamente cada X tiempo.
+    // Dejamos solo refresh manual.
+    this.stopStandingsPolling();
+  }
+
+  private startStandingsPolling(): void {
+    if (typeof this.standingsPollerId === 'number') return;
+    this.standingsPollerId = window.setInterval(() => {
+      if (!this.showPollDetailModal || !this.isParticiparView || this.participarModalTab !== 'tabla') {
+        this.stopStandingsPolling();
+        return;
+      }
+      this.loadStandings(true);
+    }, 30_000);
+  }
+
+  private stopStandingsPolling(): void {
+    if (typeof this.standingsPollerId === 'number') {
+      window.clearInterval(this.standingsPollerId);
+    }
+    this.standingsPollerId = undefined;
   }
 
   loadPollMatches(pollId: number): void {
@@ -648,11 +838,198 @@ export class PollsComponent implements OnInit {
           return nextMatch;
         });
         this.predictionErrors = {};
+
+        // Preload first matches for quick UX and (re)bind observer
+        setTimeout(() => {
+          this.preloadRealScores(3);
+          this.rebindRealScoreRowObserver();
+        }, 0);
       },
       error: (error: any) => {
         console.error('Error loading matches:', error);
       }
     });
+  }
+
+  refreshRealScore(matchId: number): void {
+    this.loadRealScore(matchId, true);
+  }
+
+  formatApiSyncAt(value: string | null): string {
+    if (!value) return '';
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return value;
+    return d.toLocaleString();
+  }
+
+  private resetRealScoreState(): void {
+    this.realScoreByMatchId = {};
+    this.realScoreLoadingByMatchId = {};
+    this.realScoreErrorByMatchId = {};
+    this.realScoreFetchedAtMsByMatchId = {};
+    this.realScoreVisibleMatchIds.clear();
+  }
+
+  private preloadRealScores(count: number): void {
+    if (!this.showPollDetailModal || !this.isParticiparView) return;
+    if (!this.selectedPoll) return;
+    const ids = (this.pollMatches || []).slice(0, Math.max(0, count)).map(m => m.id).filter((id) => typeof id === 'number');
+    for (const id of ids) {
+      this.loadRealScore(id, false);
+    }
+  }
+
+  private rebindRealScoreRowObserver(): void {
+    if (!this.showPollDetailModal || !this.isParticiparView) {
+      this.teardownRealScoreRowObserver();
+      this.stopAllRealScorePolling();
+      return;
+    }
+
+    if (!this.realScoreRowObserver) {
+      this.realScoreRowObserver = new IntersectionObserver(
+        (entries) => {
+          // Ensure UI updates are detected
+          this.zone.run(() => {
+            for (const entry of entries) {
+              const el = entry.target as HTMLElement;
+              const idStr = el.dataset['matchId'];
+              const matchId = idStr ? Number(idStr) : NaN;
+              if (!Number.isFinite(matchId)) continue;
+
+              if (entry.isIntersecting) {
+                this.realScoreVisibleMatchIds.add(matchId);
+                this.loadRealScore(matchId, false);
+              } else {
+                this.realScoreVisibleMatchIds.delete(matchId);
+                this.stopRealScorePolling(matchId);
+              }
+            }
+          });
+        },
+        {
+          root: null,
+          rootMargin: '80px 0px',
+          threshold: 0.1,
+        }
+      );
+    } else {
+      this.realScoreRowObserver.disconnect();
+    }
+
+    for (const row of (this.participarMatchRows?.toArray() || [])) {
+      this.realScoreRowObserver.observe(row.nativeElement);
+    }
+  }
+
+  private teardownRealScoreRowObserver(): void {
+    if (!this.realScoreRowObserver) return;
+    this.realScoreRowObserver.disconnect();
+    this.realScoreRowObserver = undefined;
+    this.realScoreVisibleMatchIds.clear();
+  }
+
+  private isRealScoreStale(matchId: number): boolean {
+    const last = this.realScoreFetchedAtMsByMatchId[matchId];
+    if (!last) return true;
+    const rs = this.realScoreByMatchId[matchId];
+    const ttlSeconds = rs?.ttlSeconds ?? 30;
+    const ttlMs = Math.max(5_000, ttlSeconds * 1000);
+    return Date.now() - last > ttlMs;
+  }
+
+  private loadRealScore(matchId: number, force: boolean): void {
+    if (!this.selectedPoll) return;
+    if (!this.showPollDetailModal || !this.isParticiparView) return;
+
+    if (!force) {
+      if (this.realScoreByMatchId[matchId] && !this.isRealScoreStale(matchId)) {
+        this.updatePollingForMatch(matchId);
+        return;
+      }
+      if (this.realScoreLoadingByMatchId[matchId]) return;
+    }
+
+    this.realScoreLoadingByMatchId[matchId] = true;
+    delete this.realScoreErrorByMatchId[matchId];
+
+    this.pollService.getMatchRealScore(this.selectedPoll.id, matchId).pipe(
+      catchError((err: unknown) => {
+        const msg = this.getBackendErrorMessage(err, 'No se pudo cargar el marcador real');
+        this.realScoreErrorByMatchId[matchId] = msg;
+        return of(null);
+      })
+    ).subscribe((res: PartidoMarcadorResponse | null) => {
+      this.realScoreLoadingByMatchId[matchId] = false;
+      if (!res) {
+        this.updatePollingForMatch(matchId);
+        return;
+      }
+
+      this.realScoreByMatchId[matchId] = res;
+      this.realScoreFetchedAtMsByMatchId[matchId] = Date.now();
+      this.updatePollingForMatch(matchId);
+    });
+  }
+
+  private updatePollingForMatch(matchId: number): void {
+    if (!this.realScoreVisibleMatchIds.has(matchId)) {
+      this.stopRealScorePolling(matchId);
+      return;
+    }
+
+    const rs = this.realScoreByMatchId[matchId];
+    if (!rs) {
+      this.stopRealScorePolling(matchId);
+      return;
+    }
+    if (rs.partidoFinalizado) {
+      this.stopRealScorePolling(matchId);
+      return;
+    }
+
+    if (this.isLiveStatus(rs.apiStatusShort)) {
+      this.startRealScorePolling(matchId);
+    } else {
+      this.stopRealScorePolling(matchId);
+    }
+  }
+
+  private isLiveStatus(short: string | null | undefined): boolean {
+    const s = (short || '').toUpperCase().trim();
+    // Common live statuses from football APIs
+    return ['LIVE', '1H', '2H', 'HT', 'ET', 'BT', 'P', 'SUSP', 'INT'].includes(s);
+  }
+
+  private startRealScorePolling(matchId: number): void {
+    if (this.realScorePollers.has(matchId)) return;
+    const intervalId = window.setInterval(() => {
+      if (!this.showPollDetailModal || !this.isParticiparView) {
+        this.stopRealScorePolling(matchId);
+        return;
+      }
+      if (!this.realScoreVisibleMatchIds.has(matchId)) {
+        this.stopRealScorePolling(matchId);
+        return;
+      }
+      this.loadRealScore(matchId, true);
+    }, 10_000);
+    this.realScorePollers.set(matchId, intervalId);
+  }
+
+  private stopRealScorePolling(matchId: number): void {
+    const id = this.realScorePollers.get(matchId);
+    if (typeof id === 'number') {
+      window.clearInterval(id);
+    }
+    this.realScorePollers.delete(matchId);
+  }
+
+  private stopAllRealScorePolling(): void {
+    for (const id of this.realScorePollers.values()) {
+      window.clearInterval(id);
+    }
+    this.realScorePollers.clear();
   }
 
   openAddMatchModal(): void {

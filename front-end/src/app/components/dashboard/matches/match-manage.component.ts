@@ -205,7 +205,7 @@ interface ManageTeam {
               </div>
             </div>
 
-            <div *ngIf="teams.length > 0" class="assign">
+            <div *ngIf="teams.length > 0" class="assign" [class.readonly]="matchFinalized">
               <div class="assign-left">
                 <div class="assign-title">Disponibles (asisten)</div>
                 <div
@@ -406,11 +406,11 @@ interface ManageTeam {
                   type="button"
                   class="btn primary"
                   (click)="finishAndNotify()"
-                  [disabled]="!canManage || loading || notifying || !resultFinished"
+                  [disabled]="!canManage || loading || notifying || !matchFinalized"
                 >
                   {{ notifying ? 'Enviando…' : 'Notificar resultado' }}
                 </button>
-                <div class="hint" *ngIf="!resultFinished">Marca el partido como finalizado antes de cerrar.</div>
+                <div class="hint" *ngIf="!matchFinalized">Guarda el resultado con “Marcar como finalizado” antes de notificar.</div>
               </div>
             </div>
           </div>
@@ -533,6 +533,9 @@ interface ManageTeam {
     .assign{display:grid;grid-template-columns:1fr;gap:12px;}
     @media (min-width: 980px){.assign{grid-template-columns:1fr 1.6fr;}}
     .assign-title{font-weight:800;color:#111827;margin-bottom:8px;}
+
+    .assign.readonly .dropzone{pointer-events:none;opacity:.9;background:#f3f4f6;}
+    .assign.readonly .player{pointer-events:none;cursor:not-allowed;}
 
     .teams-board{display:grid;grid-template-columns:1fr;gap:10px;}
     @media (min-width: 720px){.teams-board{grid-template-columns:repeat(2, 1fr);}}
@@ -1278,6 +1281,11 @@ export class MatchManageComponent implements OnInit, OnDestroy {
       return;
     }
 
+    if (!this.matchFinalized) {
+      this.showToast('error', 'Primero guarda el resultado como finalizado');
+      return;
+    }
+
     if (this.teams.length === 0) {
       this.showToast('error', 'Primero crea equipos para el partido');
       return;
@@ -1298,6 +1306,9 @@ export class MatchManageComponent implements OnInit, OnDestroy {
     this.teamService.notifyMatchResult(this.teamId, this.matchId).subscribe({
       next: (res) => {
         this.notifying = false;
+        // Safety: después de notificar, mantenemos el modo solo-lectura.
+        this.matchFinalized = true;
+        this.resultLocked = true;
         const recipients = typeof res?.recipients === 'number' ? res.recipients : null;
         this.showToast('success', recipients != null ? `Resultado notificado (${recipients} destinatarios)` : 'Resultado notificado');
         setTimeout(() => this.goBack(), 700);

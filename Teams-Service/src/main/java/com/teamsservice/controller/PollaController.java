@@ -2,6 +2,8 @@ package com.teamsservice.controller;
 
 import com.teamsservice.dto.*;
 import com.teamsservice.security.UserPrincipal;
+import com.teamsservice.service.PollaMarcadorService;
+import com.teamsservice.service.PollaRankingService;
 import com.teamsservice.service.PollaService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -21,6 +23,8 @@ public class PollaController {
     private static final Logger log = LoggerFactory.getLogger(PollaController.class);
 
     private final PollaService pollaService;
+    private final PollaMarcadorService pollaMarcadorService;
+    private final PollaRankingService pollaRankingService;
 
     /**
      * POST /api/pollas - Crear una nueva polla
@@ -122,6 +126,37 @@ public class PollaController {
         List<PartidoResponse> partidos = pollaService.getPartidos(id, userPrincipal.getEmail());
         
         return ResponseEntity.ok(partidos);
+    }
+
+    /**
+     * GET /api/pollas/{id}/partidos/{partidoId}/marcador - Obtiene marcador real (BD + TTL + API-Football)
+     */
+    @GetMapping("/{id}/partidos/{partidoId}/marcador")
+    public ResponseEntity<PartidoMarcadorResponse> getMarcador(
+            @PathVariable Long id,
+            @PathVariable Long partidoId,
+            @AuthenticationPrincipal UserPrincipal userPrincipal) {
+
+        log.info("Getting real score for polla {} partido {} by user {}", id, partidoId, userPrincipal.getEmail());
+
+        PartidoMarcadorResponse response = pollaMarcadorService.getMarcador(id, partidoId, userPrincipal.getEmail());
+
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * GET /api/pollas/{id}/tabla-posiciones - Ranking por puntaje vs marcador real (provisional si la polla no ha finalizado)
+     */
+    @GetMapping("/{id}/tabla-posiciones")
+    public ResponseEntity<PollaRankingResponse> getTablaPosiciones(
+            @PathVariable Long id,
+            @AuthenticationPrincipal UserPrincipal userPrincipal) {
+
+        log.info("Getting polla ranking for polla {} by user {}", id, userPrincipal.getEmail());
+
+        PollaRankingResponse response = pollaRankingService.getRanking(id, userPrincipal.getEmail());
+
+        return ResponseEntity.ok(response);
     }
 
     /**

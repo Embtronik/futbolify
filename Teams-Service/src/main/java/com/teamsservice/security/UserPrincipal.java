@@ -1,6 +1,5 @@
 package com.teamsservice.security;
 
-import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.springframework.security.core.GrantedAuthority;
@@ -11,12 +10,17 @@ import java.util.Collections;
 
 @Data
 @NoArgsConstructor
-@AllArgsConstructor
 public class UserPrincipal implements UserDetails {
 
     private Long userId;
     private String email;
     private Collection<? extends GrantedAuthority> authorities;
+
+    public UserPrincipal(Long userId, String email, Collection<? extends GrantedAuthority> authorities) {
+        this.userId = userId;
+        this.email = email;
+        this.authorities = authorities;
+    }
 
     public Long getUserId() {
         return userId;

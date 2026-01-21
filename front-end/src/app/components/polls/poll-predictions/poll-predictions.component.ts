@@ -1,11 +1,12 @@
-import { Component, OnInit, OnDestroy, inject } from '@angular/core';
+import { AfterViewInit, Component, ElementRef, OnDestroy, OnInit, QueryList, ViewChildren, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { interval, Subscription } from 'rxjs';
+import { finalize } from 'rxjs/operators';
 import { PollService } from '../../../services/poll.service';
-import { Poll, PollMatch, PollPrediction, CreatePredictionRequest } from '../../../models/football.model';
+import { Poll, PollMatch, PollPrediction, CreatePredictionRequest, PartidoMarcadorResponse } from '../../../models/football.model';
 
 interface MatchWithPrediction {
   match: PollMatch;
@@ -56,7 +57,9 @@ interface MatchWithPrediction {
         <div class="matches-list">
           <div 
             *ngFor="let item of matches" 
+            #matchCard
             class="match-card"
+            [attr.data-match-id]="item.match.id"
             [class.expired]="item.timeRemaining.expired"
             [class.has-prediction]="item.prediction">
             
@@ -75,38 +78,91 @@ interface MatchWithPrediction {
               </div>
             </div>
 
-            <!-- Match Teams -->
-            <div class="match-teams">
-              <div class="team team-local">
-                <span class="team-name">{{ item.match.equipoLocal }}</span>
-                <div class="score-input">
-                  <input 
-                    type="number" 
-                    [(ngModel)]="item.golesLocal"
-                    [disabled]="!item.canPredict"
-                    min="0"
-                    max="99"
-                    placeholder="-"
-                    (ngModelChange)="onPredictionChange(item)"
-                    class="score-field">
+            <!-- Pronóstico + marcador real -->
+            <div class="scores-grid">
+              <div class="pred-box">
+                <div class="pred-title">Tu pronóstico</div>
+
+                <div class="match-teams">
+                  <div class="team team-local">
+                    <span class="team-name">{{ item.match.equipoLocal }}</span>
+                    <div class="score-input">
+                      <input 
+                        type="number" 
+                        [(ngModel)]="item.golesLocal"
+                        [disabled]="!item.canPredict"
+                        min="0"
+                        max="99"
+                        placeholder="-"
+                        (ngModelChange)="onPredictionChange(item)"
+                        class="score-field">
+                    </div>
+                  </div>
+
+                  <div class="vs-separator">VS</div>
+
+                  <div class="team team-visitante">
+                    <div class="score-input">
+                      <input 
+                        type="number" 
+                        [(ngModel)]="item.golesVisitante"
+                        [disabled]="!item.canPredict"
+                        min="0"
+                        max="99"
+                        placeholder="-"
+                        (ngModelChange)="onPredictionChange(item)"
+                        class="score-field">
+                    </div>
+                    <span class="team-name">{{ item.match.equipoVisitante }}</span>
+                  </div>
                 </div>
               </div>
 
-              <div class="vs-separator">VS</div>
+              <div class="real-box">
+                <div class="real-head">
+                  <div class="real-title">
+                    <span>Marcador real</span>
+                    <span
+                      *ngIf="getRealScore(item.match.id) as rs"
+                      class="status-pill"
+                      [class.live]="isLiveStatus(rs.apiStatusShort) && !rs.partidoFinalizado"
+                      [class.final]="rs.partidoFinalizado"
+                    >
+                      {{ rs.apiStatusShort || '—' }}
+                    </span>
+                  </div>
 
-              <div class="team team-visitante">
-                <div class="score-input">
-                  <input 
-                    type="number" 
-                    [(ngModel)]="item.golesVisitante"
-                    [disabled]="!item.canPredict"
-                    min="0"
-                    max="99"
-                    placeholder="-"
-                    (ngModelChange)="onPredictionChange(item)"
-                    class="score-field">
+                  <button
+                    type="button"
+                    class="btn-mini"
+                    [disabled]="isRealScoreLoading(item.match.id)"
+                    (click)="loadRealScore(item.match.id, true)"
+                    aria-label="Actualizar marcador real"
+                    title="Actualizar marcador real"
+                  >
+                    ⟳
+                  </button>
                 </div>
-                <span class="team-name">{{ item.match.equipoVisitante }}</span>
+
+                <div *ngIf="isRealScoreLoading(item.match.id) && !getRealScore(item.match.id)" class="real-muted">
+                  Cargando marcador…
+                </div>
+
+                <div *ngIf="getRealScoreError(item.match.id)" class="real-error">
+                  No se pudo cargar el marcador real.
+                </div>
+
+                <ng-container *ngIf="getRealScore(item.match.id) as rs">
+                  <div class="real-scoreline">
+                    <span class="real-team">{{ item.match.equipoLocal }}</span>
+                    <span class="real-score">{{ rs.golesLocal ?? '—' }} - {{ rs.golesVisitante ?? '—' }}</span>
+                    <span class="real-team">{{ item.match.equipoVisitante }}</span>
+                  </div>
+
+                  <div class="real-finished" *ngIf="rs.partidoFinalizado">
+                    Match Finished
+                  </div>
+                </ng-container>
               </div>
             </div>
 
@@ -335,7 +391,167 @@ interface MatchWithPrediction {
       grid-template-columns: 1fr auto 1fr;
       gap: 2rem;
       align-items: center;
+      margin-bottom: 0;
+      padding: 1rem;
+    }
+
+    .scores-grid {
+      display: grid;
+      grid-template-columns: 1.15fr 0.85fr;
+      gap: 1rem;
       margin-bottom: 1rem;
+    }
+
+    .pred-box {
+      background: rgba(0, 184, 148, 0.06);
+      border: 1px solid rgba(0, 184, 148, 0.20);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    .pred-title {
+      font-weight: 800;
+      font-size: 0.85rem;
+      color: #065f46;
+      padding: 0.85rem 1rem;
+      background: rgba(0, 184, 148, 0.12);
+      border-bottom: 1px solid rgba(0, 184, 148, 0.20);
+    }
+
+    .real-box {
+      background: rgba(102, 126, 234, 0.05);
+      border: 1px solid rgba(102, 126, 234, 0.18);
+      border-radius: 12px;
+      padding: 0.95rem 1rem;
+    }
+
+    .real-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .real-title {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      font-weight: 800;
+      color: #1a1a1a;
+    }
+
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0.25rem 0.55rem;
+      border-radius: 999px;
+      font-size: 0.72rem;
+      font-weight: 900;
+      background: rgba(26, 26, 26, 0.08);
+      color: #1a1a1a;
+      border: 1px solid rgba(26, 26, 26, 0.12);
+    }
+
+    .status-pill.live {
+      background: rgba(0, 184, 148, 0.14);
+      color: #065f46;
+      border-color: rgba(0, 184, 148, 0.30);
+    }
+
+    .status-pill.final {
+      background: rgba(97, 97, 97, 0.12);
+      color: #475569;
+      border-color: rgba(100, 116, 139, 0.28);
+    }
+
+    .btn-mini {
+      width: 34px;
+      height: 34px;
+      border-radius: 10px;
+      border: 1px solid rgba(26, 26, 26, 0.14);
+      background: #fff;
+      cursor: pointer;
+      box-shadow: 0 6px 14px rgba(0, 0, 0, 0.08);
+      font-weight: 900;
+      transition: all 0.2s;
+    }
+
+    .btn-mini:hover:not(:disabled) {
+      background: #f8f9fa;
+      transform: translateY(-1px);
+    }
+
+    .btn-mini:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+
+    .btn-mini:focus-visible {
+      outline: 3px solid rgba(102, 126, 234, 0.18);
+      outline-offset: 2px;
+    }
+
+    .real-scoreline {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      margin: 0.3rem 0 0.75rem 0;
+    }
+
+    .real-team {
+      font-size: 0.85rem;
+      color: #1a1a1a;
+      font-weight: 700;
+      max-width: 45%;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .real-score {
+      font-size: 1.1rem;
+      font-weight: 900;
+      color: #1a1a1a;
+      background: rgba(255, 255, 255, 0.85);
+      border: 1px solid rgba(26, 26, 26, 0.10);
+      padding: 0.35rem 0.6rem;
+      border-radius: 12px;
+      min-width: 92px;
+      text-align: center;
+    }
+
+    .real-finished {
+      margin-top: 0.25rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      font-size: 0.9rem;
+      font-weight: 900;
+      color: #334155;
+      background: rgba(100, 116, 139, 0.12);
+      border: 1px solid rgba(100, 116, 139, 0.28);
+      padding: 0.6rem 0.75rem;
+      border-radius: 12px;
+    }
+
+    .real-muted {
+      font-size: 0.85rem;
+      color: #666;
+      padding: 0.35rem 0;
+    }
+
+    .real-error {
+      font-size: 0.85rem;
+      color: #991b1b;
+      background: rgba(214, 48, 49, 0.08);
+      border: 1px solid rgba(214, 48, 49, 0.25);
+      padding: 0.5rem 0.6rem;
+      border-radius: 10px;
     }
 
     .team {
@@ -550,6 +766,10 @@ interface MatchWithPrediction {
         align-items: stretch;
       }
 
+      .scores-grid {
+        grid-template-columns: 1fr;
+      }
+
       .match-teams {
         grid-template-columns: 1fr;
         gap: 1rem;
@@ -592,6 +812,8 @@ interface MatchWithPrediction {
   `]
 })
 export class PollPredictionsComponent implements OnInit, OnDestroy {
+  @ViewChildren('matchCard') private matchCards?: QueryList<ElementRef<HTMLElement>>;
+
   private getBackendErrorMessage(err: unknown, fallback: string): string {
     if (err instanceof HttpErrorResponse) {
       const payload = err.error;
@@ -637,6 +859,14 @@ export class PollPredictionsComponent implements OnInit, OnDestroy {
   loading = true;
   savingPrediction: number | null = null;
 
+  realScoreByMatchId: Record<number, PartidoMarcadorResponse | null> = {};
+  realScoreLoading: Record<number, boolean> = {};
+  realScoreError: Record<number, string | null> = {};
+  private realScorePollers = new Map<number, Subscription>();
+  private visibleRealScoreMatches = new Set<number>();
+  private matchCardsSub?: Subscription;
+  private realScoreObserver?: IntersectionObserver;
+
   private timerSubscription?: Subscription;
 
   ngOnInit(): void {
@@ -645,8 +875,17 @@ export class PollPredictionsComponent implements OnInit, OnDestroy {
     this.startTimer();
   }
 
+  ngAfterViewInit(): void {
+    this.setupRealScoreObserver();
+  }
+
   ngOnDestroy(): void {
     this.timerSubscription?.unsubscribe();
+    this.realScorePollers.forEach(s => s.unsubscribe());
+    this.realScorePollers.clear();
+    this.matchCardsSub?.unsubscribe();
+    this.realScoreObserver?.disconnect();
+    this.visibleRealScoreMatches.clear();
   }
 
   loadPollData(): void {
@@ -704,12 +943,129 @@ export class PollPredictionsComponent implements OnInit, OnDestroy {
         });
 
         this.loading = false;
+
+        // UX/perf: precarga los primeros 3 (above the fold), el resto se carga al entrar en viewport
+        this.prefetchFirstRealScores(3);
       },
       error: (err) => {
         console.error('Error loading predictions:', err);
         this.loading = false;
       }
     });
+  }
+
+  private prefetchFirstRealScores(count: number): void {
+    this.matches.slice(0, count).forEach(item => this.loadRealScore(item.match.id, true));
+  }
+
+  private setupRealScoreObserver(): void {
+    if (typeof window === 'undefined') return;
+
+    // Fallback si el navegador no soporta IntersectionObserver
+    if (!(window as any).IntersectionObserver) {
+      return;
+    }
+
+    this.realScoreObserver?.disconnect();
+    this.realScoreObserver = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          const el = entry.target as HTMLElement;
+          const raw = el.dataset['matchId'];
+          const matchId = raw ? Number(raw) : NaN;
+          if (!Number.isFinite(matchId)) continue;
+
+          if (entry.isIntersecting) {
+            this.visibleRealScoreMatches.add(matchId);
+            this.loadRealScore(matchId, true);
+          } else {
+            this.visibleRealScoreMatches.delete(matchId);
+            // Si deja de ser visible, pausar auto-refresh LIVE
+            this.stopRealScorePolling(matchId);
+          }
+        }
+      },
+      { root: null, threshold: 0.15 }
+    );
+
+    const observeAll = () => {
+      const elements = this.matchCards?.toArray() ?? [];
+      for (const ref of elements) {
+        this.realScoreObserver?.observe(ref.nativeElement);
+      }
+    };
+
+    this.matchCardsSub?.unsubscribe();
+    this.matchCardsSub = this.matchCards?.changes.subscribe(() => {
+      this.realScoreObserver?.disconnect();
+      observeAll();
+    });
+
+    observeAll();
+  }
+
+  getRealScore(matchId: number): PartidoMarcadorResponse | null {
+    return this.realScoreByMatchId[matchId] ?? null;
+  }
+
+  isRealScoreLoading(matchId: number): boolean {
+    return !!this.realScoreLoading[matchId];
+  }
+
+  getRealScoreError(matchId: number): string | null {
+    return this.realScoreError[matchId] ?? null;
+  }
+
+  loadRealScore(matchId: number, allowPolling: boolean): void {
+    if (this.isRealScoreLoading(matchId)) return;
+    this.realScoreLoading[matchId] = true;
+    this.realScoreError[matchId] = null;
+
+    this.pollService
+      .getMatchRealScore(this.pollId, matchId)
+      .pipe(finalize(() => (this.realScoreLoading[matchId] = false)))
+      .subscribe({
+        next: (resp) => {
+          this.realScoreByMatchId[matchId] = resp;
+
+          // Auto-refresh solo para partidos en vivo, y solo si el card está visible
+          const canPoll = this.visibleRealScoreMatches.has(matchId);
+          if (allowPolling && canPoll && this.shouldPollRealScore(resp)) {
+            this.startRealScorePolling(matchId);
+          }
+
+          if (!canPoll || !this.shouldPollRealScore(resp)) {
+            this.stopRealScorePolling(matchId);
+          }
+        },
+        error: (err: HttpErrorResponse) => {
+          console.error('Error loading real score:', err);
+          this.realScoreError[matchId] = 'error';
+        }
+      });
+  }
+
+  private startRealScorePolling(matchId: number): void {
+    if (this.realScorePollers.has(matchId)) return;
+    const sub = interval(10000).subscribe(() => {
+      this.loadRealScore(matchId, false);
+    });
+    this.realScorePollers.set(matchId, sub);
+  }
+
+  private stopRealScorePolling(matchId: number): void {
+    const sub = this.realScorePollers.get(matchId);
+    if (sub) sub.unsubscribe();
+    this.realScorePollers.delete(matchId);
+  }
+
+  private shouldPollRealScore(resp: PartidoMarcadorResponse): boolean {
+    return !resp.partidoFinalizado && this.isLiveStatus(resp.apiStatusShort);
+  }
+
+  isLiveStatus(apiStatusShort?: string | null): boolean {
+    const s = (apiStatusShort ?? '').trim().toUpperCase();
+    return new Set(['LIVE', '1H', '2H', 'HT', 'ET', 'BT', 'P', 'L']).has(s);
   }
 
   startTimer(): void {

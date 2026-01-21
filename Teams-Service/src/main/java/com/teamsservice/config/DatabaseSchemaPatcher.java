@@ -45,6 +45,59 @@ public class DatabaseSchemaPatcher implements ApplicationRunner {
         // If the column exists but is nullable/has nulls (or was created without a default), fix it up.
         // Order matters: backfill NULLs first, then set default, then enforce NOT NULL.
         ensureColumnNotNullWithDefaultFalse("team_matches", "finished");
+
+        // Polla - cache/sync fields for API-Football (avoid repeated external calls)
+        ensureColumnExists("polla_partidos", "api_status_short",
+            "ALTER TABLE polla_partidos ADD COLUMN IF NOT EXISTS api_status_short varchar(20)");
+        ensureColumnExists("polla_partidos", "api_status_long",
+            "ALTER TABLE polla_partidos ADD COLUMN IF NOT EXISTS api_status_long varchar(100)");
+        ensureColumnExists("polla_partidos", "last_api_sync_at",
+            "ALTER TABLE polla_partidos ADD COLUMN IF NOT EXISTS last_api_sync_at timestamp");
+
+        // Polla - tabla dedicada para puntajes por partido/participante (claridad + auditoría)
+        ensureTableExists("polla_puntajes_partido",
+                "CREATE TABLE IF NOT EXISTS polla_puntajes_partido (" +
+                        "id BIGSERIAL PRIMARY KEY, " +
+                        "polla_partido_id BIGINT NOT NULL, " +
+                        "email_participante VARCHAR(255) NOT NULL, " +
+                        "puntos INTEGER NOT NULL, " +
+                        "definitivo BOOLEAN NOT NULL DEFAULT false, " +
+                        "created_at TIMESTAMP NOT NULL DEFAULT NOW(), " +
+                        "updated_at TIMESTAMP NULL, " +
+                        "CONSTRAINT uq_puntaje_partido UNIQUE (polla_partido_id, email_participante), " +
+                        "CONSTRAINT fk_puntaje_partido_polla_partido FOREIGN KEY (polla_partido_id) REFERENCES polla_partidos(id) ON DELETE CASCADE" +
+                        ")");
+
+        // indexes (IF NOT EXISTS is supported by PostgreSQL)
+        safeExecute("CREATE INDEX IF NOT EXISTS idx_puntaje_partido_polla_partido_id ON polla_puntajes_partido(polla_partido_id)");
+        safeExecute("CREATE INDEX IF NOT EXISTS idx_puntaje_partido_email ON polla_puntajes_partido(email_participante)");
+    }
+
+    private void ensureTableExists(String tableName, String createSql) {
+        try {
+            Integer count = jdbcTemplate.queryForObject(
+                    "SELECT COUNT(1) FROM information_schema.tables WHERE table_schema='public' AND table_name=?",
+                    Integer.class,
+                    tableName);
+
+            if (count != null && count > 0) {
+                return;
+            }
+
+            log.warn("Patching DB schema: creating missing table {}", tableName);
+            jdbcTemplate.execute(createSql);
+            log.info("DB schema patched: table {} created", tableName);
+        } catch (Exception e) {
+            log.error("DB schema patch failed for table {}", tableName, e);
+        }
+    }
+
+    private void safeExecute(String sql) {
+        try {
+            jdbcTemplate.execute(sql);
+        } catch (Exception e) {
+            log.debug("DB schema patch ignored error for SQL: {}", sql, e);
+        }
     }
 
     private void ensureColumnExists(String tableName, String columnName, String alterSql) {

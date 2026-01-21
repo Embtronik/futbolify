@@ -6,6 +6,8 @@ import {
   PollParticipant,
   PollMatch,
   PollPrediction,
+  PartidoMarcadorResponse,
+  PollaTablaPosicionesResponse,
   CreatePollRequest,
   AddPollMatchRequest,
   CreatePredictionRequest,
@@ -131,6 +133,22 @@ export class PollService {
    */
   getMatches(pollId: number): Observable<PollMatch[]> {
     return this.http.get<PollMatch[]>(`${this.API_URL}/pollas/${pollId}/partidos`);
+  }
+
+  /**
+   * Obtener marcador real/estado real de un partido de una polla
+   * GET /pollas/{pollaId}/partidos/{partidoId}/marcador
+   */
+  getMatchRealScore(pollId: number, matchId: number): Observable<PartidoMarcadorResponse> {
+    return this.http.get<PartidoMarcadorResponse>(`${this.API_URL}/pollas/${pollId}/partidos/${matchId}/marcador`);
+  }
+
+  /**
+   * Obtener tabla de posiciones de una polla
+   * GET /pollas/{pollaId}/tabla-posiciones
+   */
+  getStandings(pollId: number): Observable<PollaTablaPosicionesResponse> {
+    return this.http.get<PollaTablaPosicionesResponse>(`${this.API_URL}/pollas/${pollId}/tabla-posiciones`);
   }
 
   /**
