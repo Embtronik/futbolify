@@ -1,0 +1,193 @@
+services:
+  # =========================
+  # POSTGRES
+  # =========================
+  postgres:
+    image: postgres:16
+    container_name: postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - /srv/futbolify/postgres-data:/var/lib/postgresql/data
+      - ./postgres/initdb:/docker-entrypoint-initdb.d/:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - micro_net
+
+  # =========================
+  # RABBITMQ
+  # =========================
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USERNAME}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
+    # 🔒 En producción NO publicar (si quieres UI admin, publica solo a localhost)
+    # ports:
+    #   - "127.0.0.1:15672:15672"
+    healthcheck:
+      test: ["CMD-SHELL", "rabbitmq-diagnostics -q ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - micro_net
+
+  # =========================
+  # AUTH SERVICE
+  # =========================
+  auth-service:
+    # ✅ Ideal en prod: usar image desde registry (GHCR/DockerHub)
+    # image: tu-registry/auth-service:1.0.0
+    build:
+      context: ./Auth-Service
+      dockerfile: Dockerfile
+    container_name: auth-service
+    restart: unless-stopped
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${POSTGRES_DB}
+      DB_USERNAME: ${POSTGRES_USER}
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+      JWT_SECRET: ${JWT_SECRET}
+
+      NOTIFICATION_SERVICE_URL: http://notificacion-service:8081
+      FRONTEND_URL: https://futbolify.co
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - micro_net
+
+  # =========================
+  # NOTIFICACION SERVICE
+  # =========================
+  notificacion-service:
+    # image: tu-registry/notificacion-service:1.0.0
+    build:
+      context: ./Notificacion-Service
+    container_name: notificacion-service
+    restart: unless-stopped
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${POSTGRES_DB}
+      DB_USERNAME: ${POSTGRES_USER}
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+
+      SMTP_PORT: ${SMTP_PORT}
+      SMTP_USERNAME: ${SMTP_USERNAME}
+      SMTP_PASSWORD: ${SMTP_PASSWORD}
+      SMTP_FROM: ${SMTP_FROM}
+      SMTP_HOST: ${SMTP_HOST}
+
+      SPRING_FLYWAY_BASELINE_ON_MIGRATE: "true"
+
+      # ✅ CORREGIDO
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USERNAME: ${RABBITMQ_USERNAME}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
+      RABBITMQ_QUEUE_NAME: ${RABBITMQ_QUEUE_NAME}
+      RABBITMQ_EXCHANGE: ${RABBITMQ_QUEUE_NAME}
+
+      TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID}
+      TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN}
+      TWILIO_SMS_FROM: ${TWILIO_SMS_FROM}
+      TWILIO_WHATSAPP_FROM: ${TWILIO_WHATSAPP_FROM}
+
+      AUTH_SERVICE_URL: http://auth-service:8080
+      AUTH_SERVICE_ENABLED: "true"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - micro_net
+
+  # =========================
+  # TEAMS SERVICE
+  # =========================
+  teams-service:
+    # image: tu-registry/teams-service:1.0.0
+    build:
+      context: ./Teams-Service
+    container_name: teams-service
+    restart: unless-stopped
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${POSTGRES_DB}
+      DB_USERNAME: ${POSTGRES_USER}
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+
+      AUTH_SERVICE_URL: http://auth-service:8080
+      NOTIFICATION_SERVICE_URL: http://notificacion-service:8081
+      FRONTEND_URL: https://futbolify.co
+      FOOTBALLAPIKEY: ${FOOTBALLAPIKEY}
+      FOOTBALL_API_BASE_URL: ${FOOTBALL_API_BASE_URL}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - micro_net
+
+  # =========================
+  # FRONT-END (Angular+NGINX)
+  # =========================
+  front-end:
+    # image: tu-registry/front-end:1.0.0
+    build:
+      context: ./front-end
+      dockerfile: Dockerfile
+    container_name: front-end
+    restart: unless-stopped
+    networks:
+      - micro_net
+
+  # =========================
+  # NGINX GATEWAY (PUBLIC)
+  # =========================
+  nginx:
+    image: nginx:alpine
+    container_name: nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - /srv/futbolify/certs:/etc/letsencrypt:ro
+    depends_on:
+      - front-end
+      - auth-service
+      - notificacion-service
+      - teams-service
+    networks:
+      - micro_net
+
+networks:
+  micro_net:
+    driver: bridge
