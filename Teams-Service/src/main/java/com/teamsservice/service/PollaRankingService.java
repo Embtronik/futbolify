@@ -61,7 +61,7 @@ public class PollaRankingService {
     /**
      * Tabla de posiciones basada en marcador real (final o en vivo). Es provisional mientras la polla no esté FINALIZADA.
      */
-    @Transactional(readOnly = true)
+    @Transactional
     public PollaRankingResponse getRanking(Long pollaId, String userEmail) {
         Polla polla = pollaRepository.findByIdAndDeletedAtIsNull(pollaId)
                 .orElseThrow(() -> new ResourceNotFoundException("Polla not found with id: " + pollaId));
@@ -71,7 +71,15 @@ public class PollaRankingService {
             throw new UnauthorizedException("No tienes acceso a esta polla");
         }
 
-        boolean definitivo = polla.getEstado() == Polla.PollaEstado.FINALIZADA;
+        // Regla de negocio: la tabla de posiciones es DEFINITIVA si (y solo si) TODOS los partidos están finalizados.
+        // Para evitar inconsistencias (polla con estado desactualizado), aseguramos la finalización en BD.
+        boolean allMatchesFinished = marcadorService.ensurePollaFinalizadaIfAllMatchesFinished(pollaId);
+        if (allMatchesFinished && polla.getEstado() != Polla.PollaEstado.FINALIZADA) {
+            polla = pollaRepository.findByIdAndDeletedAtIsNull(pollaId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Polla not found with id: " + pollaId));
+        }
+
+        boolean definitivo = allMatchesFinished || polla.getEstado() == Polla.PollaEstado.FINALIZADA;
 
         Map<String, Integer> pointsByEmail = new HashMap<>();
 

@@ -277,15 +277,89 @@ public class PollaMarcadorService {
         }
     }
 
+    /**
+     * Garantiza que la polla quede FINALIZADA y con puntos persistidos si TODOS sus partidos ya están finalizados.
+     * No llama a la API; sólo usa el estado/score existente en BD.
+     *
+     * @return true si la polla quedó (o ya estaba) FINALIZADA por esta regla.
+     */
+    @Transactional
+    public boolean ensurePollaFinalizadaIfAllMatchesFinished(Long pollaId) {
+        try {
+            List<PollaPartido> partidos = partidoRepository.findByPollaIdOrderByFechaHoraPartidoAsc(pollaId);
+            if (partidos == null || partidos.isEmpty()) {
+                return false;
+            }
+
+            boolean allFinished = true;
+            for (PollaPartido partido : partidos) {
+                boolean finished = Boolean.TRUE.equals(partido.getPartidoFinalizado())
+                        || (isFinishedStatus(partido.getApiStatusShort())
+                        && partido.getGolesLocal() != null
+                        && partido.getGolesVisitante() != null);
+
+                if (!finished) {
+                    allFinished = false;
+                    break;
+                }
+            }
+
+            if (!allFinished) {
+                return false;
+            }
+
+            // Marcar partidos como finalizados si venían con status FT/AET/PEN pero flag en false
+            boolean changedAny = false;
+            for (PollaPartido partido : partidos) {
+                if (!Boolean.TRUE.equals(partido.getPartidoFinalizado())
+                        && isFinishedStatus(partido.getApiStatusShort())
+                        && partido.getGolesLocal() != null
+                        && partido.getGolesVisitante() != null) {
+                    partido.setPartidoFinalizado(true);
+                    changedAny = true;
+                }
+            }
+            if (changedAny) {
+                partidoRepository.saveAll(partidos);
+            }
+
+            Polla polla = pollaRepository.findByIdAndDeletedAtIsNull(pollaId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Polla not found with id: " + pollaId));
+
+            if (polla.getEstado() != Polla.PollaEstado.FINALIZADA) {
+                polla.setEstado(Polla.PollaEstado.FINALIZADA);
+                pollaRepository.save(polla);
+            }
+
+            // Idempotente: siempre intentar persistir puntos finales cuando todo está finalizado.
+            persistFinalPointsForPolla(pollaId);
+            return true;
+        } catch (Exception e) {
+            log.warn("ensurePollaFinalizadaIfAllMatchesFinished failed for pollaId={}: {}", pollaId, e.getMessage());
+            return false;
+        }
+    }
+
     private void persistFinalPointsForPolla(Long pollaId) {
         try {
             List<PollaPartido> partidos = partidoRepository.findByPollaIdOrderByFechaHoraPartidoAsc(pollaId);
             for (PollaPartido partido : partidos) {
-                if (!Boolean.TRUE.equals(partido.getPartidoFinalizado())) {
+                boolean finished = Boolean.TRUE.equals(partido.getPartidoFinalizado())
+                        || (isFinishedStatus(partido.getApiStatusShort())
+                        && partido.getGolesLocal() != null
+                        && partido.getGolesVisitante() != null);
+
+                if (!finished) {
                     continue;
                 }
+
                 if (partido.getGolesLocal() == null || partido.getGolesVisitante() == null) {
                     continue;
+                }
+
+                if (!Boolean.TRUE.equals(partido.getPartidoFinalizado())) {
+                    partido.setPartidoFinalizado(true);
+                    partidoRepository.save(partido);
                 }
 
                 List<PollaPronostico> pronosticos = pronosticoRepository.findByPollaPartidoId(partido.getId());
