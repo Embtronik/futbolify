@@ -179,7 +179,7 @@ services:
       - "443:443"
     volumes:
       - /srv/futbolify/nginx/conf.d:/etc/nginx/conf.d:ro
-      #- /srv/futbolify/certs:/etc/letsencrypt:ro
+      - /srv/futbolify/certs:/etc/letsencrypt:ro
     depends_on:
       - front-end
       - auth-service
