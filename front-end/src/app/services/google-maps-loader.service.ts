@@ -32,7 +32,7 @@ export class GoogleMapsLoaderService {
       script.async = true;
       script.defer = true;
 
-      script.onload = () => {
+      script.onload = async () => {
         const maps = (window as any).google?.maps;
         if (!maps) {
           const error = new Error('Google Maps script loaded, but window.google.maps is not available. Check API key restrictions and enabled APIs.');
@@ -41,10 +41,26 @@ export class GoogleMapsLoaderService {
           return;
         }
 
+        // Ensure Places is actually ready before resolving.
+        // We have seen a race on first open where script.onload fires but google.maps.places is still undefined.
+        try {
+          if (!maps.places && typeof maps.importLibrary === 'function') {
+            await maps.importLibrary('places');
+          }
+
+          // Small retry loop as a last resort (covers cases where Places is still initializing)
+          const maxWaitMs = 2000;
+          const start = Date.now();
+          while (!maps.places && Date.now() - start < maxWaitMs) {
+            await new Promise((r) => setTimeout(r, 50));
+          }
+        } catch (e) {
+          console.warn('⚠️ No se pudo asegurar Places via importLibrary()', e);
+        }
+
         this.scriptLoaded = true;
         console.log('✅ Google Maps API cargada exitosamente');
 
-        // Places is required for Autocomplete
         if (!maps.places) {
           console.warn(
             '⚠️ Google Maps cargó, pero la librería Places no está disponible (google.maps.places undefined). ' +
