@@ -45,7 +45,7 @@ public class TeamMatch {
     @Column(name = "match_datetime", nullable = false)
     private LocalDateTime matchDateTime;
 
-    @Column(name = "finished", nullable = false, columnDefinition = "boolean default false")
+    @Column(name = "finished", nullable = false)
     @ColumnDefault("false")
     @Builder.Default
     private boolean finished = false;
