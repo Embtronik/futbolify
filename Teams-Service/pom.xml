@@ -122,7 +122,8 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-actuator</artifactId>
-                </dep    </dependencies>
+        </dependency>
+    </dependencies>
     
     <build>
         <plugins>
