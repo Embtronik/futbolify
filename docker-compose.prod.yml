@@ -55,7 +55,8 @@ services:
     restart: unless-stopped
     environment:
       SPRING_PROFILES_ACTIVE: prod
-
+      SERVER_FORWARD_HEADERS_STRATEGY: framework
+      SERVER_USE_FORWARD_HEADERS: "true"
       DB_HOST: postgres
       DB_PORT: 5432
       DB_NAME: ${POSTGRES_DB}
