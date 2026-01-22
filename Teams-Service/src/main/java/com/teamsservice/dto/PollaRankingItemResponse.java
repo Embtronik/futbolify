@@ -18,6 +18,3 @@ public class PollaRankingItemResponse {
     private Integer puntos;
     private UserInfoDto userInfo;
 }
-    private Integer puntos;
-    private UserInfoDto userInfo;
-}
