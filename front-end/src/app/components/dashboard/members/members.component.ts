@@ -147,94 +147,11 @@ export class MembersComponent implements OnInit {
         }).subscribe(({ owner, member }) => {
           // Mapear owner teams
           const ownerGroups = owner.map(g => ({
-            teamId: g.id,
-            teamName: g.name ?? '',
-            logoUrl: g.logoUrl,
-            isOwner: true,
-            raw: g
-          }));
-          // Mapear member teams
-          const memberGroups = member.map(m => ({
-            teamId: m.teamId,
-            teamName: m.teamName ?? '',
-            logoUrl: undefined,
-            isOwner: false,
-            raw: m
-          }));
-          // Unir y eliminar duplicados por teamId
-          const allGroups: Array<{ teamId: number; teamName: string; logoUrl?: string; isOwner: boolean; raw: any }> =
-            [...ownerGroups, ...memberGroups].reduce((acc, curr) => {
-              if (!acc.some(g => g.teamId === curr.teamId)) acc.push(curr);
-              return acc;
-            }, [] as Array<{ teamId: number; teamName: string; logoUrl?: string; isOwner: boolean; raw: any }>);
-          this.userGroups = allGroups;
-        }, err => {
-          this.loadingTeams = false;
-          console.error('Error cargando grupos:', err);
-        });
-      });
-    }
-      border-radius: 16px;
-      padding: 24px;
-      border: 1px solid var(--border-color);
-    }
-
-    .team-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 24px;
-      padding-bottom: 16px;
-      border-bottom: 2px solid var(--border-color);
-    }
-
-    .team-header-info {
-      display: flex;
-      align-items: center;
-      gap: 16px;
-    }
-
-    .team-logo-small {
-      width: 60px;
-      height: 60px;
-      border-radius: 12px;
-      background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 32px;
-      flex-shrink: 0;
-      overflow: hidden;
-    }
-
-    .team-logo-small img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-    }
-
-    .team-header h2 {
-      font-size: 24px;
-      font-weight: 700;
-      color: var(--dark-color);
-      margin: 0 0 8px 0;
-    }
-
-    .team-stats {
-      display: flex;
-      gap: 16px;
-      font-size: 14px;
-      color: var(--gray-color);
-      margin: 0;
-    }
-
-    .pending-badge {
-      color: #f59e0b;
-      font-weight: 600;
-    }
-
-    .members-grid {
-      display: grid;
+            @Component({
+              selector: 'app-members',
+              standalone: true,
+              imports: [CommonModule],
+              templateUrl: './members.component.html',
       grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
       gap: 16px;
     }

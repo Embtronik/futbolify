@@ -1,0 +1,80 @@
+<div class="members-container">
+  <div class="page-header">
+    <h1>Integrantes de los Grupos</h1>
+  </div>
+
+  <!-- Loading -->
+  <div *ngIf="loading" class="loading-state">
+    <div class="spinner"></div>
+    <p>Cargando grupos...</p>
+  </div>
+
+  <!-- Lista de grupos con sus integrantes -->
+  <div *ngIf="!loading && teams.length > 0" class="teams-list">
+    <div *ngFor="let team of teams" class="team-section">
+      <div class="team-header">
+        <div class="team-header-info">
+          <div class="team-logo-small">
+            <img *ngIf="team.logoUrl" [src]="team.logoUrl" [alt]="team.name">
+            <span *ngIf="!team.logoUrl">⚽</span>
+          </div>
+          <div>
+            <h2>{{ team.name }}</h2>
+            <p class="team-stats">
+              <span>👥 {{ team.memberCount || 0 }} miembros</span>
+              <span *ngIf="team.pendingRequestsCount" class="pending-badge">
+                ⏳ {{ team.pendingRequestsCount }} solicitudes pendientes
+              </span>
+            </p>
+          </div>
+        </div>
+        <button 
+          class="btn btn-outline btn-sm" 
+          (click)="loadMembers(team.id)"
+          [disabled]="loadingMembers[team.id]"
+        >
+          {{ loadingMembers[team.id] ? 'Cargando...' : (teamMembers[team.id] ? 'Actualizar' : 'Ver Integrantes') }}
+        </button>
+      </div>
+
+      <!-- Lista de miembros del equipo -->
+      <div *ngIf="teamMembers[team.id]" class="members-grid">
+        <div *ngFor="let member of teamMembers[team.id]" class="member-card" [class.pending]="member.status === 'PENDING'">
+          <div class="member-avatar">
+            <span class="avatar-icon">{{ member.userId === team.ownerUserId ? '👑' : '👤' }}</span>
+          </div>
+          <div class="member-info">
+            <h4>
+              {{ member.userInfo?.firstName && member.userInfo?.lastName 
+                 ? member.userInfo?.firstName + ' ' + member.userInfo?.lastName 
+                 : member.userEmail }}
+            </h4>
+            <div class="member-details">
+              <p *ngIf="member.userEmail" class="detail-item">
+                <span class="detail-icon">📧</span>
+                {{ member.userEmail }}
+              </p>
+              <p *ngIf="member.userInfo?.phoneNumber" class="detail-item">
+                <span class="detail-icon">📱</span>
+                {{ (member.userInfo?.countryCode || '') + ' ' + member.userInfo?.phoneNumber }}
+              </p>
+              <p *ngIf="member.userInfo?.provider" class="detail-item">
+                <span class="detail-icon">{{ member.userInfo?.provider === 'GOOGLE' ? '🌐' : '🔑' }}</span>
+                {{ member.userInfo?.provider === 'GOOGLE' ? 'Cuenta Google' : 'Cuenta Local' }}
+              </p>
+            </div>
+            <div *ngIf="member.status === 'PENDING'" class="pending-actions">
+              <button class="btn btn-success btn-xs" (click)="approveMember(team.id, member.id, true)">Aprobar</button>
+              <button class="btn btn-danger btn-xs" (click)="approveMember(team.id, member.id, false)">Rechazar</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Sin grupos -->
+  <div *ngIf="!loading && teams.length === 0" class="empty-state">
+    <p>No perteneces a ningún grupo todavía.</p>
+  </div>
+</div>
