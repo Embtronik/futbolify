@@ -1,3 +1,4 @@
+  userGroups: Array<{ teamId: number; teamName: string; logoUrl?: string; isOwner: boolean; raw: any }> = [];
 import { Component, inject, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
