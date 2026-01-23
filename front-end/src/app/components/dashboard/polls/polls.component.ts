@@ -341,7 +341,7 @@ export class PollsComponent implements OnInit, AfterViewInit, OnDestroy {
       // LOG para depuración de filtrado
       // Se limpia en producción
     this.loading = true;
-    (this.teamService as any).getMyPolls().subscribe({
+    this.pollService.getMyPolls().subscribe({
       next: (allPolls: Poll[]) => {
         const safePolls: Poll[] = (allPolls || []).filter(
           (p: any): p is Poll => !!p && typeof p.id === 'number'
@@ -373,35 +373,39 @@ export class PollsComponent implements OnInit, AfterViewInit, OnDestroy {
     });
 
     // Cargar grupos del usuario (para invitar) con sus miembros
-    (this.teamService as any).getAll().subscribe({
-      next: (teams: Team[]) => {
-        const safeTeams: Team[] = (teams || []).filter((t: any): t is Team => !!t && typeof t.id === 'number');
-        // Cargar miembros de cada grupo en paralelo
-        if (safeTeams.length > 0) {
-          const memberRequests = safeTeams.map((team: Team) =>
-            (this.teamService as any).getMembers(team.id)
-          );
-          
-          forkJoin(memberRequests).subscribe({
-            next: (membersArrays) => {
-              // Asignar miembros a cada grupo
-              (safeTeams as Team[]).forEach((team: Team, index: number) => {
-                (team as any).members = (membersArrays as TeamMember[][])[index];
-              });
-              this.myTeams = safeTeams;
-            },
-            error: (error) => {
-              console.error('Error loading members:', error);
-              this.myTeams = safeTeams; // Usar grupos sin miembros como fallback
-            }
-          });
-        } else {
-          this.myTeams = safeTeams;
-        }
-      },
-      error: (error: any) => {
-        console.error('Error loading teams:', error);
-      }
+    // Cargar grupos donde el usuario es owner y donde es miembro aprobado
+    import('rxjs').then(rxjs => {
+      rxjs.forkJoin({
+        owner: this.teamService.getAll(),
+        member: this.teamService.getMyMemberships()
+      }).subscribe(({ owner, member }) => {
+        // Mapear owner teams
+        const ownerGroups = owner.map(g => ({
+          teamId: g.id,
+          teamName: g.name,
+          logoUrl: g.logoUrl,
+          isOwner: true,
+          raw: g
+        }));
+        // Mapear member teams
+        const memberGroups = member.map(m => ({
+          teamId: m.teamId,
+          teamName: m.teamName,
+          logoUrl: undefined,
+          isOwner: false,
+          raw: m
+        }));
+        // Unir y eliminar duplicados por teamId
+        const allGroups = [...ownerGroups, ...memberGroups]
+          .reduce((acc, curr) => {
+            if (!acc.some(g => g.teamId === curr.teamId)) acc.push(curr);
+            return acc;
+          }, []);
+        this.myTeams = allGroups;
+        // Si necesitas cargar miembros, puedes hacerlo aquí usando allGroups
+      }, err => {
+        console.error('Error cargando grupos:', err);
+      });
     });
 
     // Cargar ligas disponibles
