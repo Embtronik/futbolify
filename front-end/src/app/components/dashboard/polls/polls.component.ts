@@ -386,24 +386,42 @@ export class PollsComponent implements OnInit, AfterViewInit, OnDestroy {
           teamName: g.name ?? '',
           logoUrl: g.logoUrl,
           isOwner: true,
+          memberCount: 0,
           raw: g
         }));
         // Mapear member teams
-        const memberGroups = member.map(m => ({
+        const memberGroups = member.filter(m => m.status === 'APPROVED').map(m => ({
           teamId: m.teamId,
-          teamName: m.teamName ?? '',
+          teamName: m.teamName || '',
           logoUrl: undefined,
           isOwner: false,
+          memberCount: 0,
           raw: m
         }));
         // Unir y eliminar duplicados por teamId
-        const allGroups: Array<{ teamId: number; teamName: string; logoUrl?: string; isOwner: boolean; raw: any }> =
+        const allGroups: Array<{ teamId: number; teamName: string; logoUrl?: string; isOwner: boolean; memberCount: number; raw: any }> =
           [...ownerGroups, ...memberGroups].reduce((acc, curr) => {
             if (!acc.some(g => g.teamId === curr.teamId)) acc.push(curr);
             return acc;
-          }, [] as Array<{ teamId: number; teamName: string; logoUrl?: string; isOwner: boolean; raw: any }>);
-        this.userGroups = allGroups;
-        // Si necesitas cargar miembros, puedes hacerlo aquí usando allGroups
+          }, [] as Array<{ teamId: number; teamName: string; logoUrl?: string; isOwner: boolean; memberCount: number; raw: any }>);
+        // Consultar miembros reales para cada grupo
+        const memberRequests = allGroups.map(group =>
+          this.teamService.getMembers(group.teamId).pipe(
+            rxjs.catchError(() => rxjs.of([]))
+          )
+        );
+        rxjs.forkJoin(memberRequests).subscribe({
+          next: (membersArr) => {
+            allGroups.forEach((group, idx) => {
+              group.memberCount = (membersArr[idx] || []).filter((m: any) => m.status === 'APPROVED').length;
+            });
+            this.userGroups = allGroups;
+          },
+          error: (err) => {
+            console.error('Error cargando miembros de grupos:', err);
+            this.userGroups = allGroups;
+          }
+        });
       }, err => {
         console.error('Error cargando grupos:', err);
       });

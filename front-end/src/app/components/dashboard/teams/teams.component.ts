@@ -818,7 +818,7 @@ export class TeamsComponent implements AfterViewInit {
   });
 
   ngOnInit(): void {
-    this.loadTeams();
+    this.loadTeamsUnified();
   }
 
   ngAfterViewInit(): void {
@@ -929,17 +929,67 @@ export class TeamsComponent implements AfterViewInit {
     });
   }
 
-  loadTeams(): void {
+  loadTeamsUnified(): void {
     this.loading = true;
-    this.teamService.getAll().subscribe({
-      next: (teams) => {
-        this.teams = teams;
-        this.loading = false;
-      },
-      error: (error) => {
-        console.error('Error loading teams:', error);
-        this.loading = false;
-      }
+    import('rxjs').then(rxjs => {
+      rxjs.forkJoin({
+        owned: this.teamService.getAll(),
+        memberships: this.teamService.getMyMemberships()
+      }).subscribe({
+        next: ({ owned, memberships }) => {
+          // Deduplicar equipos por id
+          const safeOwned = (owned || []).filter((t: any): t is Team => !!t && typeof t.id === 'number');
+          const ownedIds = new Set<number>(safeOwned.map(t => t.id));
+          const memberTeams = (memberships || [])
+            .filter((m) => m.status === 'APPROVED')
+            .map((m) => ({
+              id: m.teamId,
+              name: m.teamName || '',
+              joinCode: '',
+              logoUrl: undefined,
+              description: '',
+              ownerUserId: 0,
+              memberCount: 0,
+              pendingRequestsCount: 0,
+              address: '',
+              latitude: undefined,
+              longitude: undefined,
+              placeId: '',
+              createdAt: '',
+              updatedAt: ''
+            }));
+          // Unir y deduplicar
+          const allTeams: Team[] = [...safeOwned, ...memberTeams].reduce((acc, curr) => {
+            if (!acc.some(t => t.id === curr.id)) acc.push(curr as Team);
+            return acc;
+          }, [] as Team[]);
+          // Consultar miembros reales para cada equipo
+          const memberRequests = allTeams.map(team =>
+            this.teamService.getMembers(team.id).pipe(
+              rxjs.catchError(() => rxjs.of([]))
+            )
+          );
+          rxjs.forkJoin(memberRequests).subscribe({
+            next: (membersArr) => {
+              allTeams.forEach((team, idx) => {
+                team.memberCount = (membersArr[idx] || []).filter((m: any) => m.status === 'APPROVED').length;
+              });
+              this.teams = allTeams;
+              this.loading = false;
+            },
+            error: (err) => {
+              console.error('Error cargando miembros:', err);
+              this.teams = allTeams;
+              this.loading = false;
+            }
+          });
+        },
+        error: (err) => {
+          console.error('Error cargando equipos:', err);
+          this.teams = [];
+          this.loading = false;
+        }
+      });
     });
   }
 
