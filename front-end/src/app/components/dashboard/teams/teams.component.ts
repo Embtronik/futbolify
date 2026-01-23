@@ -945,7 +945,7 @@ export class TeamsComponent implements AfterViewInit {
             .map((m) => ({
               id: m.teamId,
               name: m.teamName || '',
-              joinCode: '',
+              joinCode: m.joinCode || '',
               logoUrl: undefined,
               description: '',
               ownerUserId: 0,

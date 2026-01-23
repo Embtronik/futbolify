@@ -56,6 +56,7 @@ export interface TeamMember {
   id: number;
   teamId: number;
   teamName?: string;
+  joinCode?: string; // Código del grupo para unirse (opcional para TeamMember)
   userId: number;
   userEmail: string;
   status: 'PENDING' | 'APPROVED' | 'REJECTED'; // Estado de la membresía

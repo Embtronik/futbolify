@@ -359,7 +359,11 @@ export class PollsComponent implements OnInit, AfterViewInit, OnDestroy {
         const userEmail = (safePolls[0].emailUsuarioAutenticado || '').toLowerCase().trim();
         this.currentUserEmail = userEmail;
         this.myPolls = safePolls.filter((p: Poll) => (p.creadorEmail || '').toLowerCase().trim() === userEmail);
-        this.participantPolls = safePolls; // Todas las pollas, incluyendo las creadas por el usuario
+        // Mostrar pollas donde el usuario es participante (no solo creador)
+        this.participantPolls = safePolls.filter((p: Poll) => {
+          const participantes = p.participantes || [];
+          return participantes.some(part => (part.emailUsuario || '').toLowerCase().trim() === userEmail && part.estado === 'ACEPTADO');
+        });
         this.polls = (this.activeTab === 'my-polls' ? this.myPolls : this.participantPolls).filter(this.isPoll);
         this.loading = false;
 

@@ -76,9 +76,27 @@ export class MembersComponent implements OnInit {
         const mergedMap = new Map<number, Team>();
         for (const t of safeOwned) mergedMap.set(t.id, t);
         for (const t of memberTeams) mergedMap.set(t.id, t);
-        this.teams = Array.from(mergedMap.values()).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
-        console.log('[members] teams result (merged):', this.teams);
-        this.loading = false;
+        const mergedTeams = Array.from(mergedMap.values()).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+        // Consultar miembros reales para cada equipo y actualizar memberCount
+        const memberRequests = mergedTeams.map(team =>
+          this.teamService.getMembers(team.id).pipe(
+            catchError(() => of([] as TeamMember[]))
+          )
+        );
+        forkJoin(memberRequests).subscribe({
+          next: (membersArr) => {
+            mergedTeams.forEach((team, idx) => {
+              team.memberCount = (membersArr[idx] || []).filter((m: any) => m.status === 'APPROVED').length;
+            });
+            this.teams = mergedTeams;
+            this.loading = false;
+          },
+          error: (err) => {
+            console.error('Error cargando miembros:', err);
+            this.teams = mergedTeams;
+            this.loading = false;
+          }
+        });
       },
       error: (error: unknown) => {
         console.error('Error loading teams (owned + memberships):', error);
