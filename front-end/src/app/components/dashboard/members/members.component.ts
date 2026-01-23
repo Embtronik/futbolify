@@ -47,6 +47,8 @@ export class MembersComponent implements OnInit {
 
     forkJoin({ owned: ownedTeams$, memberships: memberships$ }).subscribe({
       next: ({ owned, memberships }) => {
+        console.log('[members] owned teams:', owned);
+        console.log('[members] memberships:', memberships);
         const safeOwned = (owned || []).filter((t: any): t is Team => !!t && typeof t.id === 'number');
         const ownedIds = new Set<number>(safeOwned.map(t => t.id));
 
@@ -57,10 +59,13 @@ export class MembersComponent implements OnInit {
               .filter((id): id is number => typeof id === 'number' && Number.isFinite(id))
           )
         );
+        console.log('[members] membershipTeamIds:', membershipTeamIds);
 
         const missingTeamIds = membershipTeamIds.filter((id) => !ownedIds.has(id));
+        console.log('[members] missingTeamIds:', missingTeamIds);
         if (missingTeamIds.length === 0) {
           this.teams = safeOwned.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+          console.log('[members] teams result (owned only):', this.teams);
           this.loading = false;
           return;
         }
@@ -78,11 +83,13 @@ export class MembersComponent implements OnInit {
           next: (membershipTeams: Team[]) => {
             const safeMembershipTeams = (membershipTeams || []).filter((t: any): t is Team => !!t && typeof t.id === 'number');
             const merged = [...safeOwned, ...safeMembershipTeams];
+            console.log('[members] merged teams:', merged);
 
             // Dedup por id
             const byId = new Map<number, Team>();
             for (const t of merged) byId.set(t.id, t);
             this.teams = Array.from(byId.values()).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+            console.log('[members] teams result (merged):', this.teams);
             this.loading = false;
           },
           error: (error: unknown) => {
