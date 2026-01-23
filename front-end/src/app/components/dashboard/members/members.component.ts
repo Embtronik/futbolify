@@ -134,33 +134,44 @@ import { Team, TeamMember } from '../../../models/football.model';
       margin: 0;
     }
 
-    .loading-state {
-      text-align: center;
-      padding: 60px 20px;
+    loadTeams() {
+      // Carga equipos donde el usuario es owner y donde es miembro aprobado
+      this.loadingTeams = true;
+      this.teams = [];
+      import('rxjs').then(rxjs => {
+        rxjs.forkJoin({
+          owner: this.teamService.getAll(), // equipos donde es owner
+          member: this.teamService.getMyMemberships() // equipos donde es miembro aprobado
+        }).subscribe(({ owner, member }) => {
+          // Mapear owner teams
+          const ownerGroups = owner.map(g => ({
+            teamId: g.id,
+            teamName: g.name,
+            logoUrl: g.logoUrl,
+            isOwner: true
+          }));
+          // Mapear member teams
+          const memberGroups = member.map(m => ({
+            teamId: m.teamId,
+            teamName: m.teamName,
+            logoUrl: undefined,
+            isOwner: false
+          }));
+          // Unir y eliminar duplicados por teamId
+          const allGroups = [...ownerGroups, ...memberGroups]
+            .reduce((acc, curr) => {
+              if (!acc.some(g => g.teamId === curr.teamId)) acc.push(curr);
+              return acc;
+            }, []);
+          this.teams = allGroups;
+          this.loadingTeams = false;
+          console.log('[Mis grupos] Grupos del usuario:', this.teams);
+        }, err => {
+          this.loadingTeams = false;
+          console.error('Error cargando grupos:', err);
+        });
+      });
     }
-
-    .spinner {
-      width: 50px;
-      height: 50px;
-      border: 4px solid var(--border-color);
-      border-top-color: var(--primary-color);
-      border-radius: 50%;
-      animation: spin 1s linear infinite;
-      margin: 0 auto 20px;
-    }
-
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
-
-    .teams-list {
-      display: flex;
-      flex-direction: column;
-      gap: 32px;
-    }
-
-    .team-section {
-      background: white;
       border-radius: 16px;
       padding: 24px;
       border: 1px solid var(--border-color);
