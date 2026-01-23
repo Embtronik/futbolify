@@ -1,5 +1,8 @@
 import { Component, inject, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { HttpErrorResponse } from '@angular/common/http';
+import { forkJoin, of } from 'rxjs';
+import { catchError } from 'rxjs/operators';
 import { TeamService } from '../../../services/team.service';
 import { Team, TeamMember } from '../../../models/football.model';
 
@@ -433,20 +436,52 @@ export class MembersComponent implements OnInit {
 
   loadMembers(teamId: number): void {
     this.loadingMembers[teamId] = true;
-    this.teamService.getMembers(teamId).subscribe({
-      next: (members) => {
-        console.log('Members received from API:', members);
-        if (members.length > 0 && members[0].userInfo === null) {
-          console.warn('⚠️ Backend está enviando userInfo: null. El backend debe cargar la información completa del usuario.');
+
+    const approved$ = this.teamService.getMembers(teamId).pipe(
+      catchError((err: unknown) => {
+        console.error('Error loading approved members:', err);
+        return of([] as TeamMember[]);
+      })
+    );
+
+    const pending$ = this.teamService.getPendingRequests(teamId).pipe(
+      catchError((err: unknown) => {
+        // Solo el owner puede ver pendientes. Para no romper UI, hacemos fallback a [] en 403.
+        if (err instanceof HttpErrorResponse && err.status === 403) {
+          return of([] as TeamMember[]);
         }
-        this.teamMembers[teamId] = members;
+        console.error('Error loading pending requests:', err);
+        return of([] as TeamMember[]);
+      })
+    );
+
+    forkJoin({ approved: approved$, pending: pending$ }).subscribe({
+      next: ({ approved, pending }) => {
+        console.log('[members] approved:', approved);
+        console.log('[members] pending:', pending);
+
+        const byId = new Map<number, TeamMember>();
+        for (const m of [...(pending || []), ...(approved || [])]) {
+          if (m && typeof (m as any).id === 'number') byId.set(m.id, m);
+        }
+        const merged = Array.from(byId.values());
+        merged.sort((a, b) => {
+          const w = (s: string | undefined) => (s === 'PENDING' ? 0 : s === 'APPROVED' ? 1 : 2);
+          return w(a.status) - w(b.status);
+        });
+
+        if (merged.length > 0 && merged.some(m => m.userInfo === null)) {
+          console.warn('⚠️ Algunos items vienen con userInfo: null (fallback esperado si auth-service no responde).');
+        }
+
+        this.teamMembers[teamId] = merged;
         this.loadingMembers[teamId] = false;
       },
       error: (error) => {
-        console.error('Error loading members:', error);
+        console.error('Error loading members (merged):', error);
         this.loadingMembers[teamId] = false;
         alert('Error al cargar los integrantes del grupo');
-      }
+      },
     });
   }
 
