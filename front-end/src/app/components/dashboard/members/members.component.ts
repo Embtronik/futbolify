@@ -58,7 +58,8 @@ export class MembersComponent implements OnInit {
           .map((m) => ({
             id: m.teamId,
             name: m.teamName || `Grupo #${m.teamId}`,
-            logoUrl: m.logoUrl,
+            joinCode: '',
+            logoUrl: undefined,
             ownerUserId: 0,
             memberCount: undefined,
             pendingRequestsCount: undefined,
