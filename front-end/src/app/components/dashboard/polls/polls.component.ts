@@ -382,7 +382,7 @@ export class PollsComponent implements OnInit, AfterViewInit, OnDestroy {
         // Mapear owner teams
         const ownerGroups = owner.map(g => ({
           teamId: g.id,
-          teamName: g.name,
+          teamName: g.name ?? '',
           logoUrl: g.logoUrl,
           isOwner: true,
           raw: g
@@ -390,7 +390,7 @@ export class PollsComponent implements OnInit, AfterViewInit, OnDestroy {
         // Mapear member teams
         const memberGroups = member.map(m => ({
           teamId: m.teamId,
-          teamName: m.teamName,
+          teamName: m.teamName ?? '',
           logoUrl: undefined,
           isOwner: false,
           raw: m
@@ -401,7 +401,7 @@ export class PollsComponent implements OnInit, AfterViewInit, OnDestroy {
             if (!acc.some(g => g.teamId === curr.teamId)) acc.push(curr);
             return acc;
           }, [] as Array<{ teamId: number; teamName: string; logoUrl?: string; isOwner: boolean; raw: any }>);
-        this.myTeams = allGroups;
+        this.userGroups = allGroups;
         // Si necesitas cargar miembros, puedes hacerlo aquí usando allGroups
       }, err => {
         console.error('Error cargando grupos:', err);

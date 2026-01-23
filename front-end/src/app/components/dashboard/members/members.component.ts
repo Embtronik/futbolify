@@ -146,16 +146,18 @@ import { Team, TeamMember } from '../../../models/football.model';
           // Mapear owner teams
           const ownerGroups = owner.map(g => ({
             teamId: g.id,
-            teamName: g.name,
+            teamName: g.name ?? '',
             logoUrl: g.logoUrl,
-            isOwner: true
+            isOwner: true,
+            raw: g
           }));
           // Mapear member teams
           const memberGroups = member.map(m => ({
             teamId: m.teamId,
-            teamName: m.teamName,
+            teamName: m.teamName ?? '',
             logoUrl: undefined,
-            isOwner: false
+            isOwner: false,
+            raw: m
           }));
           // Unir y eliminar duplicados por teamId
           const allGroups: Array<{ teamId: number; teamName: string; logoUrl?: string; isOwner: boolean; raw: any }> =
@@ -163,9 +165,7 @@ import { Team, TeamMember } from '../../../models/football.model';
               if (!acc.some(g => g.teamId === curr.teamId)) acc.push(curr);
               return acc;
             }, [] as Array<{ teamId: number; teamName: string; logoUrl?: string; isOwner: boolean; raw: any }>);
-          this.teams = allGroups;
-          this.loadingTeams = false;
-          console.log('[Mis grupos] Grupos del usuario:', this.teams);
+          this.userGroups = allGroups;
         }, err => {
           this.loadingTeams = false;
           console.error('Error cargando grupos:', err);
