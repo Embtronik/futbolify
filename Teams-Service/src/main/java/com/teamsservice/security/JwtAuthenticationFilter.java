@@ -16,6 +16,10 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.List;
 
 @Component
@@ -47,10 +51,17 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 String email = tokenProvider.getEmailFromToken(jwt);
                 List<GrantedAuthority> authorities = tokenProvider.getAuthoritiesFromToken(jwt);
 
-                // Si userId es null, usar 0L como placeholder (auth-service no lo incluye para OAuth)
-                if (userId == null) {
-                    userId = 0L;
-                    log.warn("No userId in token, using placeholder. Email: {}", email);
+                // OAuth tokens may not include a numeric userId.
+                // To avoid collisions (many users would become userId=0) we derive a stable per-email id.
+                if (userId == null || userId == 0L) {
+                    Long derived = deriveStableUserIdFromEmail(email);
+                    if (derived != null) {
+                        userId = derived;
+                        log.warn("No userId in token; derived stable userId from email. Email: {}", email);
+                    } else {
+                        userId = 0L;
+                        log.warn("No userId and no email in token; using placeholder userId=0");
+                    }
                 }
 
                 UserPrincipal userPrincipal = new UserPrincipal(userId, email, authorities);
@@ -70,6 +81,27 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         filterChain.doFilter(request, response);
+    }
+
+    private static Long deriveStableUserIdFromEmail(String email) {
+        if (!StringUtils.hasText(email)) {
+            return null;
+        }
+
+        String normalized = email.trim().toLowerCase();
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(normalized.getBytes(StandardCharsets.UTF_8));
+            long value = ByteBuffer.wrap(hash, 0, Long.BYTES).getLong();
+            value = value & Long.MAX_VALUE; // keep positive
+            if (value == 0L) {
+                value = 1L;
+            }
+            return value;
+        } catch (NoSuchAlgorithmException e) {
+            // Should never happen on a standard JRE.
+            return null;
+        }
     }
 
     private String getJwtFromRequest(HttpServletRequest request) {

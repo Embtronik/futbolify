@@ -58,7 +58,7 @@ public class TeamMemberController {
                 teamId, userPrincipal.getUserId());
         
         List<TeamMemberResponse> response = teamMemberService.getPendingRequests(
-                teamId, userPrincipal.getUserId());
+                teamId, userPrincipal.getUserId(), userPrincipal.getEmail());
         
         return ResponseEntity.ok(response);
     }
@@ -79,7 +79,7 @@ public class TeamMemberController {
                 memberId, teamId);
         
         TeamMemberResponse response = teamMemberService.approveMembershipRequest(
-                teamId, memberId, request, userPrincipal.getUserId());
+                teamId, memberId, request, userPrincipal.getUserId(), userPrincipal.getEmail());
         
         return ResponseEntity.ok(response);
     }
@@ -95,7 +95,7 @@ public class TeamMemberController {
         log.info("Getting members for team {} by user {}", teamId, userPrincipal.getUserId());
         
         List<TeamMemberResponse> response = teamMemberService.getTeamMembers(
-                teamId, userPrincipal.getUserId());
+                teamId, userPrincipal.getUserId(), userPrincipal.getEmail());
         
         return ResponseEntity.ok(response);
     }
@@ -110,7 +110,7 @@ public class TeamMemberController {
         log.info("Getting memberships for user {}", userPrincipal.getUserId());
         
         List<TeamMemberResponse> response = teamMemberService.getUserMemberships(
-                userPrincipal.getUserId());
+                userPrincipal.getUserId(), userPrincipal.getEmail());
         
         return ResponseEntity.ok(response);
     }

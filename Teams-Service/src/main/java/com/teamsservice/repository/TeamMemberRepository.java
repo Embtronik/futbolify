@@ -15,9 +15,15 @@ public interface TeamMemberRepository extends JpaRepository<TeamMember, Long> {
     
     // Verificar si un usuario ya tiene una solicitud para un equipo
     boolean existsByTeamIdAndUserId(Long teamId, Long userId);
+
+    // Verificar si un usuario (por email) ya tiene una solicitud para un equipo (case-insensitive)
+    boolean existsByTeamIdAndUserEmailIgnoreCase(Long teamId, String userEmail);
     
     // Obtener la membresía de un usuario en un equipo
     Optional<TeamMember> findByTeamIdAndUserId(Long teamId, Long userId);
+
+    // Obtener la membresía de un usuario en un equipo por email (case-insensitive)
+    Optional<TeamMember> findByTeamIdAndUserEmailIgnoreCase(Long teamId, String userEmail);
     
     // Obtener todas las solicitudes pendientes de un equipo
     List<TeamMember> findByTeamIdAndStatus(Long teamId, MembershipStatus status);
@@ -29,6 +35,10 @@ public interface TeamMemberRepository extends JpaRepository<TeamMember, Long> {
     // Obtener todos los equipos a los que pertenece un usuario (aprobados)
     @Query("SELECT tm FROM TeamMember tm WHERE tm.userId = :userId AND tm.status = 'APPROVED'")
     List<TeamMember> findApprovedTeamsByUserId(@Param("userId") Long userId);
+
+    // Obtener todos los equipos a los que pertenece un usuario (aprobados) por email
+    @Query("SELECT tm FROM TeamMember tm WHERE lower(tm.userEmail) = lower(:userEmail) AND tm.status = 'APPROVED'")
+    List<TeamMember> findApprovedTeamsByUserEmail(@Param("userEmail") String userEmail);
     
     // Contar miembros aprobados de un equipo
     long countByTeamIdAndStatus(Long teamId, MembershipStatus status);
