@@ -396,11 +396,11 @@ export class PollsComponent implements OnInit, AfterViewInit, OnDestroy {
           raw: m
         }));
         // Unir y eliminar duplicados por teamId
-        const allGroups = [...ownerGroups, ...memberGroups]
-          .reduce((acc, curr) => {
+        const allGroups: Array<{ teamId: number; teamName: string; logoUrl?: string; isOwner: boolean; raw: any }> =
+          [...ownerGroups, ...memberGroups].reduce((acc, curr) => {
             if (!acc.some(g => g.teamId === curr.teamId)) acc.push(curr);
             return acc;
-          }, []);
+          }, [] as Array<{ teamId: number; teamName: string; logoUrl?: string; isOwner: boolean; raw: any }>);
         this.myTeams = allGroups;
         // Si necesitas cargar miembros, puedes hacerlo aquí usando allGroups
       }, err => {

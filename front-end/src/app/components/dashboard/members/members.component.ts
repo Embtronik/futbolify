@@ -158,11 +158,11 @@ import { Team, TeamMember } from '../../../models/football.model';
             isOwner: false
           }));
           // Unir y eliminar duplicados por teamId
-          const allGroups = [...ownerGroups, ...memberGroups]
-            .reduce((acc, curr) => {
+          const allGroups: Array<{ teamId: number; teamName: string; logoUrl?: string; isOwner: boolean; raw: any }> =
+            [...ownerGroups, ...memberGroups].reduce((acc, curr) => {
               if (!acc.some(g => g.teamId === curr.teamId)) acc.push(curr);
               return acc;
-            }, []);
+            }, [] as Array<{ teamId: number; teamName: string; logoUrl?: string; isOwner: boolean; raw: any }>);
           this.teams = allGroups;
           this.loadingTeams = false;
           console.log('[Mis grupos] Grupos del usuario:', this.teams);
