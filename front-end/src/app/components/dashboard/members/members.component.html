@@ -63,7 +63,7 @@
                 {{ member.userInfo?.provider === 'GOOGLE' ? 'Cuenta Google' : 'Cuenta Local' }}
               </p>
             </div>
-            <div *ngIf="member.status === 'PENDING' && team.ownerUserId === member.approvedBy" class="pending-actions">
+            <div *ngIf="member.status === 'PENDING' && ownedTeamIds.has(team.id)" class="pending-actions">
               <button class="btn btn-success btn-xs" (click)="approveMember(team.id, member.id)">Aprobar</button>
               <button class="btn btn-danger btn-xs" (click)="rejectMember(team.id, member.id)">Rechazar</button>
             </div>

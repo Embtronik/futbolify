@@ -17,6 +17,7 @@ export class MembersComponent implements OnInit {
   private teamService = inject(TeamService);
 
   teams: Team[] = [];
+  ownedTeamIds: Set<number> = new Set();
   teamMembers: { [teamId: number]: TeamMember[] } = {};
   loadingMembers: { [teamId: number]: boolean } = {};
   loading = false;
@@ -50,7 +51,7 @@ export class MembersComponent implements OnInit {
         console.log('[members] owned teams:', owned);
         console.log('[members] memberships:', memberships);
         const safeOwned = (owned || []).filter((t: any): t is Team => !!t && typeof t.id === 'number');
-        const ownedIds = new Set<number>(safeOwned.map(t => t.id));
+        this.ownedTeamIds = new Set<number>(safeOwned.map(t => t.id));
 
         // Equipos donde el usuario es miembro aprobado (incluye owner y no-owner)
         const memberTeams = (memberships || [])
