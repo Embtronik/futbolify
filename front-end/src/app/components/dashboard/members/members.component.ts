@@ -52,9 +52,9 @@ export class MembersComponent implements OnInit {
         const safeOwned = (owned || []).filter((t: any): t is Team => !!t && typeof t.id === 'number');
         const ownedIds = new Set<number>(safeOwned.map(t => t.id));
 
-        // Equipos donde el usuario es miembro aprobado pero NO owner
+        // Equipos donde el usuario es miembro aprobado (incluye owner y no-owner)
         const memberTeams = (memberships || [])
-          .filter((m) => m.status === 'APPROVED' && !ownedIds.has(m.teamId))
+          .filter((m) => m.status === 'APPROVED')
           .map((m) => ({
             id: m.teamId,
             name: m.teamName || `Grupo #${m.teamId}`,
@@ -72,12 +72,11 @@ export class MembersComponent implements OnInit {
             updatedAt: '',
           }));
 
-        // Unir equipos donde es owner y donde es miembro aprobado
-        const merged = [...safeOwned, ...memberTeams];
-        // Dedup por id
-        const byId = new Map<number, Team>();
-        for (const t of merged) byId.set(t.id, t);
-        this.teams = Array.from(byId.values()).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+        // Unir equipos donde es owner y donde es miembro aprobado (sin duplicados)
+        const mergedMap = new Map<number, Team>();
+        for (const t of safeOwned) mergedMap.set(t.id, t);
+        for (const t of memberTeams) mergedMap.set(t.id, t);
+        this.teams = Array.from(mergedMap.values()).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
         console.log('[members] teams result (merged):', this.teams);
         this.loading = false;
       },
