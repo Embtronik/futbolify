@@ -1,5 +1,5 @@
-  userGroups: Array<{ teamId: number; teamName: string; logoUrl?: string; isOwner: boolean; raw: any }> = [];
 import { Component, inject, OnInit } from '@angular/core';
+  import { Component, inject, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { forkJoin, of } from 'rxjs';
@@ -58,6 +58,8 @@ import { Team, TeamMember } from '../../../models/football.model';
                 <span class="avatar-icon">{{ member.userId === team.ownerUserId ? '👑' : '👤' }}</span>
               </div>
               <div class="member-info">
+export class MembersComponent implements OnInit {
+  userGroups: Array<{ teamId: number; teamName: string; logoUrl?: string; isOwner: boolean; raw: any }> = [];
                 <h4>
                   {{ member.userInfo?.firstName && member.userInfo?.lastName 
                      ? member.userInfo?.firstName + ' ' + member.userInfo?.lastName 
