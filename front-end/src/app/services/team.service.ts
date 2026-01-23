@@ -102,8 +102,8 @@ export class TeamService {
     return this.http.get<TeamMember[]>(`${this.API_URL}/teams/${teamId}/members`);
   }
 
-  getMyMemberships(): Observable<Team[]> {
-    return this.http.get<Team[]>(`${this.API_URL}/teams/my-memberships`);
+  getMyMemberships(): Observable<TeamMember[]> {
+    return this.http.get<TeamMember[]>(`${this.API_URL}/teams/my-memberships`);
   }
 
   // ==========================================

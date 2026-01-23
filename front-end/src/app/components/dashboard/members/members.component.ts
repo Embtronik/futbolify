@@ -422,13 +422,74 @@ export class MembersComponent implements OnInit {
 
   loadTeams(): void {
     this.loading = true;
-    this.teamService.getAll().subscribe({
-      next: (teams) => {
-        this.teams = teams;
-        this.loading = false;
+
+    // Queremos cubrir 2 casos:
+    // - Owner: debe ver sus equipos (normalmente vienen en /teams para su usuario)
+    // - Miembro aprobado: debe ver equipos donde pertenece (vienen en /teams/my-memberships)
+    const ownedTeams$ = this.teamService.getAll().pipe(
+      catchError((error: unknown) => {
+        console.error('Error loading owned teams:', error);
+        return of([] as Team[]);
+      })
+    );
+
+    const memberships$ = this.teamService.getMyMemberships().pipe(
+      catchError((error: unknown) => {
+        console.error('Error loading my memberships:', error);
+        return of([] as TeamMember[]);
+      })
+    );
+
+    forkJoin({ owned: ownedTeams$, memberships: memberships$ }).subscribe({
+      next: ({ owned, memberships }) => {
+        const safeOwned = (owned || []).filter((t: any): t is Team => !!t && typeof t.id === 'number');
+        const ownedIds = new Set<number>(safeOwned.map(t => t.id));
+
+        const membershipTeamIds = Array.from(
+          new Set(
+            (memberships || [])
+              .map((m) => m?.teamId)
+              .filter((id): id is number => typeof id === 'number' && Number.isFinite(id))
+          )
+        );
+
+        const missingTeamIds = membershipTeamIds.filter((id) => !ownedIds.has(id));
+        if (missingTeamIds.length === 0) {
+          this.teams = safeOwned.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+          this.loading = false;
+          return;
+        }
+
+        forkJoin(
+          missingTeamIds.map((id) =>
+            this.teamService.getById(id).pipe(
+              catchError((err: unknown) => {
+                console.warn(`No se pudo cargar detalle del grupo ${id}:`, err);
+                return of(null as unknown as Team);
+              })
+            )
+          )
+        ).subscribe({
+          next: (membershipTeams: Team[]) => {
+            const safeMembershipTeams = (membershipTeams || []).filter((t: any): t is Team => !!t && typeof t.id === 'number');
+            const merged = [...safeOwned, ...safeMembershipTeams];
+
+            // Dedup por id
+            const byId = new Map<number, Team>();
+            for (const t of merged) byId.set(t.id, t);
+            this.teams = Array.from(byId.values()).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+            this.loading = false;
+          },
+          error: (error: unknown) => {
+            console.error('Error loading membership team details:', error);
+            this.teams = safeOwned.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+            this.loading = false;
+          }
+        });
       },
-      error: (error) => {
-        console.error('Error loading teams:', error);
+      error: (error: unknown) => {
+        console.error('Error loading teams (owned + memberships):', error);
+        this.teams = [];
         this.loading = false;
       }
     });
