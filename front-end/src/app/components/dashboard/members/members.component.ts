@@ -1,5 +1,4 @@
 import { Component, inject, OnInit } from '@angular/core';
-  import { Component, inject, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { forkJoin, of } from 'rxjs';
