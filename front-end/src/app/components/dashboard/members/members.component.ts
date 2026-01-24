@@ -5,6 +5,8 @@ import { forkJoin, of } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import { TeamService } from '../../../services/team.service';
 import { Team, TeamMember } from '../../../models/football.model';
+import { AuthService } from '../../../services/auth.service';
+import { User } from '../../../models/user.model';
 
 @Component({
   selector: 'app-members',
@@ -15,14 +17,17 @@ import { Team, TeamMember } from '../../../models/football.model';
 })
 export class MembersComponent implements OnInit {
   private teamService = inject(TeamService);
+  private authService = inject(AuthService);
 
   teams: Team[] = [];
   ownedTeamIds: Set<number> = new Set();
   teamMembers: { [teamId: number]: TeamMember[] } = {};
   loadingMembers: { [teamId: number]: boolean } = {};
   loading = false;
+  currentUser: User | null = null;
 
   ngOnInit(): void {
+    this.currentUser = this.authService.getCurrentUserValue();
     this.loadTeams();
   }
 
@@ -50,28 +55,34 @@ export class MembersComponent implements OnInit {
       next: ({ owned, memberships }) => {
         console.log('[members] owned teams:', owned);
         console.log('[members] memberships:', memberships);
+        console.log('[members] currentUser:', this.currentUser);
         const safeOwned = (owned || []).filter((t: any): t is Team => !!t && typeof t.id === 'number');
         this.ownedTeamIds = new Set<number>(safeOwned.map(t => t.id));
 
         // Equipos donde el usuario es miembro aprobado (incluye owner y no-owner)
         const memberTeams = (memberships || [])
           .filter((m) => m.status === 'APPROVED')
-          .map((m) => ({
-            id: m.teamId,
-            name: m.teamName || `Grupo #${m.teamId}`,
-            joinCode: '',
-            logoUrl: undefined,
-            ownerUserId: 0,
-            memberCount: undefined,
-            pendingRequestsCount: undefined,
-            description: undefined,
-            address: undefined,
-            latitude: undefined,
-            longitude: undefined,
-            placeId: undefined,
-            createdAt: '',
-            updatedAt: '',
-          }));
+          .map((m) => {
+            // Si el equipo está en owned, usar el objeto completo (con ownerUserId real)
+            const owned = safeOwned.find(t => t.id === m.teamId);
+            if (owned) return owned;
+            return {
+              id: m.teamId,
+              name: m.teamName || `Grupo #${m.teamId}`,
+              joinCode: '',
+              logoUrl: undefined,
+              ownerUserId: 0,
+              memberCount: undefined,
+              pendingRequestsCount: undefined,
+              description: undefined,
+              address: undefined,
+              latitude: undefined,
+              longitude: undefined,
+              placeId: undefined,
+              createdAt: '',
+              updatedAt: '',
+            };
+          });
 
         // Unir equipos donde es owner y donde es miembro aprobado (sin duplicados)
         const mergedMap = new Map<number, Team>();
@@ -109,6 +120,11 @@ export class MembersComponent implements OnInit {
 
   loadMembers(teamId: number): void {
     this.loadingMembers[teamId] = true;
+    const team = this.teams.find(t => t.id === teamId);
+    if (team && this.currentUser) {
+      console.log('[members] loadMembers: teamId', teamId, 'team.ownerUserId', team.ownerUserId, 'currentUser.id', this.currentUser.id);
+      console.log('[members] isOwner:', team.ownerUserId === this.currentUser.id);
+    }
 
     const approved$ = this.teamService.getMembers(teamId).pipe(
       catchError((err: unknown) => {
