@@ -1,22 +1,25 @@
 // ...existing code...
 import { Component, inject, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
 import { forkJoin, of } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import { TeamService } from '../../../services/team.service';
 import { Team, TeamMember } from '../../../models/football.model';
+import { MemberSearchPipe } from './member-search.pipe';
 import { AuthService } from '../../../services/auth.service';
 import { User } from '../../../models/user.model';
 
 @Component({
   selector: 'app-members',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, FormsModule, MemberSearchPipe],
   templateUrl: './members.component.html',
   styleUrls: ['./members.component.css'],
 })
 export class MembersComponent implements OnInit {
+  searchTerm: string = '';
   // ...
   private teamService = inject(TeamService);
   private authService = inject(AuthService);
@@ -180,7 +183,7 @@ export class MembersComponent implements OnInit {
         });
 
         if (merged.length > 0 && merged.some(m => m.userInfo === null)) {
-          console.warn('⚠️ Algunos items vienen con userInfo: null (fallback esperado si auth-service no responde).');
+          console.warn('Algunos items vienen con userInfo: null (fallback esperado si auth-service no responde).');
         }
 
         this.teamMembers[teamId] = merged;

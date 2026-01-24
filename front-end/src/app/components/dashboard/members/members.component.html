@@ -1,3 +1,7 @@
+  <!-- Filtro de búsqueda -->
+  <div class="search-bar" style="margin-bottom: 1rem;">
+    <input type="text" [(ngModel)]="searchTerm" placeholder="Buscar integrante por nombre o correo..." class="form-control" style="max-width: 350px;" />
+  </div>
 <div class="members-container">
   <div class="page-header">
     <h1>Integrantes de los Grupos</h1>
@@ -39,7 +43,7 @@
 
       <!-- Lista de miembros del equipo -->
       <div *ngIf="teamMembers[team.id]" class="members-grid">
-        <div *ngFor="let member of teamMembers[team.id]" class="member-card" [class.pending]="member.status === 'PENDING'">
+        <div *ngFor="let member of teamMembers[team.id] | memberSearch:searchTerm" class="member-card" [class.pending]="member.status === 'PENDING'">
           <div class="member-avatar">
             <span class="avatar-icon">{{ member.userId === team.ownerUserId ? '👑' : '👤' }}</span>
           </div>
@@ -64,8 +68,15 @@
               </p>
             </div>
             <div *ngIf="isOwner(team)" class="pending-actions">
-              <button class="btn btn-success btn-xs" (click)="approveMember(team.id, member.id)" [disabled]="member.status === 'APPROVED'">Aprobar</button>
-              <button class="btn btn-danger btn-xs" (click)="rejectMember(team.id, member.id)" [disabled]="member.status === 'REJECTED'">Rechazar</button>
+              <!-- Si está aprobado, solo mostrar botón rechazar y estado -->
+              <span *ngIf="member.status === 'APPROVED'" style="color:green;font-weight:bold;margin-right:8px;">Aprobado</span>
+              <button *ngIf="member.status === 'APPROVED'" class="btn btn-danger btn-xs" (click)="rejectMember(team.id, member.id)">Rechazar</button>
+              <!-- Si está rechazado, solo mostrar botón aprobar y estado -->
+              <span *ngIf="member.status === 'REJECTED'" style="color:#b00;font-weight:bold;margin-right:8px;">Rechazado</span>
+              <button *ngIf="member.status === 'REJECTED'" class="btn btn-success btn-xs" (click)="approveMember(team.id, member.id)">Aprobar</button>
+              <!-- Si está pendiente, mostrar ambos -->
+              <button *ngIf="member.status === 'PENDING'" class="btn btn-success btn-xs" (click)="approveMember(team.id, member.id)">Aprobar</button>
+              <button *ngIf="member.status === 'PENDING'" class="btn btn-danger btn-xs" (click)="rejectMember(team.id, member.id)">Rechazar</button>
             </div>
           </div>
         </div>
