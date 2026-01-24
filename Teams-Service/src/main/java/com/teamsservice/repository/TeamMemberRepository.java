@@ -12,6 +12,8 @@ import java.util.Optional;
 
 @Repository
 public interface TeamMemberRepository extends JpaRepository<TeamMember, Long> {
+        // Obtener todos los miembros de un equipo (cualquier estado)
+        List<TeamMember> findByTeamId(Long teamId);
     
     // Verificar si un usuario ya tiene una solicitud para un equipo
     boolean existsByTeamIdAndUserId(Long teamId, Long userId);
