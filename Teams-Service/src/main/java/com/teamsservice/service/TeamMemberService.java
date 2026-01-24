@@ -159,36 +159,37 @@ public class TeamMemberService {
      */
     @Transactional(readOnly = true)
     public List<TeamMemberResponse> getTeamMembers(Long teamId, Long userId, String userEmail) {
-        log.info("Getting approved members for team {} by user {}", teamId, userId);
+        log.info("Getting all members (all statuses) for team {} by user {}", teamId, userId);
 
         // Verificar que el equipo existe y está activo
         Team team = teamRepository.findByIdAndStatus(teamId, TeamStatus.ACTIVE)
-                .orElseThrow(() -> new ResourceNotFoundException("Team not found with id: " + teamId));
+            .orElseThrow(() -> new ResourceNotFoundException("Team not found with id: " + teamId));
 
         // Verificar que el usuario sea el propietario o miembro aprobado
         boolean isOwner = (userId != null && team.getOwnerUserId().equals(userId)) ||
-                (userEmail != null && team.getOwnerEmail() != null && team.getOwnerEmail().equalsIgnoreCase(userEmail));
+            (userEmail != null && team.getOwnerEmail() != null && team.getOwnerEmail().equalsIgnoreCase(userEmail));
         if (!isOwner) {
             boolean isApprovedMember;
             if (userId != null && userId != 0L) {
-                isApprovedMember = teamMemberRepository.findByTeamIdAndUserId(teamId, userId)
-                        .map(m -> m.getStatus() == TeamMember.MembershipStatus.APPROVED)
-                        .orElse(false);
+            isApprovedMember = teamMemberRepository.findByTeamIdAndUserId(teamId, userId)
+                .map(m -> m.getStatus() == TeamMember.MembershipStatus.APPROVED)
+                .orElse(false);
             } else {
-                isApprovedMember = userEmail != null && teamMemberRepository.existsByTeamIdAndUserEmailAndStatus(
-                        teamId, userEmail, TeamMember.MembershipStatus.APPROVED);
+            isApprovedMember = userEmail != null && teamMemberRepository.existsByTeamIdAndUserEmailAndStatus(
+                teamId, userEmail, TeamMember.MembershipStatus.APPROVED);
             }
 
             if (!isApprovedMember) {
-                throw new UnauthorizedException("You are not a member of this team");
+            throw new UnauthorizedException("You are not a member of this team");
             }
         }
 
-        List<TeamMember> members = teamMemberRepository.findApprovedMembersByTeamId(teamId);
+        // Obtener todos los miembros (cualquier estado)
+        List<TeamMember> members = teamMemberRepository.findByTeamId(teamId);
 
         return members.stream()
-                .map(this::mapToResponse)
-                .collect(Collectors.toList());
+            .map(this::mapToResponse)
+            .collect(Collectors.toList());
     }
 
     /**
