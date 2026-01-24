@@ -64,8 +64,8 @@
               </p>
             </div>
             <div *ngIf="isOwner(team)" class="pending-actions">
-              <button *ngIf="member.status !== 'APPROVED'" class="btn btn-success btn-xs" (click)="approveMember(team.id, member.id)">Aprobar</button>
-              <button *ngIf="member.status !== 'REJECTED'" class="btn btn-danger btn-xs" (click)="rejectMember(team.id, member.id)">Rechazar</button>
+              <button class="btn btn-success btn-xs" (click)="approveMember(team.id, member.id)" [disabled]="member.status === 'APPROVED'">Aprobar</button>
+              <button class="btn btn-danger btn-xs" (click)="rejectMember(team.id, member.id)" [disabled]="member.status === 'REJECTED'">Rechazar</button>
             </div>
           </div>
         </div>

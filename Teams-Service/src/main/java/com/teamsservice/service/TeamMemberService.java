@@ -123,15 +123,28 @@ public class TeamMemberService {
             throw new IllegalArgumentException("Membership request does not belong to this team");
         }
 
-        // Verificar que esté en estado PENDING
-        if (teamMember.getStatus() != TeamMember.MembershipStatus.PENDING) {
-            throw new IllegalArgumentException("Membership request is not pending");
+        // Permitir transición:
+        // PENDING -> APPROVED/REJECTED
+        // APPROVED <-> REJECTED
+        TeamMember.MembershipStatus current = teamMember.getStatus();
+        TeamMember.MembershipStatus target = request.getApproved() 
+                ? TeamMember.MembershipStatus.APPROVED 
+                : TeamMember.MembershipStatus.REJECTED;
+
+        boolean allowed = false;
+        if (current == TeamMember.MembershipStatus.PENDING) {
+            allowed = true;
+        } else if (current == TeamMember.MembershipStatus.APPROVED && target == TeamMember.MembershipStatus.REJECTED) {
+            allowed = true;
+        } else if (current == TeamMember.MembershipStatus.REJECTED && target == TeamMember.MembershipStatus.APPROVED) {
+            allowed = true;
         }
 
-        // Actualizar estado
-        teamMember.setStatus(request.getApproved() 
-                ? TeamMember.MembershipStatus.APPROVED 
-                : TeamMember.MembershipStatus.REJECTED);
+        if (!allowed) {
+            throw new IllegalArgumentException("Cannot change membership from " + current + " to " + target);
+        }
+
+        teamMember.setStatus(target);
         teamMember.setApprovedBy(userId);
         teamMember.setApprovedAt(LocalDateTime.now());
 
