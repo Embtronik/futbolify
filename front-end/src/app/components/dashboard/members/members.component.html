@@ -63,13 +63,9 @@
                 {{ member.userInfo?.provider === 'GOOGLE' ? 'Cuenta Google' : 'Cuenta Local' }}
               </p>
             </div>
-            <div *ngIf="member.status === 'PENDING'" style="font-size:11px;color:#888;">
-              <span *ngIf="isOwner(team)">[DEBUG: isOwner=TRUE]</span>
-              <span *ngIf="!isOwner(team)">[DEBUG: isOwner=FALSE]</span>
-            </div>
-            <div *ngIf="member.status === 'PENDING' && isOwner(team)" class="pending-actions">
-              <button class="btn btn-success btn-xs" (click)="approveMember(team.id, member.id)">Aprobar</button>
-              <button class="btn btn-danger btn-xs" (click)="rejectMember(team.id, member.id)">Rechazar</button>
+            <div *ngIf="isOwner(team)" class="pending-actions">
+              <button *ngIf="member.status !== 'APPROVED'" class="btn btn-success btn-xs" (click)="approveMember(team.id, member.id)">Aprobar</button>
+              <button *ngIf="member.status !== 'REJECTED'" class="btn btn-danger btn-xs" (click)="rejectMember(team.id, member.id)">Rechazar</button>
             </div>
           </div>
         </div>
