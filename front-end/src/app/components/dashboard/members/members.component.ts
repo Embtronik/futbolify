@@ -81,7 +81,6 @@ export class MembersComponent implements OnInit {
 
         // Equipos donde el usuario es miembro aprobado (incluye owner y no-owner)
         const memberTeams = (memberships || [])
-          .filter((m) => m.status === 'APPROVED')
           .map((m) => {
             // Si el equipo está en owned, usar el objeto completo (con ownerUserId real)
             const owned = safeOwned.find(t => t.id === m.teamId);
