@@ -1,3 +1,4 @@
+// ...existing code...
 import { Component, inject, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
@@ -16,6 +17,7 @@ import { User } from '../../../models/user.model';
   styleUrls: ['./members.component.css'],
 })
 export class MembersComponent implements OnInit {
+  // ...
   private teamService = inject(TeamService);
   private authService = inject(AuthService);
 
@@ -25,6 +27,11 @@ export class MembersComponent implements OnInit {
   loadingMembers: { [teamId: number]: boolean } = {};
   loading = false;
   currentUser: User | null = null;
+
+  isOwner(team: Team): boolean {
+    if (!team || !this.currentUser || !this.currentUser.email || !team.ownerEmail) return false;
+    return team.ownerEmail.toLowerCase().trim() === this.currentUser.email.toLowerCase().trim();
+  }
 
   ngOnInit(): void {
     this.currentUser = this.authService.getCurrentUserValue();
