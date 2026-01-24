@@ -148,48 +148,22 @@ export class MembersComponent implements OnInit {
       console.log('[members] isOwner:', isOwner);
     }
 
-    const approved$ = this.teamService.getMembers(teamId).pipe(
+    this.teamService.getMembers(teamId).pipe(
       catchError((err: unknown) => {
-        console.error('Error loading approved members:', err);
+        console.error('Error loading members:', err);
         return of([] as TeamMember[]);
       })
-    );
-
-    const pending$ = this.teamService.getPendingRequests(teamId).pipe(
-      catchError((err: unknown) => {
-        // Solo el owner puede ver pendientes. Para no romper UI, hacemos fallback a [] en 403.
-        if (err instanceof HttpErrorResponse && err.status === 403) {
-          return of([] as TeamMember[]);
-        }
-        console.error('Error loading pending requests:', err);
-        return of([] as TeamMember[]);
-      })
-    );
-
-    forkJoin({ approved: approved$, pending: pending$ }).subscribe({
-      next: ({ approved, pending }) => {
-        console.log('[members] approved:', approved);
-        console.log('[members] pending:', pending);
-
-        const byId = new Map<number, TeamMember>();
-        for (const m of [...(pending || []), ...(approved || [])]) {
-          if (m && typeof (m as any).id === 'number') byId.set(m.id, m);
-        }
-        const merged = Array.from(byId.values());
-        merged.sort((a, b) => {
+    ).subscribe({
+      next: (members) => {
+        const sorted = [...members].sort((a, b) => {
           const w = (s: string | undefined) => (s === 'PENDING' ? 0 : s === 'APPROVED' ? 1 : 2);
           return w(a.status) - w(b.status);
         });
-
-        if (merged.length > 0 && merged.some(m => m.userInfo === null)) {
-          console.warn('Algunos items vienen con userInfo: null (fallback esperado si auth-service no responde).');
-        }
-
-        this.teamMembers[teamId] = merged;
+        this.teamMembers[teamId] = sorted;
         this.loadingMembers[teamId] = false;
       },
       error: (error) => {
-        console.error('Error loading members (merged):', error);
+        console.error('Error loading members:', error);
         this.loadingMembers[teamId] = false;
         alert('Error al cargar los integrantes del grupo');
       },
