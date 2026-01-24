@@ -29,8 +29,18 @@ export class MembersComponent implements OnInit {
   currentUser: User | null = null;
 
   isOwner(team: Team): boolean {
-    if (!team || !this.currentUser || !this.currentUser.email || !team.ownerEmail) return false;
-    return team.ownerEmail.toLowerCase().trim() === this.currentUser.email.toLowerCase().trim();
+    if (!team || !this.currentUser || !this.currentUser.email || !team.ownerEmail) {
+      console.log('[isOwner] FALSO:', {
+        team,
+        currentUser: this.currentUser
+      });
+      return false;
+    }
+    const teamEmail = team.ownerEmail.toLowerCase().trim();
+    const userEmail = this.currentUser.email.toLowerCase().trim();
+    const result = teamEmail === userEmail;
+    console.log('[isOwner] Comparando:', { teamEmail, userEmail, result });
+    return result;
   }
 
   ngOnInit(): void {
