@@ -30,16 +30,16 @@ export class MembersComponent implements OnInit {
 
   isOwner(team: Team): boolean {
     if (!team || !this.currentUser || !this.currentUser.email || !team.ownerEmail) {
-      console.log('[isOwner] FALSO:', {
-        team,
-        currentUser: this.currentUser
+      console.log('[isOwner] FALSO (no se puede comparar):', {
+        equipo: team,
+        usuarioActual: this.currentUser
       });
       return false;
     }
     const teamEmail = team.ownerEmail.toLowerCase().trim();
     const userEmail = this.currentUser.email.toLowerCase().trim();
     const result = teamEmail === userEmail;
-    console.log('[isOwner] Comparando:', { teamEmail, userEmail, result });
+    console.log('[isOwner] Comparando correos:', { correoOwner: teamEmail, correoUsuario: userEmail, esOwner: result });
     return result;
   }
 
