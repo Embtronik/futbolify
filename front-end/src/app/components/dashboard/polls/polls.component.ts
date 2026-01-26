@@ -174,7 +174,16 @@ export class PollsComponent implements OnInit, AfterViewInit, OnDestroy {
       return;
     }
 
-    this.teamService.saveMultiplePredictions(this.selectedPoll.id, predictions).subscribe({
+    // Use PollService to send each prediction individually
+    const pollId = this.selectedPoll.id;
+    const saveRequests = predictions.map(prediction =>
+      this.pollService.createOrUpdatePrediction(pollId, prediction)
+    );
+    if (saveRequests.length === 0) {
+      this.savingPredictions = false;
+      return;
+    }
+    forkJoin(saveRequests).subscribe({
       next: () => {
         this.successMessage = 'Pronósticos guardados correctamente';
         this.savingPredictions = false;
@@ -183,7 +192,6 @@ export class PollsComponent implements OnInit, AfterViewInit, OnDestroy {
       },
       error: (err: unknown) => {
         const backendMsg = this.getBackendErrorMessage(err, 'Error al guardar los pronósticos');
-
         // Business-rule error: show it under the attempted matches and keep it visible
         if (err instanceof HttpErrorResponse && err.status === 400) {
           for (const match of unlockedAttempts) {
@@ -192,7 +200,6 @@ export class PollsComponent implements OnInit, AfterViewInit, OnDestroy {
           this.savingPredictions = false;
           return;
         }
-
         this.errorMessage = backendMsg;
         this.savingPredictions = false;
         setTimeout(() => (this.errorMessage = ''), 5000);
@@ -210,21 +217,17 @@ export class PollsComponent implements OnInit, AfterViewInit, OnDestroy {
       golesLocalPronosticado: match.golesLocalPronosticado,
       golesVisitantePronosticado: match.golesVisitantePronosticado
     };
-    if (typeof (this.teamService as any).savePrediction === 'function') {
-      (this.teamService as any).savePrediction(this.selectedPoll.id, prediction).subscribe({
-        next: (resp: any) => {
-          this.successMessage = 'Pronóstico guardado correctamente';
-          setTimeout(() => this.successMessage = '', 2000);
-        },
-        error: (err: unknown) => {
-          this.errorMessage = this.getBackendErrorMessage(err, 'Error al guardar el pronóstico');
-          setTimeout(() => this.errorMessage = '', 2000);
-        }
-      });
-    } else {
-      this.errorMessage = 'Función de guardado individual no implementada en el servicio.';
-      setTimeout(() => this.errorMessage = '', 2000);
-    }
+    // Use PollService for individual prediction
+    this.pollService.createOrUpdatePrediction(this.selectedPoll.id, prediction).subscribe({
+      next: (resp: any) => {
+        this.successMessage = 'Pronóstico guardado correctamente';
+        setTimeout(() => this.successMessage = '', 2000);
+      },
+      error: (err: unknown) => {
+        this.errorMessage = this.getBackendErrorMessage(err, 'Error al guardar el pronóstico');
+        setTimeout(() => this.errorMessage = '', 2000);
+      }
+    });
   }
 
   // Partidos seleccionados en el modal de agregar partido
@@ -553,11 +556,11 @@ export class PollsComponent implements OnInit, AfterViewInit, OnDestroy {
     this.errorMessage = '';
 
     const formValue = this.createPollForm.value;
-    const selectedTeamIds = formValue.gruposIds || [];
-    
-    // Obtener emails de todos los miembros APROBADOS de los grupos seleccionados
+    const selectedTeamIds: number[] = formValue.gruposIds || [];
     const emailsInvitados: string[] = [];
     const selectedTeams = this.myTeams.filter(team => selectedTeamIds.includes(team.id));
+    console.log('[DEBUG] selectedTeamIds:', selectedTeamIds);
+    console.log('[DEBUG] selectedTeams:', selectedTeams);
     // Obtener miembros aprobados de cada grupo seleccionado
     import('rxjs').then(rxjs => {
       const memberRequests = selectedTeams.map(team =>
@@ -567,6 +570,7 @@ export class PollsComponent implements OnInit, AfterViewInit, OnDestroy {
       );
       rxjs.forkJoin(memberRequests).subscribe({
         next: (membersArr) => {
+          console.log('[DEBUG] membersArr (miembros de los grupos seleccionados):', membersArr);
           membersArr.forEach(members => {
             (members || []).filter((member: any) => member.status === 'APPROVED').forEach((member: any) => {
               if (member.userEmail && !emailsInvitados.includes(member.userEmail)) {
@@ -574,6 +578,7 @@ export class PollsComponent implements OnInit, AfterViewInit, OnDestroy {
               }
             });
           });
+          console.log('[DEBUG] emailsInvitados antes de crear polla:', emailsInvitados);
           // Continuar con la creación de la polla usando emailsInvitados
           this.finalizeCreatePoll(formValue, emailsInvitados);
         },
