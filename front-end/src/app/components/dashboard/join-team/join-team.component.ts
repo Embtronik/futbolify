@@ -456,36 +456,34 @@ export class JoinTeamComponent implements OnInit {
         const pending = memberships.filter(m => m.status === 'PENDING');
         this.pendingMemberships = pending;
 
-        // Para mostrar los equipos, necesitamos obtener los datos de los equipos aprobados
+        // Si no hay aprobadas, limpiar y salir
         if (approved.length === 0) {
           this.myTeams = [];
           this.loading = false;
           return;
         }
 
-        // Obtener detalles de los equipos aprobados
-        const teamIds = approved.map(m => m.teamId);
-        // Llamar a getById para cada teamId y poblar myTeams
-        let loaded = 0;
-        this.myTeams = [];
-        teamIds.forEach(teamId => {
-          this.teamService.getById(teamId).subscribe({
-            next: (team) => {
-              this.teamsCache[team.id] = team;
-              this.myTeams.push(team);
-              loaded++;
-              if (loaded === teamIds.length) {
-                this.loading = false;
-              }
-            },
-            error: () => {
-              loaded++;
-              if (loaded === teamIds.length) {
-                this.loading = false;
-              }
-            }
-          });
-        });
+        // Si el objeto TeamMember ya trae teamName, poblar myTeams con esa info mínima
+        this.myTeams = approved.map(m => ({
+          id: m.teamId,
+          name: m.teamName || 'Equipo',
+          joinCode: m.joinCode || '',
+          logoUrl: undefined,
+          description: undefined,
+          ownerUserId: 0,
+          ownerEmail: undefined,
+          memberCount: undefined,
+          pendingRequestsCount: undefined,
+          members: undefined,
+          address: undefined,
+          latitude: undefined,
+          longitude: undefined,
+          placeId: undefined,
+          createdAt: '',
+          updatedAt: ''
+        }));
+        // Opcional: si quieres cargar detalles completos, puedes hacer llamadas adicionales aquí
+        this.loading = false;
       },
       error: (error) => {
         console.error('Error loading memberships:', error);
