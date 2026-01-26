@@ -358,12 +358,10 @@ export class PollsComponent implements OnInit, AfterViewInit, OnDestroy {
         // Tomar el email del usuario autenticado del primer objeto (todos traen el mismo)
         const userEmail = (safePolls[0].emailUsuarioAutenticado || '').toLowerCase().trim();
         this.currentUserEmail = userEmail;
+        // "Mis Pollas": donde soy creador
         this.myPolls = safePolls.filter((p: Poll) => (p.creadorEmail || '').toLowerCase().trim() === userEmail);
-        // Mostrar pollas donde el usuario es participante (no solo creador)
-        this.participantPolls = safePolls.filter((p: Poll) => {
-          const participantes = p.participantes || [];
-          return participantes.some(part => (part.emailUsuario || '').toLowerCase().trim() === userEmail && part.estado === 'ACEPTADO');
-        });
+        // "Participar": donde soy invitado o participante (no soy el creador)
+        this.participantPolls = safePolls.filter((p: Poll) => (p.creadorEmail || '').toLowerCase().trim() !== userEmail);
         this.polls = (this.activeTab === 'my-polls' ? this.myPolls : this.participantPolls).filter(this.isPoll);
         this.loading = false;
 
@@ -380,54 +378,54 @@ export class PollsComponent implements OnInit, AfterViewInit, OnDestroy {
     // Cargar grupos del usuario (para invitar) con sus miembros
     // Cargar grupos donde el usuario es owner y donde es miembro aprobado
     import('rxjs').then(rxjs => {
-      rxjs.forkJoin({
-        owner: this.teamService.getAll(),
-        member: this.teamService.getMyMemberships()
-      }).subscribe(({ owner, member }) => {
-        // Mapear owner teams
-        const ownerGroups = owner.map(g => ({
-          teamId: g.id,
-          teamName: g.name ?? '',
-          logoUrl: g.logoUrl,
-          isOwner: true,
-          memberCount: 0,
-          raw: g
-        }));
-        // Mapear member teams
-        const memberGroups = member.filter(m => m.status === 'APPROVED').map(m => ({
-          teamId: m.teamId,
-          teamName: m.teamName || '',
-          logoUrl: undefined,
-          isOwner: false,
-          memberCount: 0,
-          raw: m
-        }));
-        // Unir y eliminar duplicados por teamId
-        const allGroups: Array<{ teamId: number; teamName: string; logoUrl?: string; isOwner: boolean; memberCount: number; raw: any }> =
-          [...ownerGroups, ...memberGroups].reduce((acc, curr) => {
-            if (!acc.some(g => g.teamId === curr.teamId)) acc.push(curr);
-            return acc;
-          }, [] as Array<{ teamId: number; teamName: string; logoUrl?: string; isOwner: boolean; memberCount: number; raw: any }>);
-        // Consultar miembros reales para cada grupo
-        const memberRequests = allGroups.map(group =>
-          this.teamService.getMembers(group.teamId).pipe(
-            rxjs.catchError(() => rxjs.of([]))
-          )
-        );
-        rxjs.forkJoin(memberRequests).subscribe({
-          next: (membersArr) => {
-            allGroups.forEach((group, idx) => {
-              group.memberCount = (membersArr[idx] || []).filter((m: any) => m.status === 'APPROVED').length;
-            });
-            this.userGroups = allGroups;
-          },
-          error: (err) => {
-            console.error('Error cargando miembros de grupos:', err);
-            this.userGroups = allGroups;
-          }
-        });
-      }, err => {
-        console.error('Error cargando grupos:', err);
+      this.teamService.getMyMemberships().subscribe({
+        next: (memberships) => {
+          // Solo miembros aprobados
+          const memberGroups = memberships.filter(m => m.status === 'APPROVED').map(m => ({
+            teamId: m.teamId,
+            teamName: m.teamName || '',
+            logoUrl: undefined,
+            isOwner: false,
+            memberCount: 0,
+            raw: m
+          }));
+          // Eliminar duplicados por teamId y asegurar tipado
+          const allGroups: Array<{ teamId: number; teamName: string; logoUrl?: string; isOwner: boolean; memberCount: number; raw: any }> =
+            memberGroups.reduce((acc, curr) => {
+              if (!acc.some(g => g.teamId === curr.teamId)) {
+                acc.push({
+                  teamId: curr.teamId,
+                  teamName: curr.teamName,
+                  logoUrl: curr.logoUrl,
+                  isOwner: curr.isOwner,
+                  memberCount: curr.memberCount,
+                  raw: curr.raw
+                });
+              }
+              return acc;
+            }, [] as Array<{ teamId: number; teamName: string; logoUrl?: string; isOwner: boolean; memberCount: number; raw: any }>);
+          // Consultar miembros reales para cada grupo
+          const memberRequests = allGroups.map(group =>
+            this.teamService.getMembers(group.teamId).pipe(
+              rxjs.catchError(() => rxjs.of([]))
+            )
+          );
+          rxjs.forkJoin(memberRequests).subscribe({
+            next: (membersArr) => {
+              allGroups.forEach((group, idx) => {
+                group.memberCount = (membersArr[idx] || []).filter((m: any) => m.status === 'APPROVED').length;
+              });
+              this.userGroups = allGroups;
+            },
+            error: (err) => {
+              console.error('Error cargando miembros de grupos:', err);
+              this.userGroups = allGroups;
+            }
+          });
+        },
+        error: (err) => {
+          console.error('Error cargando grupos:', err);
+        }
       });
     });
 
