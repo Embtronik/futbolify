@@ -1,3 +1,4 @@
+
 import { AfterViewInit, Component, ElementRef, inject, NgZone, OnDestroy, OnInit, QueryList, ViewChildren } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
@@ -31,6 +32,29 @@ import {
   styleUrls: ['./polls.component.css']
 })
 export class PollsComponent implements OnInit, AfterViewInit, OnDestroy {
+    // ...existing code...
+
+    /**
+     * Método auxiliar para finalizar la creación de la polla después de obtener los emails
+     */
+    finalizeCreatePoll(formValue: any, emailsInvitados: string[]) {
+      const payload = {
+        ...formValue,
+        emailsInvitados
+      };
+      this.pollService.createPoll(payload).subscribe({
+        next: () => {
+          this.successMessage = 'Polla creada correctamente';
+          this.loading = false;
+          this.showCreateModal = false;
+          this.loadData();
+        },
+        error: () => {
+          this.errorMessage = 'Error al crear la polla';
+          this.loading = false;
+        }
+      });
+    }
   userGroups: Array<{ teamId: number; teamName: string; logoUrl?: string; isOwner: boolean; raw: any }> = [];
   // ...existing code...
 
@@ -267,7 +291,7 @@ export class PollsComponent implements OnInit, AfterViewInit, OnDestroy {
   polls: Poll[] = [];
   myPolls: Poll[] = [];
   participantPolls: Poll[] = [];
-  myTeams: Team[] = [];
+  myTeams: Array<{ id: number; name: string; logoUrl?: string; memberCount?: number }> = [];
   footballLeagues: FootballLeague[] = [];
   footballTeams: FootballTeam[] = [];
   upcomingFixtures: FootballFixture[] = [];
@@ -416,10 +440,17 @@ export class PollsComponent implements OnInit, AfterViewInit, OnDestroy {
                 group.memberCount = (membersArr[idx] || []).filter((m: any) => m.status === 'APPROVED').length;
               });
               this.userGroups = allGroups;
+              // Sincronizar myTeams para el selector de grupos en crear polla
             },
             error: (err) => {
               console.error('Error cargando miembros de grupos:', err);
               this.userGroups = allGroups;
+              this.myTeams = allGroups.map(g => ({
+                id: g.teamId,
+                name: g.teamName,
+                logoUrl: g.logoUrl,
+                memberCount: g.memberCount
+              }));
             }
           });
         },
@@ -520,17 +551,30 @@ export class PollsComponent implements OnInit, AfterViewInit, OnDestroy {
     // Obtener emails de todos los miembros APROBADOS de los grupos seleccionados
     const emailsInvitados: string[] = [];
     const selectedTeams = this.myTeams.filter(team => selectedTeamIds.includes(team.id));
-    
-    selectedTeams.forEach(team => {
-      if (team.members) {
-        team.members
-          .filter(member => member.status === 'APPROVED')
-          .forEach(member => {
-            if (member.userEmail && !emailsInvitados.includes(member.userEmail)) {
-              emailsInvitados.push(member.userEmail);
-            }
+    // Obtener miembros aprobados de cada grupo seleccionado
+    import('rxjs').then(rxjs => {
+      const memberRequests = selectedTeams.map(team =>
+        this.teamService.getMembers(team.id).pipe(
+          rxjs.catchError(() => rxjs.of([]))
+        )
+      );
+      rxjs.forkJoin(memberRequests).subscribe({
+        next: (membersArr) => {
+          membersArr.forEach(members => {
+            (members || []).filter((member: any) => member.status === 'APPROVED').forEach((member: any) => {
+              if (member.userEmail && !emailsInvitados.includes(member.userEmail)) {
+                emailsInvitados.push(member.userEmail);
+              }
+            });
           });
-      }
+          // Continuar con la creación de la polla usando emailsInvitados
+          this.finalizeCreatePoll(formValue, emailsInvitados);
+        },
+        error: () => {
+          this.errorMessage = 'Error al obtener miembros de los grupos seleccionados';
+          this.loading = false;
+        }
+      });
     });
     
     // Construir el objeto con el formato correcto

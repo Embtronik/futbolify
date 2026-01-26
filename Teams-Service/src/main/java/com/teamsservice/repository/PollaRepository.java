@@ -18,7 +18,7 @@ public interface PollaRepository extends JpaRepository<Polla, Long> {
     List<Polla> findByCreadorEmailAndDeletedAtIsNull(String email);
 
     /**
-     * Encuentra todas las pollas donde un usuario es participante y su estado es ACEPTADO o INVITADO
+     * Encuentra todas las pollas donde un usuario es participante (sin filtrar por estado de la polla)
      */
     @Query("SELECT DISTINCT p FROM Polla p " +
            "JOIN p.participantes pp " +
