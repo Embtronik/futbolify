@@ -428,7 +428,6 @@ export class JoinTeamComponent implements OnInit {
 
   myTeams: Team[] = [];
   pendingMemberships: TeamMember[] = [];
-  approvedTeams: TeamMember[] = [];
   teamsCache: { [key: number]: Team } = {};
   loading = false;
   submitting = false;
@@ -445,29 +444,54 @@ export class JoinTeamComponent implements OnInit {
   });
 
   ngOnInit(): void {
-    this.loadMyTeams();
+    this.loadMyMemberships();
   }
 
-  loadMyTeams(): void {
+  loadMyMemberships(): void {
     this.loading = true;
-    
-    // Cargar todos los equipos del usuario (incluye donde es miembro)
-    this.teamService.getAll().subscribe({
-      next: (teams) => {
-        console.log('Teams loaded:', teams);
-        this.myTeams = teams;
-        teams.forEach(team => this.teamsCache[team.id] = team);
-        this.loading = false;
+    this.teamService.getMyMemberships().subscribe({
+      next: (memberships) => {
+        // Filtrar membresías aprobadas y pendientes
+        const approved = memberships.filter(m => m.status === 'APPROVED');
+        const pending = memberships.filter(m => m.status === 'PENDING');
+        this.pendingMemberships = pending;
+
+        // Para mostrar los equipos, necesitamos obtener los datos de los equipos aprobados
+        if (approved.length === 0) {
+          this.myTeams = [];
+          this.loading = false;
+          return;
+        }
+
+        // Obtener detalles de los equipos aprobados
+        const teamIds = approved.map(m => m.teamId);
+        // Llamar a getById para cada teamId y poblar myTeams
+        let loaded = 0;
+        this.myTeams = [];
+        teamIds.forEach(teamId => {
+          this.teamService.getById(teamId).subscribe({
+            next: (team) => {
+              this.teamsCache[team.id] = team;
+              this.myTeams.push(team);
+              loaded++;
+              if (loaded === teamIds.length) {
+                this.loading = false;
+              }
+            },
+            error: () => {
+              loaded++;
+              if (loaded === teamIds.length) {
+                this.loading = false;
+              }
+            }
+          });
+        });
       },
       error: (error) => {
-        console.error('Error loading teams:', error);
+        console.error('Error loading memberships:', error);
         this.loading = false;
       }
     });
-
-    // TODO: Cargar solicitudes pendientes cuando el backend implemente el endpoint
-    // Por ahora dejamos el array vacío
-    this.pendingMemberships = [];
   }
 
   submitJoinRequest(): void {
@@ -482,28 +506,20 @@ export class JoinTeamComponent implements OnInit {
     this.teamService.joinTeam(joinCode).subscribe({
       next: (membership) => {
         this.submitting = false;
-        
-        // Verificar si fue aprobado automáticamente o está pendiente
+        // Recargar membresías para reflejar el nuevo estado
+        this.loadMyMemberships();
         if (membership.status === 'APPROVED') {
           this.successMessage = '✅ ¡Te has unido al grupo exitosamente!';
-          // Agregar a membresías aprobadas
-          this.approvedTeams.push(membership);
         } else {
           this.successMessage = '✅ Solicitud enviada exitosamente. Esperando aprobación del administrador.';
-          // Agregar a solicitudes pendientes
-          this.pendingMemberships.push(membership);
         }
-        
         this.joinForm.reset();
-
-        // Limpiar mensaje después de 5 segundos
         setTimeout(() => {
           this.successMessage = '';
         }, 5000);
       },
       error: (error) => {
         this.submitting = false;
-        
         if (error.status === 404) {
           this.errorMessage = '❌ Código inválido. El grupo no existe.';
         } else if (error.status === 409) {
@@ -513,8 +529,6 @@ export class JoinTeamComponent implements OnInit {
         } else {
           this.errorMessage = '❌ Error de conexión. Intenta nuevamente.';
         }
-
-        // Limpiar mensaje después de 5 segundos
         setTimeout(() => {
           this.errorMessage = '';
         }, 5000);

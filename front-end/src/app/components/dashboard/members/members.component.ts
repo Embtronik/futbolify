@@ -139,15 +139,7 @@ export class MembersComponent implements OnInit {
 
   loadMembers(teamId: number): void {
     this.loadingMembers[teamId] = true;
-    const team = this.teams.find(t => t.id === teamId);
-    if (team && this.currentUser) {
-      const teamOwnerEmail = (team.ownerEmail || '').toLowerCase().trim();
-      const userEmail = (this.currentUser.email || '').toLowerCase().trim();
-      const isOwner = teamOwnerEmail && userEmail && teamOwnerEmail === userEmail;
-      console.log('[members] loadMembers: teamId', teamId, 'team.ownerEmail', teamOwnerEmail, 'currentUser.email', userEmail);
-      console.log('[members] isOwner:', isOwner);
-    }
-
+    //
     this.teamService.getMembers(teamId).pipe(
       catchError((err: unknown) => {
         console.error('Error loading members:', err);
