@@ -447,6 +447,7 @@ export class PollsComponent implements OnInit, AfterViewInit, OnDestroy {
                 logoUrl: g.logoUrl,
                 memberCount: g.memberCount
               }));
+              console.log('[DEBUG] myTeams sincronizados para crear polla:', this.myTeams);
             },
             error: (err) => {
               console.error('Error cargando miembros de grupos:', err);
