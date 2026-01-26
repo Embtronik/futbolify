@@ -441,6 +441,12 @@ export class PollsComponent implements OnInit, AfterViewInit, OnDestroy {
               });
               this.userGroups = allGroups;
               // Sincronizar myTeams para el selector de grupos en crear polla
+              this.myTeams = allGroups.map(g => ({
+                id: g.teamId,
+                name: g.teamName,
+                logoUrl: g.logoUrl,
+                memberCount: g.memberCount
+              }));
             },
             error: (err) => {
               console.error('Error cargando miembros de grupos:', err);
