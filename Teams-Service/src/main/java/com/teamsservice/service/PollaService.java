@@ -135,10 +135,10 @@ public class PollaService {
         // Pollas creadas por el usuario
         List<Polla> pollasCreadas = pollaRepository.findByCreadorEmailAndDeletedAtIsNull(userEmail);
 
-        // Pollas donde es participante
+        // Pollas donde es participante y su estado es ACEPTADO o INVITADO
         List<Polla> pollasParticipante = pollaRepository.findPollasWhereUserIsParticipant(userEmail);
 
-        // Combinar y eliminar duplicados sin capturar variables mutables en lambdas
+        // Combinar y eliminar duplicados
         List<Polla> todasLasPollas = Stream.concat(pollasCreadas.stream(), pollasParticipante.stream())
             .distinct()
             .collect(Collectors.toList());

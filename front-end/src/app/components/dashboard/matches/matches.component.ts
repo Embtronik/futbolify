@@ -853,14 +853,14 @@ export class MatchesComponent implements OnInit {
             }
           },
           error: (err) => {
-            console.error('Error loading memberships for matches:', err);
+            // Error loading memberships for matches
             this.teams = [];
             this.loadingTeams = false;
           }
         });
       },
       error: (err) => {
-        console.error('Error loading owned teams for matches:', err);
+        // Error loading owned teams for matches
         this.teams = [];
         this.loadingTeams = false;
       }
@@ -891,7 +891,7 @@ export class MatchesComponent implements OnInit {
         this.loadingMatches = false;
       },
       error: (err) => {
-        console.error('Error loading matches:', err);
+        // Error loading matches
         this.loadingMatches = false;
       }
     });
@@ -950,12 +950,12 @@ export class MatchesComponent implements OnInit {
   private initAutocomplete(inputElement: ElementRef): void {
     this.googleMapsLoader.load().then(async () => {
       if (!this.googleMapsLoader.isLoaded()) {
-        console.error('Google Maps API no está disponible después de cargar');
+        // Google Maps API no está disponible después de cargar
         return;
       }
 
       if (!inputElement || !inputElement.nativeElement) {
-        console.error('Input element no está disponible');
+        // Input element no está disponible
         return;
       }
 
@@ -964,12 +964,12 @@ export class MatchesComponent implements OnInit {
         try {
           await maps.importLibrary('places');
         } catch (e) {
-          console.warn('No se pudo cargar la librería Places via importLibrary', e);
+          // No se pudo cargar la librería Places via importLibrary
         }
       }
 
       if (!maps?.places?.Autocomplete) {
-        console.error('Google Places Autocomplete no está disponible. Verifica API key y permisos.');
+        // Google Places Autocomplete no está disponible. Verifica API key y permisos.
         return;
       }
 
@@ -1018,7 +1018,7 @@ export class MatchesComponent implements OnInit {
 
       this.autocomplete = autocomplete;
     }).catch(error => {
-      console.error('Error al cargar Google Maps API para partidos:', error);
+      // Error al cargar Google Maps API para partidos
     });
   }
 
@@ -1071,7 +1071,7 @@ export class MatchesComponent implements OnInit {
         this.matches = [...this.matches, match].sort((a, b) => a.matchDateTime.localeCompare(b.matchDateTime));
       },
       error: (err) => {
-        console.error('Error creando partido:', err);
+        // Error creando partido
         this.creating = false;
       }
     });
