@@ -91,11 +91,23 @@ public class TeamMatchService {
                                                           int page, int size) {
         log.info("User {} listing matches for team {} (page={}, size={})", currentUserId, teamId, page, size);
 
-        Team team = teamRepository.findByIdAndStatus(teamId, TeamStatus.ACTIVE)
+	Team team = teamRepository.findByIdAndStatus(teamId, TeamStatus.ACTIVE)
                 .orElseThrow(() -> new ResourceNotFoundException("Team not found with id: " + teamId));
 
-        if (!team.getOwnerUserId().equals(currentUserId)) {
-            throw new UnauthorizedException("Only team owner can view team matches");
+        boolean isOwner = team.getOwnerUserId().equals(currentUserId);
+        boolean isApprovedMember = false;
+        if (!isOwner) {
+            if (currentUserId != null && currentUserId != 0L) {
+                isApprovedMember = teamMemberRepository.findByTeamIdAndUserId(teamId, currentUserId)
+                        .map(m -> m.getStatus() == TeamMember.MembershipStatus.APPROVED)
+                        .orElse(false);
+            } else if (currentUserEmail != null) {
+                isApprovedMember = teamMemberRepository.existsByTeamIdAndUserEmailAndStatus(
+                        teamId, currentUserEmail, TeamMember.MembershipStatus.APPROVED);
+            }
+            if (!isApprovedMember) {
+                throw new UnauthorizedException("You are not a member of this team");
+            }
         }
 
         if (size <= 0) {
