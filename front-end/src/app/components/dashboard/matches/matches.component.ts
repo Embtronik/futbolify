@@ -25,11 +25,11 @@ import { environment } from '../../../../environments/environment';
         </button>
       </div>
       <!-- Selección de equipo -->
-      <div class="team-selector" *ngIf="ownerTeams.length > 0">
-        <label>Selecciona el grupo para gestionar sus partidos:</label>
+      <div class="team-selector" *ngIf="teams.length > 0">
+        <label>Selecciona el grupo para ver o gestionar sus partidos:</label>
         <div class="teams-chips">
           <button
-            *ngFor="let team of ownerTeams"
+            *ngFor="let team of teams"
             type="button"
             class="team-chip"
             [class.active]="selectedTeam?.id === team.id"
@@ -40,11 +40,10 @@ import { environment } from '../../../../environments/environment';
           </button>
         </div>
       </div>
-
-      <div *ngIf="ownerTeams.length === 0 && !loadingTeams" class="empty-state">
+      <div *ngIf="teams.length === 0 && !loadingTeams" class="empty-state">
         <div class="empty-icon">👥</div>
-        <h2>No eres administrador de ningún grupo</h2>
-        <p>Crea un grupo desde la sección "Grupos" para poder programar partidos.</p>
+        <h2>No perteneces a ningún grupo</h2>
+        <p>Únete a un grupo o crea uno para ver y programar partidos.</p>
       </div>
 
       <!-- Lista de partidos -->
@@ -758,7 +757,7 @@ export class MatchesComponent implements OnInit {
 
   @ViewChild('addressInput') addressInput!: ElementRef;
 
-  ownerTeams: Team[] = [];
+  teams: Team[] = [];
   selectedTeam: Team | null = null;
   matches: TeamMatch[] = [];
 
@@ -789,8 +788,8 @@ export class MatchesComponent implements OnInit {
   });
 
   ngOnInit(): void {
-    this.loadOwnerTeams();
-  }
+  this.loadTeamsForMatches();
+}
 
   isMatchCreator(match: TeamMatch): boolean {
     const user = this.authService.getCurrentUserValue();
@@ -813,23 +812,61 @@ export class MatchesComponent implements OnInit {
     return this.selectedTeam?.ownerUserId === user.id;
   }
 
-  private loadOwnerTeams(): void {
+  private loadTeamsForMatches(): void {
     this.loadingTeams = true;
-    this.teamService.getMyTeams().subscribe({
-      next: (teams) => {
-        this.ownerTeams = teams || [];
-        this.loadingTeams = false;
-
-        if (this.ownerTeams.length > 0) {
-          this.selectTeam(this.ownerTeams[0]);
-        }
+    const ownedTeams$ = this.teamService.getAll();
+    const memberships$ = this.teamService.getMyMemberships();
+    ownedTeams$.subscribe({
+      next: (owned) => {
+        memberships$.subscribe({
+          next: (memberships) => {
+            const safeOwned = (owned || []).filter((t: any): t is Team => !!t && typeof t.id === 'number');
+            const memberTeams = (memberships || [])
+              .filter((m) => m.status === 'APPROVED')
+              .map((m) => {
+                const owned = safeOwned.find(t => t.id === m.teamId);
+                if (owned) return owned;
+                return {
+                  id: m.teamId,
+                  name: m.teamName || `Grupo #${m.teamId}`,
+                  joinCode: '',
+                  logoUrl: undefined,
+                  ownerUserId: 0,
+                  memberCount: undefined,
+                  pendingRequestsCount: undefined,
+                  description: undefined,
+                  address: undefined,
+                  latitude: undefined,
+                  longitude: undefined,
+                  placeId: undefined,
+                  createdAt: '',
+                  updatedAt: '',
+                };
+              });
+            const mergedMap = new Map<number, Team>();
+            for (const t of safeOwned) mergedMap.set(t.id, t);
+            for (const t of memberTeams) mergedMap.set(t.id, t);
+            this.teams = Array.from(mergedMap.values()).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+            this.loadingTeams = false;
+            if (this.teams.length > 0) {
+              this.selectTeam(this.teams[0]);
+            }
+          },
+          error: (err) => {
+            console.error('Error loading memberships for matches:', err);
+            this.teams = [];
+            this.loadingTeams = false;
+          }
+        });
       },
       error: (err) => {
-        console.error('Error loading teams for matches:', err);
+        console.error('Error loading owned teams for matches:', err);
+        this.teams = [];
         this.loadingTeams = false;
       }
     });
   }
+  
 
   selectTeam(team: Team): void {
     if (this.selectedTeam?.id === team.id) {

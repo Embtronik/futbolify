@@ -463,7 +463,7 @@ export class JoinTeamComponent implements OnInit {
           return;
         }
 
-        // Si el objeto TeamMember ya trae teamName, poblar myTeams con esa info mínima
+        // Poblar myTeams con info mínima y luego consultar miembros para el contador
         this.myTeams = approved.map(m => ({
           id: m.teamId,
           name: m.teamName || 'Equipo',
@@ -472,7 +472,7 @@ export class JoinTeamComponent implements OnInit {
           description: undefined,
           ownerUserId: 0,
           ownerEmail: undefined,
-          memberCount: undefined,
+          memberCount: 0,
           pendingRequestsCount: undefined,
           members: undefined,
           address: undefined,
@@ -482,8 +482,22 @@ export class JoinTeamComponent implements OnInit {
           createdAt: '',
           updatedAt: ''
         }));
-        // Opcional: si quieres cargar detalles completos, puedes hacer llamadas adicionales aquí
-        this.loading = false;
+        // Consultar miembros aprobados para cada equipo y actualizar memberCount
+        const memberRequests = this.myTeams.map(team =>
+          this.teamService.getMembers(team.id)
+        );
+        if (memberRequests.length === 0) {
+          this.loading = false;
+        } else {
+          Promise.all(memberRequests.map(obs => obs.toPromise())).then(membersArr => {
+            this.myTeams.forEach((team, idx) => {
+              team.memberCount = (membersArr[idx] || []).filter((m: any) => m.status === 'APPROVED').length;
+            });
+            this.loading = false;
+          }).catch(() => {
+            this.loading = false;
+          });
+        }
       },
       error: (error) => {
         console.error('Error loading memberships:', error);
