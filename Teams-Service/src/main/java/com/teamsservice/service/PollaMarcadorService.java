@@ -81,6 +81,7 @@ public class PollaMarcadorService {
         PollaPartido partido = partidoRepository.findByIdAndPollaId(partidoId, pollaId)
                 .orElseThrow(() -> new ResourceNotFoundException("Partido not found with id: " + partidoId));
 
+
         // Regla 1: si ya está finalizado y hay marcador definitivo -> no API
         if ((Boolean.TRUE.equals(partido.getPartidoFinalizado()) || isFinishedStatus(partido.getApiStatusShort()))
                 && partido.getGolesLocal() != null
@@ -94,6 +95,21 @@ public class PollaMarcadorService {
 
             log.debug("PollaPartido {} served from DB (finished + definitive score)", partidoId);
             return toResponse(pollaId, partido, "DB", null);
+        }
+
+        // NUEVA LÓGICA: Si la fecha/hora del partido ya pasó (más un margen de 2 horas), forzar sync aunque el status no sea final
+        if (partido.getFechaHoraPartido() != null) {
+            LocalDateTime now = LocalDateTime.now();
+            LocalDateTime matchEndEstimate = partido.getFechaHoraPartido().plusHours(2); // margen de 2 horas
+            if (now.isAfter(matchEndEstimate)) {
+                log.info("Forzando syncFromApi porque la fecha/hora del partido ya pasó ({} > {})", now, matchEndEstimate);
+                partido = syncFromApi(partido);
+                // Si después de sync el partido está finalizado, finalizar polla si corresponde
+                if (Boolean.TRUE.equals(partido.getPartidoFinalizado())) {
+                    finalizePollaIfAllMatchesFinished(pollaId);
+                }
+                return toResponse(pollaId, partido, "API-FORCED", null);
+            }
         }
 
         Duration ttl = determineTtl(partido.getApiStatusShort(), partido.getGolesLocal(), partido.getGolesVisitante());
