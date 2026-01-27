@@ -281,23 +281,22 @@ public class TeamStatsService {
         if (currentUserId != null && team.getOwnerUserId().equals(currentUserId)) {
             return;
         }
+        // Allow access only to the owner or to APPROVED members
+        boolean isApproved = false;
 
-        boolean isApprovedMember = false;
         if (currentUserId != null && currentUserId != 0) {
-            isApprovedMember = teamMemberRepository.findByTeamIdAndUserId(teamId, currentUserId)
-                    .map(m -> m.getStatus() == TeamMember.MembershipStatus.APPROVED)
+            isApproved = teamMemberRepository.findByTeamIdAndUserId(teamId, currentUserId)
+                    .map(tm -> tm.getStatus() == TeamMember.MembershipStatus.APPROVED)
                     .orElse(false);
         }
 
-        if (!isApprovedMember && currentUserEmail != null && !currentUserEmail.isBlank()) {
-            isApprovedMember = teamMemberRepository.existsByTeamIdAndUserEmailAndStatus(
-                    teamId,
-                    currentUserEmail,
-                    TeamMember.MembershipStatus.APPROVED);
+        if (!isApproved && currentUserEmail != null && !currentUserEmail.isBlank()) {
+            isApproved = teamMemberRepository.existsByTeamIdAndUserEmailAndStatus(
+                    teamId, normalizeEmail(currentUserEmail), TeamMember.MembershipStatus.APPROVED);
         }
 
-        if (!isApprovedMember) {
-            throw new UnauthorizedException("You are not a member of this team");
+        if (!isApproved) {
+            throw new UnauthorizedException("You are not an approved member of this team");
         }
     }
 

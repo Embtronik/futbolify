@@ -656,7 +656,7 @@ export class PollsComponent implements OnInit, AfterViewInit, OnDestroy {
     event.stopPropagation();
     if (!confirm(`¿Estás seguro de eliminar la polla "${poll.nombre}"?`)) return;
 
-    (this.teamService as any).deletePoll(poll.id).subscribe({
+    this.pollService.deletePoll(poll.id).subscribe({
       next: () => {
         this.polls = (this.polls || []).filter((p: any): p is Poll => this.isPoll(p) && p.id !== poll.id);
         this.successMessage = 'Polla eliminada correctamente';

@@ -230,4 +230,16 @@ public class PollaController {
         pollaService.volverACreada(id, userPrincipal.getEmail());
         return ResponseEntity.ok().build();
     }
+
+    /**
+     * DELETE /api/pollas/{id} - Eliminar una polla (solo el creador)
+     */
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> eliminarPolla(
+            @PathVariable Long id,
+            @AuthenticationPrincipal UserPrincipal userPrincipal) {
+        log.info("Eliminando polla {} por usuario {}", id, userPrincipal.getEmail());
+        pollaService.eliminarPolla(id, userPrincipal.getEmail());
+        return ResponseEntity.noContent().build();
+    }
 }

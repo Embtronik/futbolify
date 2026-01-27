@@ -92,6 +92,7 @@
             </button>
             <button 
               class="btn-icon btn-delete" 
+              *ngIf="(p.creadorEmail || '').toLowerCase().trim() === currentUserEmail"
               (click)="deletePoll(p, $event); $event.stopPropagation()"
               title="Eliminar">
               🗑️

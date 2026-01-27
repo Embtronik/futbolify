@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { AuthService } from '../../../services/auth.service';
 import { TeamService } from '../../../services/team.service';
+import { MatchService } from '../../../services/match.service';
 import { User } from '../../../models/user.model';
 
 @Component({
@@ -278,8 +279,9 @@ import { User } from '../../../models/user.model';
 export class HomeComponent implements OnInit {
   private authService = inject(AuthService);
   private teamService = inject(TeamService);
+  private matchService = inject(MatchService);
   user: User | null = null;
-  
+
   stats = {
     teams: 0,
     players: 0,
@@ -303,28 +305,20 @@ export class HomeComponent implements OnInit {
       error: (error) => console.error('Error loading teams:', error)
     });
 
-    // Cargar jugadores (cuando backend implemente el endpoint)
-    // this.teamService.getAllPlayers().subscribe({
-    //   next: (players) => {
-    //     this.stats.players = players.length;
-    //   },
-    //   error: (error) => console.error('Error loading players:', error)
-    // });
+    // Cargar partidos (todos los partidos)
+    this.matchService.getAll().subscribe({
+      next: (matches) => {
+        this.stats.matches = matches.length;
+      },
+      error: (error) => console.error('Error loading matches:', error)
+    });
 
-    // Cargar partidos (cuando backend implemente el endpoint)
-    // this.teamService.getAllMatches().subscribe({
-    //   next: (matches) => {
-    //     this.stats.matches = matches.length;
-    //   },
-    //   error: (error) => console.error('Error loading matches:', error)
-    // });
-
-    // Cargar pollas (cuando backend implemente el endpoint)
-    // this.teamService.getAllPolls().subscribe({
-    //   next: (polls) => {
-    //     this.stats.polls = polls.length;
-    //   },
-    //   error: (error) => console.error('Error loading polls:', error)
-    // });
+    // Cargar pollas (todas las pollas)
+    this.teamService.getPolls().subscribe({
+      next: (polls) => {
+        this.stats.polls = polls.length;
+      },
+      error: (error) => console.error('Error loading polls:', error)
+    });
   }
 }

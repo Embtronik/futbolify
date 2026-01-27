@@ -138,8 +138,22 @@ public class PollaService {
         // Pollas donde es participante y su estado es ACEPTADO o INVITADO
         List<Polla> pollasParticipante = pollaRepository.findPollasWhereUserIsParticipant(userEmail);
 
+        // Pollas asociadas a grupos donde el usuario es miembro aprobado (aunque la aprobación ocurriera después)
+        List<Polla> pollasPorGrupos = List.of();
+        List<com.teamsservice.entity.TeamMember> approvedTeams = teamMemberRepository.findApprovedTeamsByUserEmail(userEmail);
+        if (approvedTeams != null && !approvedTeams.isEmpty()) {
+            List<Long> teamIds = approvedTeams.stream()
+                    .map(tm -> tm.getTeam().getId())
+                    .distinct()
+                    .toList();
+            if (!teamIds.isEmpty()) {
+                pollasPorGrupos = pollaRepository.findByGruposInvitadosIn(teamIds);
+            }
+        }
+
         // Combinar y eliminar duplicados
-        List<Polla> todasLasPollas = Stream.concat(pollasCreadas.stream(), pollasParticipante.stream())
+        List<Polla> todasLasPollas = Stream.of(pollasCreadas, pollasParticipante, pollasPorGrupos)
+            .flatMap(list -> list == null ? Stream.empty() : list.stream())
             .distinct()
             .collect(Collectors.toList());
 
