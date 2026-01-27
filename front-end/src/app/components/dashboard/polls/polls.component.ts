@@ -309,7 +309,7 @@ export class PollsComponent implements OnInit, AfterViewInit, OnDestroy {
   showCreateModal = false;
   showAddMatchModal = false;
   showPollDetailModal = false;
-  activeTab: 'my-polls' | 'invited' = 'my-polls';
+  activeTab: 'invited' | 'my-polls' = 'invited'; // PARTICIPAR primero
   addMatchStep: 'league' | 'fixtures' = 'league';
   isParticiparView = false;
   
@@ -328,6 +328,12 @@ export class PollsComponent implements OnInit, AfterViewInit, OnDestroy {
 
   ngOnInit(): void {
     this.initializeForms();
+    this.loadData();
+  }
+
+  onTabChange(tab: 'invited' | 'my-polls') {
+    this.activeTab = tab;
+    // Recargar pollas al cambiar de pestaña
     this.loadData();
   }
 
@@ -534,12 +540,6 @@ export class PollsComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   // ========== Gestión de Pollas ========== 
-
-  onTabChange(tab: 'my-polls' | 'invited') {
-    this.activeTab = tab;
-    const next = tab === 'my-polls' ? this.myPolls : this.participantPolls;
-    this.polls = (next || []).filter((p: any): p is Poll => !!p && typeof p.id === 'number');
-  }
 
   openCreateModal(): void {
     this.showCreateModal = true;
