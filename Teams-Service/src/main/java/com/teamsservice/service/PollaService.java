@@ -325,8 +325,8 @@ public class PollaService {
      * al participante y al creador con el resumen de los marcadores que puso.
      */
     private void checkAndNotifyIfCompleted(Long pollaId, String userEmail) {
-        long totalMatches = partidoRepository.countByPollaId(pollaId);
-        long userForecasts = pronosticoRepository.countByPollaIdAndEmailParticipante(pollaId, userEmail);
+        long totalMatches = partidoRepository.countTotalByPollaId(pollaId);
+        long userForecasts = pronosticoRepository.findByPollaIdAndEmail(pollaId, userEmail).size();
 
         if (totalMatches > 0 && userForecasts == totalMatches) {
             // obtener creador de la polla
@@ -336,7 +336,7 @@ public class PollaService {
             String creadorEmail = polla.getCreadorEmail();
 
             // construir resumen de marcadores del participante
-            List<PollaPronostico> pronosticos = pronosticoRepository.findByPollaIdAndEmailParticipanteOrderByPollaPartidoId(pollaId, userEmail);
+            List<PollaPronostico> pronosticos = pronosticoRepository.findByPollaIdAndEmail(pollaId, userEmail);
 
             String participantName = null;
             String creatorName = null;
@@ -363,7 +363,7 @@ public class PollaService {
                 bodyBuilder.append("- ");
                 bodyBuilder.append(partido.getEquipoLocal()).append(" vs ").append(partido.getEquipoVisitante());
                 bodyBuilder.append(" (externalId: ").append(partido.getIdPartidoExterno()).append(") : ");
-                bodyBuilder.append(p.getGolesLocalPronosticado()).append("-").append(p.getGolesVisitantePronosticado());
+                bodyBuilder.append(p.getGolesLocalPronosticado()).append("-").append(p.getGolesVisitante());
                 bodyBuilder.append("\n");
             }
 
