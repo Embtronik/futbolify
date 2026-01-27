@@ -1,3 +1,24 @@
+    /**
+     * Obtiene todos los partidos de los equipos donde el usuario es miembro aprobado
+     */
+    public List<TeamMatchResponse> getUserMatches(Long userId, String userEmail) {
+        // Buscar equipos donde el usuario es miembro aprobado
+        List<Long> teamIds = new ArrayList<>();
+        if (userId != null && userId != 0L) {
+            teamIds.addAll(teamMemberRepository.findApprovedTeamsByUserId(userId)
+                .stream().map(tm -> tm.getTeam().getId()).toList());
+        }
+        if (userEmail != null && !userEmail.isBlank()) {
+            teamIds.addAll(teamMemberRepository.findApprovedTeamsByUserEmail(userEmail)
+                .stream().map(tm -> tm.getTeam().getId()).toList());
+        }
+        if (teamIds.isEmpty()) {
+            return List.of();
+        }
+        // Buscar partidos de esos equipos
+        List<TeamMatch> matches = teamMatchRepository.findByTeamIds(teamIds);
+        return matches.stream().map(this::mapToResponse).toList();
+    }
 package com.teamsservice.service;
 
 import com.teamsservice.dto.MatchAttendanceSummaryResponse;

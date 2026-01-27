@@ -16,12 +16,14 @@ export class MatchService {
    * Obtener todos los partidos
    */
   getAll(): Observable<Match[]> {
-    return this.http.get<Match[]>(`${this.API_URL}/matches`).pipe(
+    // El backend expone /api/matches/mis-partidos como POST (mis partidos del usuario)
+    const url = `${environment.teamsApiUrl}/matches/mis-partidos`;
+    return this.http.post<Match[]>(url, {}).pipe(
       catchError((err: any) => {
         if (err && err.status === 405) {
-          console.error('GET /matches returned 405 Method Not Allowed. Verify backend mapping (@GetMapping).', err);
+          console.error('POST /matches/mis-partidos returned 405 Method Not Allowed. Verify backend mapping (@PostMapping).', err);
         } else {
-          console.error('Error fetching matches:', err);
+          console.error('Error fetching my matches via POST /matches/mis-partidos:', err);
         }
         return of([] as Match[]);
       })
