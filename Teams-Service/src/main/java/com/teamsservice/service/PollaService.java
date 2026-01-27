@@ -230,11 +230,20 @@ public class PollaService {
         log.info("User {} registering forecast for match {} in polla {}", 
                  userEmail, request.getPollaPartidoId(), pollaId);
 
-        // Verificar que el usuario es participante aceptado o es el creador de la polla
+        // Verificar que el usuario es miembro aprobado de algún grupo de la polla o es el creador
         boolean esCreador = pollaRepository.isUserCreator(pollaId, userEmail);
-        boolean esParticipanteAceptado = participanteRepository.isUserAceptado(pollaId, userEmail);
-        if (!esCreador && !esParticipanteAceptado) {
-            throw new UnauthorizedException("Debes ser participante aceptado para pronosticar");
+        Polla polla = pollaRepository.findByIdAndDeletedAtIsNull(pollaId)
+                .orElseThrow(() -> new ResourceNotFoundException("Polla not found with id: " + pollaId));
+
+        boolean esMiembroAprobado = false;
+        for (Team grupo : polla.getGruposInvitados()) {
+            esMiembroAprobado = teamMemberRepository.findByTeamIdAndUserEmailIgnoreCase(grupo.getId(), userEmail)
+                .map(m -> m.getStatus() == com.teamsservice.entity.TeamMember.MembershipStatus.APPROVED)
+                .orElse(false);
+            if (esMiembroAprobado) break;
+        }
+        if (!esCreador && !esMiembroAprobado) {
+            throw new UnauthorizedException("Debes ser miembro aprobado de algún grupo para pronosticar");
         }
 
         // Obtener el partido
