@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { AuthService } from '../../../services/auth.service';
 import { TeamService } from '../../../services/team.service';
+import { PollService } from '../../../services/poll.service';
 import { MatchService } from '../../../services/match.service';
 import { User } from '../../../models/user.model';
 
@@ -279,6 +280,7 @@ import { User } from '../../../models/user.model';
 export class HomeComponent implements OnInit {
   private authService = inject(AuthService);
   private teamService = inject(TeamService);
+  private pollService = inject(PollService);
   private matchService = inject(MatchService);
   user: User | null = null;
 
@@ -313,12 +315,15 @@ export class HomeComponent implements OnInit {
       error: (error) => console.error('Error loading matches:', error)
     });
 
-    // Cargar pollas (todas las pollas)
-    this.teamService.getPolls().subscribe({
+    // Cargar pollas (usar endpoint de mis pollas para evitar /pollas/ que falla en algunos entornos)
+    this.pollService.getMyPolls().subscribe({
       next: (polls) => {
-        this.stats.polls = polls.length;
+        this.stats.polls = (polls || []).length;
       },
-      error: (error) => console.error('Error loading polls:', error)
+      error: (error) => {
+        console.error('Error loading my polls (fallback):', error);
+        this.stats.polls = 0;
+      }
     });
   }
 }

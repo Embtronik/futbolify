@@ -1,6 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable } from 'rxjs';
+import { Observable, of } from 'rxjs';
+import { catchError } from 'rxjs/operators';
 import {
   Poll,
   PollParticipant,
@@ -44,7 +45,16 @@ export class PollService {
    * GET /pollas/mis-pollas
    */
   getMyPolls(): Observable<Poll[]> {
-    return this.http.get<Poll[]>(`${this.API_URL}/pollas/mis-pollas`);
+    return this.http.get<Poll[]>(`${this.API_URL}/pollas/mis-pollas`).pipe(
+      catchError((err: any) => {
+        if (err && err.status === 405) {
+          console.error('GET /pollas/mis-pollas returned 405 Method Not Allowed. Verify backend mapping (@GetMapping).', err);
+        } else {
+          console.error('Error fetching my polls:', err);
+        }
+        return of([] as Poll[]);
+      })
+    );
   }
 
   /**

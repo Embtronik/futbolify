@@ -337,6 +337,11 @@ export class PollsComponent implements OnInit, AfterViewInit, OnDestroy {
     this.loadData();
   }
 
+  // Alias kept for template/old callers
+  handleTabChange(tab: 'invited' | 'my-polls') {
+    this.onTabChange(tab);
+  }
+
   ngAfterViewInit(): void {
     // Re-observe whenever rows change (e.g. when opening modal or reloading matches)
     this.participarMatchRows.changes.subscribe(() => this.rebindRealScoreRowObserver());

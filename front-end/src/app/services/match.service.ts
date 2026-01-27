@@ -1,6 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable } from 'rxjs';
+import { Observable, of } from 'rxjs';
+import { catchError } from 'rxjs/operators';
 import { Match } from '../models/football.model';
 import { environment } from '../../environments/environment';
 
@@ -15,7 +16,16 @@ export class MatchService {
    * Obtener todos los partidos
    */
   getAll(): Observable<Match[]> {
-    return this.http.get<Match[]>(`${this.API_URL}/matches`);
+    return this.http.get<Match[]>(`${this.API_URL}/matches`).pipe(
+      catchError((err: any) => {
+        if (err && err.status === 405) {
+          console.error('GET /matches returned 405 Method Not Allowed. Verify backend mapping (@GetMapping).', err);
+        } else {
+          console.error('Error fetching matches:', err);
+        }
+        return of([] as Match[]);
+      })
+    );
   }
 
   /**
