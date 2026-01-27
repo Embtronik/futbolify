@@ -73,7 +73,7 @@ public class TeamMemberController {
             @Valid @RequestBody ApproveMemberRequest request,
             @AuthenticationPrincipal UserPrincipal userPrincipal) {
         
-        g.info("User {} {} membership {} for team {}", 
+        log.info("User {} {} membership {} for team {}", 
                 userPrincipal.getUserId(), 
                 request.getApproved() ? "approving" : "rejecting",
                 memberId, teamId);
@@ -92,7 +92,7 @@ public class TeamMemberController {
             @PathVariable Long teamId,
             @AuthenticationPrincipal UserPrincipal userPrincipal) {
         
-        g.info("Getting members for team {} by user {}", teamId, userPrincipal.getUserId());
+        log.info("Getting members for team {} by user {}", teamId, userPrincipal.getUserId());
         
         List<TeamMemberResponse> response = teamMemberService.getTeamMembers(
                 teamId, userPrincipal.getUserId(), userPrincipal.getEmail());
@@ -107,7 +107,7 @@ public class TeamMemberController {
     public ResponseEntity<List<TeamMemberResponse>> getMyMemberships(
             @AuthenticationPrincipal UserPrincipal userPrincipal) {
         
-        g.info("Getting memberships for user {}", userPrincipal.getUserId());
+        log.info("Getting memberships for user {}", userPrincipal.getUserId());
         
         List<TeamMemberResponse> response = teamMemberService.getUserMemberships(
                 userPrincipal.getUserId(), userPrincipal.getEmail());

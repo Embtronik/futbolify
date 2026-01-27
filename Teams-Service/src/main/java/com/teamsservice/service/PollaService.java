@@ -515,4 +515,20 @@ public class PollaService {
         log.info("Polla {} cambiada a estado CREADA correctamente", pollaId);
     }
 
+    @Transactional
+    public void eliminarPolla(Long pollaId, String userEmail) {
+        log.info("Attempting to soft delete polla {} by user {}", pollaId, userEmail);
+
+        Polla polla = pollaRepository.findByIdAndDeletedAtIsNull(pollaId)
+                .orElseThrow(() -> new ResourceNotFoundException("Polla not found with id: " + pollaId));
+
+        if (!polla.getCreadorEmail().equals(userEmail)) {
+            throw new UnauthorizedException("Only the creator can delete the polla");
+        }
+
+        polla.setDeletedAt(LocalDateTime.now());
+        pollaRepository.save(polla);
+        log.info("Polla {} soft deleted", pollaId);
+    }
+
 }
