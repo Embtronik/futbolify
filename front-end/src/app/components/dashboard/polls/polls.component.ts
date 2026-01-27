@@ -174,27 +174,22 @@ export class PollsComponent implements OnInit, AfterViewInit, OnDestroy {
       return;
     }
 
-    // LOG: Mostrar predicciones a enviar
-    console.log('[saveAllPredictions] pollId:', this.selectedPoll.id, 'predictions:', predictions);
     const pollId = this.selectedPoll.id;
-    const saveRequests = predictions.map(prediction => {
-      console.log('[saveAllPredictions] Enviando prediction:', prediction);
-      return this.pollService.createOrUpdatePrediction(pollId, prediction);
-    });
+    const saveRequests = predictions.map(prediction =>
+      this.pollService.createOrUpdatePrediction(pollId, prediction)
+    );
     if (saveRequests.length === 0) {
       this.savingPredictions = false;
       return;
     }
     forkJoin(saveRequests).subscribe({
-      next: (responses) => {
-        console.log('[saveAllPredictions] Respuestas backend:', responses);
+      next: () => {
         this.successMessage = 'Pronósticos guardados correctamente';
         this.savingPredictions = false;
         this.closePollDetail();
         setTimeout(() => (this.successMessage = ''), 3000);
       },
       error: (err: unknown) => {
-        console.error('[saveAllPredictions] Error backend:', err);
         const backendMsg = this.getBackendErrorMessage(err, 'Error al guardar los pronósticos');
         // Business-rule error: show it under the attempted matches and keep it visible
         if (err instanceof HttpErrorResponse && err.status === 400) {
@@ -221,16 +216,12 @@ export class PollsComponent implements OnInit, AfterViewInit, OnDestroy {
       golesLocalPronosticado: match.golesLocalPronosticado,
       golesVisitantePronosticado: match.golesVisitantePronosticado
     };
-    // LOG: Mostrar predicción individual a enviar
-    console.log('[savePrediction] pollId:', this.selectedPoll.id, 'prediction:', prediction);
     this.pollService.createOrUpdatePrediction(this.selectedPoll.id, prediction).subscribe({
-      next: (resp: any) => {
-        console.log('[savePrediction] Respuesta backend:', resp);
+      next: () => {
         this.successMessage = 'Pronóstico guardado correctamente';
         setTimeout(() => this.successMessage = '', 2000);
       },
       error: (err: unknown) => {
-        console.error('[savePrediction] Error backend:', err);
         this.errorMessage = this.getBackendErrorMessage(err, 'Error al guardar el pronóstico');
         setTimeout(() => this.errorMessage = '', 2000);
       }
@@ -1051,12 +1042,10 @@ export class PollsComponent implements OnInit, AfterViewInit, OnDestroy {
       catchError((err: unknown) => {
         const msg = this.getBackendErrorMessage(err, 'No se pudo cargar el marcador real');
         this.realScoreErrorByMatchId[matchId] = msg;
-        console.error('[loadRealScore] Error backend:', err);
         return of(null);
       })
     ).subscribe((res: PartidoMarcadorResponse | null) => {
       this.realScoreLoadingByMatchId[matchId] = false;
-      console.log('[loadRealScore] Respuesta marcador real:', { matchId, res });
       if (!res) {
         this.updatePollingForMatch(matchId);
         return;
