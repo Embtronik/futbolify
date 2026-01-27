@@ -28,6 +28,7 @@ public class PollaService {
     private final TeamRepository teamRepository;
     private final TeamMemberRepository teamMemberRepository;
     private final AuthServiceClient authServiceClient;
+    private final NotificationServiceClient notificationServiceClient;
     /**
      * Crea una nueva polla, valida grupos e invitados y agrega al creador como participante aceptado.
      */
@@ -283,6 +284,13 @@ public class PollaService {
         pronostico = pronosticoRepository.save(pronostico);
         log.info("Forecast registered successfully");
 
+        // After saving, check if the user has completed all forecasts for the polla
+        try {
+            checkAndNotifyIfCompleted(pollaId, userEmail);
+        } catch (Exception e) {
+            log.warn("Error while checking/completing notifications for {}: {}", userEmail, e.getMessage());
+        }
+
         return mapPronosticoToResponse(pronostico);
     }
 
@@ -298,9 +306,128 @@ public class PollaService {
         }
 
         // Reutilizar la lógica existente para cada pronóstico
-        return requests.stream()
+        List<PronosticoResponse> responses = requests.stream()
                 .map(req -> registrarPronostico(pollaId, req, userEmail))
                 .collect(Collectors.toList());
+
+        // registrarPronostico already triggers completion check, but ensure a final check here too
+        try {
+            checkAndNotifyIfCompleted(pollaId, userEmail);
+        } catch (Exception e) {
+            log.warn("Error while checking/completing notifications for {}: {}", userEmail, e.getMessage());
+        }
+
+        return responses;
+    }
+
+    /**
+     * Si el participante tiene pronósticos para todos los partidos de la polla, envía notificaciones
+     * al participante y al creador con el resumen de los marcadores que puso.
+     */
+    private void checkAndNotifyIfCompleted(Long pollaId, String userEmail) {
+        long totalMatches = partidoRepository.countByPollaId(pollaId);
+        long userForecasts = pronosticoRepository.countByPollaIdAndEmailParticipante(pollaId, userEmail);
+
+        if (totalMatches > 0 && userForecasts == totalMatches) {
+            // obtener creador de la polla
+            Polla polla = pollaRepository.findByIdAndDeletedAtIsNull(pollaId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Polla not found with id: " + pollaId));
+
+            String creadorEmail = polla.getCreadorEmail();
+
+            // construir resumen de marcadores del participante
+            List<PollaPronostico> pronosticos = pronosticoRepository.findByPollaIdAndEmailParticipanteOrderByPollaPartidoId(pollaId, userEmail);
+
+            String participantName = null;
+            String creatorName = null;
+            try {
+                if (userEmail != null) participantName = authServiceClient.getUserByEmail(userEmail).getFullName();
+            } catch (Exception e) {
+                log.warn("Could not fetch user info for {}: {}", userEmail, e.getMessage());
+            }
+            try {
+                if (creadorEmail != null) creatorName = authServiceClient.getUserByEmail(creadorEmail).getFullName();
+            } catch (Exception e) {
+                log.warn("Could not fetch creator info for {}: {}", creadorEmail, e.getMessage());
+            }
+
+            StringBuilder bodyBuilder = new StringBuilder();
+            bodyBuilder.append("El participante ");
+            bodyBuilder.append(participantName != null ? participantName : userEmail);
+            bodyBuilder.append(" ha ingresado todos los resultados para la polla '");
+            bodyBuilder.append(polla.getNombre()).append("'.\n\n");
+            bodyBuilder.append("Resumen de marcadores ingresados:\n");
+
+            for (PollaPronostico p : pronosticos) {
+                PollaPartido partido = p.getPollaPartido();
+                bodyBuilder.append("- ");
+                bodyBuilder.append(partido.getEquipoLocal()).append(" vs ").append(partido.getEquipoVisitante());
+                bodyBuilder.append(" (externalId: ").append(partido.getIdPartidoExterno()).append(") : ");
+                bodyBuilder.append(p.getGolesLocalPronosticado()).append("-").append(p.getGolesVisitantePronosticado());
+                bodyBuilder.append("\n");
+            }
+
+            String body = bodyBuilder.toString();
+
+            // Prepare multi-channel notification: EMAIL, SMS, WHATSAPP
+            List<String> channels = List.of("EMAIL", "SMS", "WHATSAPP");
+
+            String participantPhone = null;
+            String creatorPhone = null;
+            try {
+                if (userEmail != null) {
+                    var u = authServiceClient.getUserByEmail(userEmail);
+                    if (u != null && u.getPhoneNumber() != null) {
+                        participantPhone = (u.getCountryCode() != null ? u.getCountryCode() : "") + u.getPhoneNumber();
+                    }
+                }
+            } catch (Exception e) {
+                log.warn("Could not fetch participant phone for {}: {}", userEmail, e.getMessage());
+            }
+
+            try {
+                if (creadorEmail != null) {
+                    var c = authServiceClient.getUserByEmail(creadorEmail);
+                    if (c != null && c.getPhoneNumber() != null) {
+                        creatorPhone = (c.getCountryCode() != null ? c.getCountryCode() : "") + c.getPhoneNumber();
+                    }
+                }
+            } catch (Exception e) {
+                log.warn("Could not fetch creator phone for {}: {}", creadorEmail, e.getMessage());
+            }
+
+            NotificationSendRequest toParticipant = NotificationSendRequest.builder()
+                    .channels(channels)
+                    .recipient(userEmail)
+                    .recipientPhone(participantPhone)
+                    .subject("Has completado tus pronósticos en " + polla.getNombre())
+                    .body(body)
+                    .serviceOrigin("teams-service")
+                    .build();
+
+            NotificationSendRequest toCreator = NotificationSendRequest.builder()
+                    .channels(channels)
+                    .recipient(creadorEmail)
+                    .recipientPhone(creatorPhone)
+                    .subject("El participante " + (participantName != null ? participantName : userEmail) + " completó pronósticos en " + polla.getNombre())
+                    .body("El participante " + (participantName != null ? participantName : userEmail) + " completó todos los pronósticos.\n\n" + body)
+                    .serviceOrigin("teams-service")
+                    .build();
+
+            try {
+                notificationServiceClient.sendNotification(toParticipant);
+            } catch (Exception e) {
+                log.error("Error sending notification to participant {}: {}", userEmail, e.getMessage());
+            }
+
+            try {
+                if (creadorEmail != null && !creadorEmail.isBlank()) {
+                    notificationServiceClient.sendNotification(toCreator);
+                }
+            } catch (Exception e) {
+                log.error("Error sending notification to creator {}: {}", creadorEmail, e.getMessage());
+            }
+        }
     }
 
     @Transactional(readOnly = true)

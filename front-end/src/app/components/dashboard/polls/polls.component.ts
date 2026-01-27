@@ -373,11 +373,15 @@ export class PollsComponent implements OnInit, AfterViewInit, OnDestroy {
       // LOG para depuración de filtrado
       // Se limpia en producción
     this.loading = true;
-    this.pollService.getMyPolls().subscribe({
-      next: (allPolls: Poll[]) => {
-        const safePolls: Poll[] = (allPolls || []).filter(
-          (p: any): p is Poll => !!p && typeof p.id === 'number'
-        );
+    // Cargar pollas y membresías en paralelo para determinar visibilidad
+    forkJoin({ polls: this.pollService.getMyPolls(), memberships: this.teamService.getMyMemberships() }).subscribe({
+      next: ({ polls: allPolls, memberships }) => {
+        const safePolls: Poll[] = (allPolls || []).filter((p: any): p is Poll => !!p && typeof p.id === 'number');
+
+        // Preparar lista de teamIds donde el usuario está aprobado
+        const approvedTeamIds: number[] = (memberships || [])
+          .filter(m => m.status === 'APPROVED')
+          .map(m => m.teamId);
 
         if (safePolls.length === 0) {
           this.myPolls = [];
@@ -386,19 +390,22 @@ export class PollsComponent implements OnInit, AfterViewInit, OnDestroy {
           this.loading = false;
           return;
         }
+
         // Tomar el email del usuario autenticado del primer objeto (todos traen el mismo)
         const userEmail = (safePolls[0].emailUsuarioAutenticado || '').toLowerCase().trim();
         this.currentUserEmail = userEmail;
+
         // "Mis Pollas": donde soy creador
         this.myPolls = safePolls.filter((p: Poll) => (p.creadorEmail || '').toLowerCase().trim() === userEmail);
-        // "Participar": donde soy invitado o participante (incluye creador si está invitado/participa)
+
+        // "Participar": donde soy invitado/participante o la polla fue dirigida a algún grupo donde estoy aprobado
         this.participantPolls = safePolls.filter((p: Poll) => {
-          const isCreator = (p.creadorEmail || '').toLowerCase().trim() === userEmail;
-          // Buscar si el usuario está en la lista de participantes (invitado o aceptado)
           const isParticipant = Array.isArray(p.participantes) && p.participantes.some(part => (part.emailUsuario || '').toLowerCase().trim() === userEmail);
-          // Mostrar en "Participar" si es participante, aunque sea creador
-          return isParticipant;
+          const gruposInvitados: number[] = Array.isArray(p.gruposInvitados) ? p.gruposInvitados : [];
+          const isGroupTargeted = gruposInvitados.some(gid => approvedTeamIds.includes(gid));
+          return isParticipant || isGroupTargeted;
         });
+
         this.polls = (this.activeTab === 'my-polls' ? this.myPolls : this.participantPolls).filter(this.isPoll);
         this.loading = false;
 
@@ -406,9 +413,9 @@ export class PollsComponent implements OnInit, AfterViewInit, OnDestroy {
         this.enrichPollCountsForCards(safePolls);
       },
       error: (error: any) => {
-        this.errorMessage = 'Error al cargar las pollas';
+        this.errorMessage = 'Error al cargar las pollas o membresías';
         this.loading = false;
-        console.error('Error getMyPolls:', error);
+        console.error('Error loading polls/memberships:', error);
       }
     });
 
