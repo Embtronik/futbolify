@@ -387,8 +387,14 @@ export class PollsComponent implements OnInit, AfterViewInit, OnDestroy {
         this.currentUserEmail = userEmail;
         // "Mis Pollas": donde soy creador
         this.myPolls = safePolls.filter((p: Poll) => (p.creadorEmail || '').toLowerCase().trim() === userEmail);
-        // "Participar": donde soy invitado o participante (no soy el creador)
-        this.participantPolls = safePolls.filter((p: Poll) => (p.creadorEmail || '').toLowerCase().trim() !== userEmail);
+        // "Participar": donde soy invitado o participante (incluye creador si está invitado/participa)
+        this.participantPolls = safePolls.filter((p: Poll) => {
+          const isCreator = (p.creadorEmail || '').toLowerCase().trim() === userEmail;
+          // Buscar si el usuario está en la lista de participantes (invitado o aceptado)
+          const isParticipant = Array.isArray(p.participantes) && p.participantes.some(part => (part.emailUsuario || '').toLowerCase().trim() === userEmail);
+          // Mostrar en "Participar" si es participante, aunque sea creador
+          return isParticipant;
+        });
         this.polls = (this.activeTab === 'my-polls' ? this.myPolls : this.participantPolls).filter(this.isPoll);
         this.loading = false;
 
