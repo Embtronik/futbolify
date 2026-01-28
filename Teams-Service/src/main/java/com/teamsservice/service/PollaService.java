@@ -116,12 +116,22 @@ public class PollaService {
         log.info("Getting polla {} for user {}", pollaId, userEmail);
 
         Polla polla = pollaRepository.findByIdAndDeletedAtIsNull(pollaId)
-            .orElseThrow(() -> new ResourceNotFoundException("Polla not found with id: " + pollaId));
+                .orElseThrow(() -> new ResourceNotFoundException("Polla not found with id: " + pollaId));
 
-        // Permitir solo al creador o a participantes ACEPTADOS
         boolean esCreador = polla.getCreadorEmail().equalsIgnoreCase(userEmail);
         boolean esParticipanteAceptado = participanteRepository.isUserAceptado(pollaId, userEmail);
-        if (!esCreador && !esParticipanteAceptado) {
+
+        // Verificar si es miembro aprobado de algún grupo asociado a la polla
+        boolean esMiembroAprobadoGrupo = false;
+        if (polla.getGruposInvitados() != null && !polla.getGruposInvitados().isEmpty()) {
+            List<Long> gruposIds = polla.getGruposInvitados().stream()
+                .map(Team::getId)
+                .toList();
+            esMiembroAprobadoGrupo = teamMemberRepository.existsByTeamIdInAndUserEmailAndStatus(
+                gruposIds, userEmail, com.teamsservice.entity.TeamMember.MembershipStatus.APPROVED);
+        }
+
+        if (!esCreador && !esParticipanteAceptado && !esMiembroAprobadoGrupo) {
             throw new UnauthorizedException("No tienes acceso a esta polla");
         }
 
