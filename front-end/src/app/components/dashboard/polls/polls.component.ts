@@ -1336,7 +1336,14 @@ export class PollsComponent implements OnInit, AfterViewInit, OnDestroy {
 
 
   formatDateTime(dateValue: string | Date): string {
-    const date = typeof dateValue === 'string' ? new Date(dateValue) : dateValue;
+    let date: Date;
+    if (typeof dateValue === 'string') {
+      // Si la fecha no tiene 'Z' ni offset, asumimos UTC y agregamos 'Z'
+      const isoString = /Z$|([+-]\d{2}:?\d{2})$/.test(dateValue) ? dateValue : dateValue + 'Z';
+      date = new Date(isoString);
+    } else {
+      date = dateValue;
+    }
     return date.toLocaleDateString('es-ES', {
       year: 'numeric',
       month: 'short',

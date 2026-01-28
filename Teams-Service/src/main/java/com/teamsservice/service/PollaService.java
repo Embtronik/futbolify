@@ -36,6 +36,7 @@ public class PollaService {
         log.info("Creating polla '{}' by user {} with {} groups", request.getNombre(), userEmail, request.getGruposIds().size());
         
         // Validar y obtener los grupos seleccionados
+        // Verifica que el usuario sea miembro aprobado de todos los grupos
         List<Team> gruposSeleccionados = validateAndGetGrupos(request.getGruposIds(), userEmail);
         
         // Crear la polla con todos los datos
@@ -46,28 +47,18 @@ public class PollaService {
                 .fechaInicio(request.getFechaInicio())
                 .montoEntrada(request.getMontoEntrada())
                 .estado(Polla.PollaEstado.CREADA)
-                .gruposInvitados(gruposSeleccionados)
+                .gruposInvitados(gruposSeleccionados) // Los grupos determinan quién puede acceder
                 .build();
         
         // Guardar la polla
         Polla saved = pollaRepository.save(polla);
         
-        // Agregar participantes invitados explícitamente
-        if (request.getEmailsInvitados() != null && !request.getEmailsInvitados().isEmpty()) {
-            for (String emailInvitado : request.getEmailsInvitados()) {
-                if (!emailInvitado.equalsIgnoreCase(userEmail)) { // No agregarse a sí mismo
-                    PollaParticipante participante = PollaParticipante.builder()
-                            .polla(saved)
-                            .emailUsuario(emailInvitado)
-                            .build();
-                    participanteRepository.save(participante);
-                }
-            }
-        }
+        // NO agregamos participantes explícitos aquí
+        // Los participantes se determinan dinámicamente: cualquier miembro aprobado de los grupos invitados puede acceder
+        // Esto permite que nuevos miembros agregados al grupo después de crear la polla puedan participar automáticamente
         
-        log.info("Polla {} created successfully with {} groups and {} invited participants", 
-                saved.getId(), gruposSeleccionados.size(), 
-                request.getEmailsInvitados() != null ? request.getEmailsInvitados().size() : 0);
+        log.info("Polla {} created successfully with {} groups. All approved members of these groups can participate.", 
+                saved.getId(), gruposSeleccionados.size());
         
         return mapToResponse(saved, userEmail);
     }
@@ -209,39 +200,50 @@ public class PollaService {
     }
 
     /**
-     * Acepta invitación a una polla (agrega al usuario como participante)
+     * Acepta invitación a una polla (agrega al usuario como participante explícito)
+     * 
+     * NOTA: Este método es OPCIONAL y solo para casos especiales:
+     * - Confirmación explícita de participación
+     * - Invitaciones individuales fuera de grupos
+     * 
+     * Para el flujo normal, NO es necesario llamar este método.
+     * Los miembros aprobados de los grupos invitados pueden acceder automáticamente.
      */
     @Transactional
     public void aceptarInvitacion(Long pollaId, String userEmail) {
-        log.info("User {} accepting invitation to polla {}", userEmail, pollaId);
+        log.info("User {} accepting invitation to polla {} (explicit confirmation)", userEmail, pollaId);
 
         validateUserAccess(pollaId, userEmail);
 
         Polla polla = pollaRepository.findByIdAndDeletedAtIsNull(pollaId)
                 .orElseThrow(() -> new ResourceNotFoundException("Polla not found with id: " + pollaId));
 
-        // Verificar si ya es participante
+        // Verificar si ya es participante explícito
         if (participanteRepository.existsByPollaIdAndEmailUsuario(pollaId, userEmail)) {
-            log.info("User {} is already a participant in polla {}", userEmail, pollaId);
+            log.info("User {} is already an explicit participant in polla {}", userEmail, pollaId);
             return;
         }
 
-        // Agregar como participante
+        // Agregar como participante explícito (opcional)
         PollaParticipante participante = PollaParticipante.builder()
                 .polla(polla)
                 .emailUsuario(userEmail)
                 .build();
 
         participanteRepository.save(participante);
-        log.info("User {} added as participant to polla {}", userEmail, pollaId);
+        log.info("User {} added as explicit participant to polla {}", userEmail, pollaId);
     }
 
     /**
-     * Rechaza invitación a una polla (elimina al usuario como participante si existe)
+     * Rechaza invitación o sale de una polla
+     * 
+     * NOTA: Este método permite al usuario hacer "opt-out" de una polla,
+     * incluso si es miembro de un grupo invitado.
+     * Si está en la tabla de participantes explícitos, lo elimina.
      */
     @Transactional
     public void rechazarInvitacion(Long pollaId, String userEmail) {
-        log.info("User {} rejecting invitation to polla {}", userEmail, pollaId);
+        log.info("User {} rejecting invitation / opting out of polla {}", userEmail, pollaId);
 
         // No validar acceso porque el usuario podría querer salir de la polla
 

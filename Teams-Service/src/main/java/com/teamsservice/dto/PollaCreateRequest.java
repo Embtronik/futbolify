@@ -35,6 +35,7 @@ public class PollaCreateRequest {
     @NotEmpty(message = "Debe seleccionar al menos un grupo")
     private List<Long> gruposIds;
 
-    @NotEmpty(message = "Debe invitar al menos un participante")
+    // OPCIONAL: Lista de emails para invitaciones individuales (casos especiales)
+    // Los miembros de los grupos seleccionados pueden participar automáticamente sin estar en esta lista
     private List<String> emailsInvitados;
 }
