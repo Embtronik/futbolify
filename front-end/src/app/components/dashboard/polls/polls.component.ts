@@ -1061,6 +1061,7 @@ export class PollsComponent implements OnInit, AfterViewInit, OnDestroy {
         return of(null);
       })
     ).subscribe((res: PartidoMarcadorResponse | null) => {
+      console.log('[Marcador real API]', { matchId, res });
       this.realScoreLoadingByMatchId[matchId] = false;
       if (!res) {
         this.updatePollingForMatch(matchId);
