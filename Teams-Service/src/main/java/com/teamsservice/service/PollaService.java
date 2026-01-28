@@ -39,9 +39,6 @@ public class PollaService {
     // Validar grupos y que el usuario sea miembro de todos
     List<Team> gruposSeleccionados = validateAndGetGrupos(request.getGruposIds(), userEmail);
 
-    // Validar que los invitados pertenezcan al menos a uno de los grupos
-    validateInvitados(request.getEmailsInvitados(), gruposSeleccionados);
-
     // Construir entidad base
     Polla polla = Polla.builder()
         .nombre(request.getNombre())
@@ -55,32 +52,8 @@ public class PollaService {
     // Asociar grupos invitados
     polla.setGruposInvitados(gruposSeleccionados);
 
-    // Crear participantes (invitados)
-    List<PollaParticipante> participantes = request.getEmailsInvitados().stream()
-        .distinct()
-        .map(email -> PollaParticipante.builder()
-            .polla(polla)
-            .emailUsuario(email)
-            .estado(email.equalsIgnoreCase(userEmail)
-                ? PollaParticipante.EstadoParticipante.ACEPTADO
-                : PollaParticipante.EstadoParticipante.INVITADO)
-            .build())
-        .collect(Collectors.toList());
+    // No se crean participantes explícitos, solo miembros aprobados del grupo pueden participar
 
-    // Asegurar que el creador esté como ACEPTADO incluso si no está en la lista de invitados
-    boolean creadorListado = participantes.stream()
-        .anyMatch(p -> p.getEmailUsuario().equalsIgnoreCase(userEmail));
-    if (!creadorListado) {
-        participantes.add(PollaParticipante.builder()
-            .polla(polla)
-            .emailUsuario(userEmail)
-            .estado(PollaParticipante.EstadoParticipante.ACEPTADO)
-            .build());
-    }
-
-    polla.setParticipantes(participantes);
-
-    // Persistir sin reasignar la variable capturada en lambdas
     Polla saved = pollaRepository.save(polla);
     log.info("Polla creada con id {}", saved.getId());
 
@@ -119,9 +92,6 @@ public class PollaService {
                 .orElseThrow(() -> new ResourceNotFoundException("Polla not found with id: " + pollaId));
 
         boolean esCreador = polla.getCreadorEmail().equalsIgnoreCase(userEmail);
-        boolean esParticipanteAceptado = participanteRepository.isUserAceptado(pollaId, userEmail);
-
-        // Verificar si es miembro aprobado de algún grupo asociado a la polla
         boolean esMiembroAprobadoGrupo = false;
         if (polla.getGruposInvitados() != null && !polla.getGruposInvitados().isEmpty()) {
             List<Long> gruposIds = polla.getGruposInvitados().stream()
@@ -130,11 +100,9 @@ public class PollaService {
             esMiembroAprobadoGrupo = teamMemberRepository.existsByTeamIdInAndUserEmailAndStatus(
                 gruposIds, userEmail, com.teamsservice.entity.TeamMember.MembershipStatus.APPROVED);
         }
-
-        if (!esCreador && !esParticipanteAceptado && !esMiembroAprobadoGrupo) {
+        if (!esCreador && !esMiembroAprobadoGrupo) {
             throw new UnauthorizedException("No tienes acceso a esta polla");
         }
-
         PollaResponse response = mapToResponse(polla);
         response.setEmailUsuarioAutenticado(userEmail);
         return response;

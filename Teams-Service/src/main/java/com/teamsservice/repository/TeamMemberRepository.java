@@ -47,4 +47,8 @@ public interface TeamMemberRepository extends JpaRepository<TeamMember, Long> {
     
     // Verificar si un usuario (por email) es miembro aprobado de un equipo
     boolean existsByTeamIdAndUserEmailAndStatus(Long teamId, String userEmail, MembershipStatus status);
+
+     // Verificar si un usuario (por email) es miembro aprobado de alguno de varios equipos
+    boolean existsByTeamIdInAndUserEmailAndStatus(List<Long> teamIds, String userEmail, MembershipStatus status);
+
 }
