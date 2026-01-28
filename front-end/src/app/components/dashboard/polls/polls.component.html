@@ -229,6 +229,56 @@
       <button class="close-btn" (click)="closePollDetail()">&times;</button>
     </div>
     <div class="modal-body">
+      <!-- Resultados detallados de la polla finalizada -->
+      <div *ngIf="selectedPoll?.estado === 'FINALIZADA'">
+        <h3>Resultados detallados</h3>
+        <div *ngIf="loadingDetailedResults">Cargando resultados...</div>
+        <div *ngIf="!loadingDetailedResults && detailedResults && detailedResults.participantes?.length > 0">
+          <table class="detailed-results-table">
+            <thead>
+              <tr>
+                <th>Participante</th>
+                <th *ngFor="let partido of detailedResults.participantes[0]?.partidos">
+                  <div style="display:flex;align-items:center;gap:4px;">
+                    <img [src]="partido.equipoLocalLogo" alt="local" width="24" height="24">
+                    <span>{{ partido.equipoLocal }}</span>
+                    <span>vs</span>
+                    <img [src]="partido.equipoVisitanteLogo" alt="visitante" width="24" height="24">
+                    <span>{{ partido.equipoVisitante }}</span>
+                  </div>
+                  <div style="font-size:12px;">{{ formatDateTime(partido.fechaHoraPartido) }}</div>
+                </th>
+                <th>Puntaje Total</th>
+              </tr>
+              <tr>
+                <th></th>
+                <ng-container *ngFor="let partido of detailedResults.participantes[0]?.partidos">
+                  <th>
+                    <div style="font-size:11px;">Marcador real</div>
+                    <span style="font-weight:bold;">{{ partido.golesLocalReal }} - {{ partido.golesVisitanteReal }}</span>
+                  </th>
+                </ng-container>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let participante of detailedResults.participantes | orderBy: 'puntajeTotal':true">
+                <td>{{ participante.nombreParticipante }}</td>
+                <ng-container *ngFor="let partido of participante.partidos">
+                  <td>
+                    <div style="font-size:11px;">Pronóstico: <span *ngIf="partido.golesLocalPronosticado !== null">{{ partido.golesLocalPronosticado }} - {{ partido.golesVisitantePronosticado }}</span><span *ngIf="partido.golesLocalPronosticado === null">—</span></div>
+                    <div style="font-size:11px;">Puntos: <b>{{ partido.puntosObtenidos }}</b></div>
+                  </td>
+                </ng-container>
+                <td style="font-weight:bold;">{{ participante.puntajeTotal }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div *ngIf="!loadingDetailedResults && detailedResults && (!detailedResults.participantes || detailedResults.participantes.length === 0)">
+          <p>No hay resultados para mostrar.</p>
+        </div>
+      </div>
       <div class="poll-detail-info">
         <p>{{ selectedPoll?.descripcion }}</p>
         <div class="detail-stats">

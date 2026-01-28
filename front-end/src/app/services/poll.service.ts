@@ -57,6 +57,14 @@ export class PollService {
     );
   }
 
+    /**
+   * Obtener resultados detallados de una polla finalizada
+   * GET /pollas/{pollaId}/resultados-detallados
+   */
+  getPollDetailedResults(pollId: number): Observable<any> {
+    return this.http.get<any>(`${this.API_URL}/pollas/${pollId}/resultados-detallados`);
+  }
+
   /**
    * Obtener detalle completo de una polla
    * GET /pollas/{id}

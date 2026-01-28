@@ -1,6 +1,9 @@
 package com.teamsservice.config;
 
 import com.fasterxml.jackson.core.JsonGenerator;
+import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.databind.DeserializationContext;
+import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.JsonSerializer;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
@@ -13,17 +16,22 @@ import org.springframework.context.annotation.Primary;
 import org.springframework.http.converter.json.Jackson2ObjectMapperBuilder;
 
 import java.io.IOException;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 
 /**
- * Configuración de Jackson para asegurar que todas las fechas se serialicen correctamente
+ * Configuración de Jackson para asegurar que todas las fechas se manejen correctamente
  * en formato ISO 8601 con 'Z' (UTC).
  * 
- * IMPORTANTE: Asumimos que todos los LocalDateTime en la BD están en UTC.
- * Al serializar, agregamos explícitamente 'Z' al final para que el frontend
- * sepa que es UTC y pueda convertir a la zona horaria local del usuario.
+ * IMPORTANTE: 
+ * - Todos los LocalDateTime en la BD se asumen en UTC
+ * - Al serializar (enviar al frontend), se agrega 'Z' explícitamente
+ * - Al deserializar (recibir del frontend), se interpreta como UTC
+ * 
+ * Esto garantiza consistencia entre servidor, BD y frontend.
  */
 @Configuration
 public class JacksonConfig {
@@ -32,7 +40,7 @@ public class JacksonConfig {
      * Serializador personalizado para LocalDateTime que:
      * 1. Asume que el LocalDateTime está en UTC
      * 2. Lo serializa en formato ISO 8601 con 'Z' al final
-     * Ejemplo: "2024-01-28T19:30:00Z"
+     * Ejemplo salida: "2024-01-28T19:30:00Z"
      */
     public static class LocalDateTimeUtcSerializer extends JsonSerializer<LocalDateTime> {
         private static final DateTimeFormatter FORMATTER = DateTimeFormatter
@@ -52,6 +60,45 @@ public class JacksonConfig {
         }
     }
 
+    /**
+     * Deserializador personalizado para LocalDateTime que:
+     * 1. Acepta fechas con 'Z' (UTC) o sin zona horaria
+     * 2. Si no tiene 'Z', asume UTC
+     * 3. Convierte a LocalDateTime en UTC
+     * 
+     * Formatos aceptados:
+     * - "2024-01-28T19:30:00Z" (ISO 8601 con Z)
+     * - "2024-01-28T19:30:00" (sin Z, asume UTC)
+     * - "2024-01-28T19:30:00.123Z" (con milisegundos)
+     */
+    public static class LocalDateTimeUtcDeserializer extends JsonDeserializer<LocalDateTime> {
+        
+        @Override
+        public LocalDateTime deserialize(JsonParser parser, DeserializationContext context) 
+                throws IOException {
+            String dateString = parser.getText();
+            
+            if (dateString == null || dateString.isBlank()) {
+                return null;
+            }
+            
+            try {
+                // Si tiene 'Z' al final, parsear como Instant y convertir a LocalDateTime UTC
+                if (dateString.endsWith("Z")) {
+                    Instant instant = Instant.parse(dateString);
+                    return LocalDateTime.ofInstant(instant, ZoneOffset.UTC);
+                }
+                
+                // Si no tiene 'Z', asumir que ya es UTC
+                return LocalDateTime.parse(dateString);
+                
+            } catch (DateTimeParseException e) {
+                throw new IOException("Error parsing date: " + dateString + 
+                    ". Expected format: yyyy-MM-dd'T'HH:mm:ss'Z' or yyyy-MM-dd'T'HH:mm:ss", e);
+            }
+        }
+    }
+
     @Bean
     @Primary
     public ObjectMapper objectMapper(Jackson2ObjectMapperBuilder builder) {
@@ -60,9 +107,10 @@ public class JacksonConfig {
         // Registrar módulo de Java Time (java.time.*)
         objectMapper.registerModule(new JavaTimeModule());
         
-        // Registrar serializador personalizado para LocalDateTime
+        // Registrar serializador y deserializador personalizados para LocalDateTime
         SimpleModule customModule = new SimpleModule();
         customModule.addSerializer(LocalDateTime.class, new LocalDateTimeUtcSerializer());
+        customModule.addDeserializer(LocalDateTime.class, new LocalDateTimeUtcDeserializer());
         objectMapper.registerModule(customModule);
         
         // Deshabilitar timestamps numéricos (usar ISO 8601 en su lugar)

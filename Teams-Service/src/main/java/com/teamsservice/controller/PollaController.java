@@ -242,4 +242,20 @@ public class PollaController {
         pollaService.eliminarPolla(id, userPrincipal.getEmail());
         return ResponseEntity.noContent().build();
     }
+
+    /**
+     * GET /api/pollas/{id}/resultados-detallados - Obtener resultados detallados de la polla
+     * Incluye para cada participante: nombre, pronósticos por partido, marcadores reales y puntos
+     */
+    @GetMapping("/{id}/resultados-detallados")
+    public ResponseEntity<PollaResultadoDetalladoResponse> getResultadosDetallados(
+            @PathVariable Long id,
+            @AuthenticationPrincipal UserPrincipal userPrincipal) {
+        
+        log.info("Getting detailed results for polla {} by user {}", id, userPrincipal.getEmail());
+        
+        PollaResultadoDetalladoResponse response = pollaService.getResultadosDetallados(id, userPrincipal.getEmail());
+        
+        return ResponseEntity.ok(response);
+    }
 }

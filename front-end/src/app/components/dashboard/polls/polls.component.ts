@@ -1,5 +1,7 @@
 
+
 import { AfterViewInit, Component, ElementRef, inject, NgZone, OnDestroy, OnInit, QueryList, ViewChildren } from '@angular/core';
+import { OrderByPipe } from './orderBy.pipe';
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators, FormsModule } from '@angular/forms';
@@ -27,11 +29,13 @@ import {
 @Component({
   selector: 'app-polls',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, FormsModule],
+  imports: [CommonModule, ReactiveFormsModule, FormsModule, OrderByPipe],
   templateUrl: './polls.component.html',
   styleUrls: ['./polls.component.css']
 })
 export class PollsComponent implements OnInit, AfterViewInit, OnDestroy {
+  detailedResults: any = null;
+  loadingDetailedResults = false;
     // ...existing code...
 
     /**
@@ -309,7 +313,7 @@ export class PollsComponent implements OnInit, AfterViewInit, OnDestroy {
   showCreateModal = false;
   showAddMatchModal = false;
   showPollDetailModal = false;
-  activeTab: 'all' | 'invited' | 'my-polls' = 'all'; // Mostrar todas por defecto (coincide con Home)
+  activeTab: 'all' | 'invited' | 'my-polls' = 'invited'; // Mostrar Participar por defecto
   addMatchStep: 'league' | 'fixtures' = 'league';
   isParticiparView = false;
   
@@ -412,9 +416,13 @@ export class PollsComponent implements OnInit, AfterViewInit, OnDestroy {
         });
 
         if (this.activeTab === 'all') {
-          this.polls = safePolls.filter(this.isPoll);
+          // Solo abiertas y finalizadas
+          this.polls = safePolls.filter(p => this.isPoll(p) && (p.estado === 'ABIERTA' || p.estado === 'FINALIZADA'));
+        } else if (this.activeTab === 'invited') {
+          // Solo abiertas
+          this.polls = this.participantPolls.filter(p => this.isPoll(p) && p.estado === 'ABIERTA');
         } else {
-          this.polls = (this.activeTab === 'my-polls' ? this.myPolls : this.participantPolls).filter(this.isPoll);
+          this.polls = this.myPolls.filter(this.isPoll);
         }
         this.loading = false;
 
@@ -729,8 +737,24 @@ export class PollsComponent implements OnInit, AfterViewInit, OnDestroy {
     this.isParticiparView = (this.activeTab === 'invited');
     this.showPollDetailModal = true;
     this.participarModalTab = 'participar';
+    this.detailedResults = null;
+    this.loadingDetailedResults = false;
     this.refreshSelectedPollDetail(poll.id);
     this.loadPollMatches(poll.id);
+    // Si la polla está finalizada, cargar resultados detallados
+    if (poll.estado === 'FINALIZADA') {
+      this.loadingDetailedResults = true;
+      this.pollService.getPollDetailedResults(poll.id).subscribe({
+        next: (res: any) => {
+          this.detailedResults = res;
+          this.loadingDetailedResults = false;
+        },
+        error: () => {
+          this.detailedResults = null;
+          this.loadingDetailedResults = false;
+        }
+      });
+    }
   }
 
   private refreshSelectedPollDetail(pollId: number): void {
@@ -1061,7 +1085,6 @@ export class PollsComponent implements OnInit, AfterViewInit, OnDestroy {
         return of(null);
       })
     ).subscribe((res: PartidoMarcadorResponse | null) => {
-      console.log('[Marcador real API]', { matchId, res });
       this.realScoreLoadingByMatchId[matchId] = false;
       if (!res) {
         this.updatePollingForMatch(matchId);

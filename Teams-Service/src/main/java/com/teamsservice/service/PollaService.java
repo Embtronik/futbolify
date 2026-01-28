@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
@@ -652,6 +653,101 @@ public class PollaService {
         polla.setDeletedAt(LocalDateTime.now());
         pollaRepository.save(polla);
         log.info("Polla {} soft deleted", pollaId);
+    }
+
+    /**
+     * Obtiene los resultados detallados de una polla.
+     * Incluye SOLO los participantes que hicieron al menos un pronóstico,
+     * con sus pronósticos, marcadores reales y puntos por partido.
+     */
+    @Transactional(readOnly = true)
+    public PollaResultadoDetalladoResponse getResultadosDetallados(Long pollaId, String userEmail) {
+        log.info("Getting detailed results for polla {} by user {}", pollaId, userEmail);
+
+        // Verificar acceso
+        validateUserAccess(pollaId, userEmail);
+
+        Polla polla = pollaRepository.findByIdAndDeletedAtIsNull(pollaId)
+                .orElseThrow(() -> new ResourceNotFoundException("Polla not found with id: " + pollaId));
+
+        // Obtener todos los partidos de la polla
+        List<PollaPartido> partidos = partidoRepository.findByPollaIdOrderByFechaHoraPartidoAsc(pollaId);
+
+        // Obtener todos los pronósticos de la polla agrupados por participante
+        List<PollaPronostico> todosPronosticos = pronosticoRepository.findByPollaPartidoPollaId(pollaId);
+
+        // Agrupar pronósticos por participante
+        Map<String, List<PollaPronostico>> pronosticosPorParticipante = todosPronosticos.stream()
+                .collect(Collectors.groupingBy(PollaPronostico::getEmailParticipante));
+
+        // Crear resultado detallado SOLO para participantes que hicieron pronósticos
+        List<ParticipanteResultadoDetallado> participantesResultados = pronosticosPorParticipante.entrySet().stream()
+                .map(entry -> {
+                    String email = entry.getKey();
+                    List<PollaPronostico> pronosticosParticipante = entry.getValue();
+
+                    // Obtener info del usuario
+                    UserInfoDto userInfo = null;
+                    String nombreParticipante = email;
+                    try {
+                        userInfo = authServiceClient.getUserByEmail(email);
+                        if (userInfo != null && userInfo.getFullName() != null) {
+                            nombreParticipante = userInfo.getFullName();
+                        }
+                    } catch (Exception e) {
+                        log.warn("Could not fetch user info for {}: {}", email, e.getMessage());
+                    }
+
+                    // Calcular puntaje total
+                    int puntajeTotal = pronosticosParticipante.stream()
+                            .mapToInt(p -> p.getPuntosObtenidos() != null ? p.getPuntosObtenidos() : 0)
+                            .sum();
+
+                    // Crear detalle de cada partido
+                    List<PartidoResultado> partidosResultado = partidos.stream()
+                            .map(partido -> {
+                                // Buscar el pronóstico del participante para este partido
+                                PollaPronostico pronostico = pronosticosParticipante.stream()
+                                        .filter(p -> p.getPollaPartido().getId().equals(partido.getId()))
+                                        .findFirst()
+                                        .orElse(null);
+
+                                return PartidoResultado.builder()
+                                        .partidoId(partido.getId())
+                                        .idPartidoExterno(partido.getIdPartidoExterno())
+                                        .equipoLocal(partido.getEquipoLocal())
+                                        .equipoLocalLogo(partido.getEquipoLocalLogo())
+                                        .equipoVisitante(partido.getEquipoVisitante())
+                                        .equipoVisitanteLogo(partido.getEquipoVisitanteLogo())
+                                        .liga(partido.getLiga())
+                                        .fechaHoraPartido(partido.getFechaHoraPartido())
+                                        .golesLocalReal(partido.getGolesLocal())
+                                        .golesVisitanteReal(partido.getGolesVisitante())
+                                        .golesLocalPronosticado(pronostico != null ? pronostico.getGolesLocalPronosticado() : null)
+                                        .golesVisitantePronosticado(pronostico != null ? pronostico.getGolesVisitante() : null)
+                                        .puntosObtenidos(pronostico != null ? pronostico.getPuntosObtenidos() : 0)
+                                        .build();
+                            })
+                            .collect(Collectors.toList());
+
+                    return ParticipanteResultadoDetallado.builder()
+                            .emailParticipante(email)
+                            .nombreParticipante(nombreParticipante)
+                            .userInfo(userInfo)
+                            .puntajeTotal(puntajeTotal)
+                            .partidos(partidosResultado)
+                            .build();
+                })
+                .sorted((p1, p2) -> Integer.compare(p2.getPuntajeTotal(), p1.getPuntajeTotal())) // Ordenar por puntaje desc
+                .collect(Collectors.toList());
+
+        return PollaResultadoDetalladoResponse.builder()
+                .pollaId(pollaId)
+                .nombrePolla(polla.getNombre())
+                .estadoPolla(polla.getEstado().name())
+                .finalizada(polla.getEstado() == Polla.PollaEstado.FINALIZADA)
+                .participantes(participantesResultados)
+                .build();
     }
 
 }
