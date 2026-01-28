@@ -116,11 +116,12 @@ public class PollaService {
         log.info("Getting polla {} for user {}", pollaId, userEmail);
 
         Polla polla = pollaRepository.findByIdAndDeletedAtIsNull(pollaId)
-                .orElseThrow(() -> new ResourceNotFoundException("Polla not found with id: " + pollaId));
+            .orElseThrow(() -> new ResourceNotFoundException("Polla not found with id: " + pollaId));
 
-        // Verificar que el usuario tiene acceso (es creador o participante)
-        if (!polla.getCreadorEmail().equals(userEmail) &&
-            !participanteRepository.existsByPollaIdAndEmailUsuario(pollaId, userEmail)) {
+        // Permitir solo al creador o a participantes ACEPTADOS
+        boolean esCreador = polla.getCreadorEmail().equalsIgnoreCase(userEmail);
+        boolean esParticipanteAceptado = participanteRepository.isUserAceptado(pollaId, userEmail);
+        if (!esCreador && !esParticipanteAceptado) {
             throw new UnauthorizedException("No tienes acceso a esta polla");
         }
 
