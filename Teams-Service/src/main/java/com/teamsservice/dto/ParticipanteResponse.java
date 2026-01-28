@@ -15,8 +15,7 @@ public class ParticipanteResponse {
 
     private Long id;
     private String emailUsuario;
-    private String estado;
     private LocalDateTime fechaInvitacion;
     private LocalDateTime fechaRespuesta;
-    private UserInfoDto userInfo; // Información enriquecida del usuario
+        private UserInfoDto userInfo; // Información enriquecida del usuario
 }
