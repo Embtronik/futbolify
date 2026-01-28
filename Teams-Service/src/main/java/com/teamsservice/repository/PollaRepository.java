@@ -23,7 +23,6 @@ public interface PollaRepository extends JpaRepository<Polla, Long> {
     @Query("SELECT DISTINCT p FROM Polla p " +
            "JOIN p.participantes pp " +
            "WHERE pp.emailUsuario = :email " +
-           "AND pp.estado IN ('ACEPTADO', 'INVITADO') " +
            "AND p.deletedAt IS NULL " +
            "ORDER BY p.createdAt DESC")
     List<Polla> findPollasWhereUserIsParticipant(@Param("email") String email);

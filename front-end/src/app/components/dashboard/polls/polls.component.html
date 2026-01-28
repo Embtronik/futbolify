@@ -19,14 +19,20 @@
   <div class="tabs">
     <button 
       class="tab" 
+      [class.active]="activeTab === 'all'"
+      (click)="onTabChange('all')">
+      Todas
+    </button>
+    <button 
+      class="tab" 
       [class.active]="activeTab === 'my-polls'"
-      (click)="handleTabChange('my-polls')">
+      (click)="onTabChange('my-polls')">
       Mis Pollas
     </button>
     <button 
       class="tab" 
       [class.active]="activeTab === 'invited'"
-      (click)="handleTabChange('invited')">
+      (click)="onTabChange('invited')">
       Participar
     </button>
   </div>

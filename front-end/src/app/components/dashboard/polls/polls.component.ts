@@ -309,7 +309,7 @@ export class PollsComponent implements OnInit, AfterViewInit, OnDestroy {
   showCreateModal = false;
   showAddMatchModal = false;
   showPollDetailModal = false;
-  activeTab: 'invited' | 'my-polls' = 'invited'; // PARTICIPAR primero
+  activeTab: 'all' | 'invited' | 'my-polls' = 'all'; // Mostrar todas por defecto (coincide con Home)
   addMatchStep: 'league' | 'fixtures' = 'league';
   isParticiparView = false;
   
@@ -331,7 +331,7 @@ export class PollsComponent implements OnInit, AfterViewInit, OnDestroy {
     this.loadData();
   }
 
-  onTabChange(tab: 'invited' | 'my-polls') {
+  onTabChange(tab: 'all' | 'invited' | 'my-polls') {
     this.activeTab = tab;
     // Recargar pollas al cambiar de pestaña
     this.loadData();
@@ -411,7 +411,11 @@ export class PollsComponent implements OnInit, AfterViewInit, OnDestroy {
           return isParticipant || isGroupTargeted;
         });
 
-        this.polls = (this.activeTab === 'my-polls' ? this.myPolls : this.participantPolls).filter(this.isPoll);
+        if (this.activeTab === 'all') {
+          this.polls = safePolls.filter(this.isPoll);
+        } else {
+          this.polls = (this.activeTab === 'my-polls' ? this.myPolls : this.participantPolls).filter(this.isPoll);
+        }
         this.loading = false;
 
         // Enriquecer cards con conteos reales (partidos/invitados/participantes)
