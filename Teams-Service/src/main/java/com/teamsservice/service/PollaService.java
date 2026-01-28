@@ -33,10 +33,42 @@ public class PollaService {
      */
     @Transactional
     public PollaResponse crearPolla(PollaCreateRequest request, String userEmail) {
+        log.info("Creating polla '{}' by user {} with {} groups", request.getNombre(), userEmail, request.getGruposIds().size());
+        
+        // Validar y obtener los grupos seleccionados
         List<Team> gruposSeleccionados = validateAndGetGrupos(request.getGruposIds(), userEmail);
-        Polla polla = new Polla();
-        // Adaptar solo a campos existentes
+        
+        // Crear la polla con todos los datos
+        Polla polla = Polla.builder()
+                .nombre(request.getNombre())
+                .descripcion(request.getDescripcion())
+                .creadorEmail(userEmail)
+                .fechaInicio(request.getFechaInicio())
+                .montoEntrada(request.getMontoEntrada())
+                .estado(Polla.PollaEstado.CREADA)
+                .gruposInvitados(gruposSeleccionados)
+                .build();
+        
+        // Guardar la polla
         Polla saved = pollaRepository.save(polla);
+        
+        // Agregar participantes invitados explícitamente
+        if (request.getEmailsInvitados() != null && !request.getEmailsInvitados().isEmpty()) {
+            for (String emailInvitado : request.getEmailsInvitados()) {
+                if (!emailInvitado.equalsIgnoreCase(userEmail)) { // No agregarse a sí mismo
+                    PollaParticipante participante = PollaParticipante.builder()
+                            .polla(saved)
+                            .emailUsuario(emailInvitado)
+                            .build();
+                    participanteRepository.save(participante);
+                }
+            }
+        }
+        
+        log.info("Polla {} created successfully with {} groups and {} invited participants", 
+                saved.getId(), gruposSeleccionados.size(), 
+                request.getEmailsInvitados() != null ? request.getEmailsInvitados().size() : 0);
+        
         return mapToResponse(saved, userEmail);
     }
 
@@ -121,7 +153,7 @@ public class PollaService {
     public List<PollaResponse> getMisPollas(String userEmail) {
         log.info("Getting all pollas for user: {}", userEmail);
 
-        // Obtener pollas creadas por el usuario
+        // Obtener pollas creadas por el usuario (todas, sin importar el estado)
         List<Polla> pollasCreadas = pollaRepository.findByCreadorEmailAndDeletedAtIsNull(userEmail);
 
         // Obtener pollas donde el usuario es participante
@@ -137,6 +169,13 @@ public class PollaService {
         List<Polla> pollasDeGruposInvitados = List.of();
         if (!userTeamIds.isEmpty()) {
             pollasDeGruposInvitados = pollaRepository.findByGruposInvitadosIn(userTeamIds);
+            // Filtrar: solo mostrar pollas ABIERTA, CERRADA o FINALIZADA
+            // Las pollas en estado CREADA solo las ve el creador
+            pollasDeGruposInvitados = pollasDeGruposInvitados.stream()
+                    .filter(p -> !p.getCreadorEmail().equalsIgnoreCase(userEmail) // No es creador
+                            ? p.getEstado() != Polla.PollaEstado.CREADA // Solo ver pollas activadas
+                            : true) // Si es creador, ver todas
+                    .collect(Collectors.toList());
         }
 
         // Combinar todas las pollas y eliminar duplicados
