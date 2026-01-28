@@ -1,26 +1,4 @@
-    /**
-     * Obtiene todos los partidos de los equipos donde el usuario es miembro aprobado
-     */
-    public List<TeamMatchResponse> getUserMatches(Long userId, String userEmail) {
-        // Buscar equipos donde el usuario es miembro aprobado
-        List<Long> teamIds = new ArrayList<>();
-        if (userId != null && userId != 0L) {
-            teamIds.addAll(teamMemberRepository.findApprovedTeamsByUserId(userId)
-                .stream().map(tm -> tm.getTeam().getId()).toList());
-        }
-        if (userEmail != null && !userEmail.isBlank()) {
-            teamIds.addAll(teamMemberRepository.findApprovedTeamsByUserEmail(userEmail)
-                .stream().map(tm -> tm.getTeam().getId()).toList());
-        }
-        if (teamIds.isEmpty()) {
-            return List.of();
-        }
-        // Buscar partidos de esos equipos
-        List<TeamMatch> matches = teamMatchRepository.findByTeamIds(teamIds);
-        return matches.stream().map(this::mapToResponse).toList();
-    }
 package com.teamsservice.service;
-
 import com.teamsservice.dto.MatchAttendanceSummaryResponse;
 import com.teamsservice.dto.NotificationSendRequest;
 import com.teamsservice.dto.PageResponse;
@@ -49,7 +27,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -70,6 +47,7 @@ public class TeamMatchService {
     private final TeamMatchAttendanceRepository teamMatchAttendanceRepository;
     private final AuthServiceClient authServiceClient;
     private final NotificationServiceClient notificationServiceClient;
+    private final RabbitMQService rabbitMQService;
 
     @Value("${app.frontend.url:http://localhost:4200}")
     private String frontendUrl;
@@ -214,7 +192,8 @@ public class TeamMatchService {
         public MatchAttendanceSummaryResponse getMatchAttendanceSummary(Long teamId,
                                         Long matchId,
                                         Long currentUserId,
-                                        String currentUserEmail) {
+                                        String currentUserEmail) 
+                                        {
         List<TeamMatchAttendanceResponse> all = getMatchAttendance(teamId, matchId, currentUserId, currentUserEmail);
 
         Map<String, List<TeamMatchAttendanceResponse>> byStatus = all.stream()
@@ -240,7 +219,7 @@ public class TeamMatchService {
             .notAttending(notAttending)
             .pending(pending)
             .build();
-        }
+    }
 
     @Transactional
     public void confirmAttendance(Long teamId,
@@ -425,4 +404,45 @@ public class TeamMatchService {
                 .createdAt(match.getCreatedAt())
                 .build();
     }
+
+    /**
+     * Devuelve todos los partidos de los equipos donde el usuario es miembro aprobado.
+     * Publica un evento en RabbitMQ al consultar.
+     */
+    @Transactional(readOnly = true)
+    public List<TeamMatchResponse> getUserMatches(Long userId, String userEmail) {
+        // Buscar equipos donde el usuario es miembro aprobado
+        List<TeamMember> memberships;
+        if (userId != null && userId != 0L) {
+            memberships = teamMemberRepository.findApprovedTeamsByUserId(userId);
+        } else if (userEmail != null) {
+            memberships = teamMemberRepository.findApprovedTeamsByUserEmail(userEmail);
+        } else {
+            return List.of();
+        }
+
+        List<Long> teamIds = memberships.stream()
+                .map(m -> m.getTeam().getId())
+                .distinct()
+                .toList();
+        if (teamIds.isEmpty()) {
+            return List.of();
+        }
+
+        // Buscar partidos de esos equipos
+        List<TeamMatch> matches = teamMatchRepository.findByTeamIds(teamIds);
+        List<TeamMatchResponse> responses = matches.stream()
+                .map(this::mapToResponse)
+                .toList();
+
+        // Publicar evento en RabbitMQ
+        try {
+            rabbitMQService.publishTeamCreated(null); // Puedes personalizar el evento según tu DTO
+        } catch (Exception e) {
+            log.warn("No se pudo publicar evento en RabbitMQ: {}", e.getMessage());
+        }
+
+        return responses;
+    }
+    // FIN DE LA CLASE
 }
