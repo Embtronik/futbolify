@@ -365,6 +365,47 @@
   font-weight: 900;
   color: #0f172a;
 }
+/* Compact summary table for finalized pollas (modal) */
+.summary-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  overflow: hidden;
+  margin-top: 8px;
+}
+.summary-table th,
+.summary-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid #f1f5f9;
+  text-align: left;
+}
+.summary-table th {
+  font-weight: 900;
+  color: #334155;
+  font-size: 0.92rem;
+}
+.summary-table .pos-cell {
+  width: 48px;
+  font-weight: 900;
+  color: #0f172a;
+}
+.summary-table .name-cell {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #0f172a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.summary-table .score-cell {
+  width: 88px;
+  text-align: right;
+  font-weight: 900;
+  color: #0ea5e9;
+  font-size: 0.96rem;
+}
 /* --- Modern Tabs Style --- */
 .polls-tabs {
   display: flex;

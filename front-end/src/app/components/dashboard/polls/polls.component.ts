@@ -1,6 +1,7 @@
 
 
 import { AfterViewInit, Component, ElementRef, inject, NgZone, OnDestroy, OnInit, QueryList, ViewChildren } from '@angular/core';
+import { environment } from '../../../environments/environment';
 import { OrderByPipe } from './orderBy.pipe';
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
@@ -428,6 +429,21 @@ export class PollsComponent implements OnInit, AfterViewInit, OnDestroy {
 
         // Enriquecer cards con conteos reales (partidos/invitados/participantes)
         this.enrichPollCountsForCards(safePolls);
+
+        // Debug helper: solo en desarrollo (no en producción) abrir el modal
+        // para la primera polla que esté en estado FINALIZADA si se pasa
+        // ?debugFinalizada=1 en la querystring.
+        try {
+          if (!environment.production && typeof window !== 'undefined' && window.location && window.location.search.includes('debugFinalizada=1')) {
+            const finalizada = safePolls.find(p => p && p.estado === 'FINALIZADA');
+            if (finalizada) {
+              // Dejar que Angular termine el flujo de render y abrir modal
+              setTimeout(() => this.openPollDetail(finalizada), 250);
+            }
+          }
+        } catch (e) {
+          // no hacer nada si window no está disponible
+        }
       },
       error: (error: any) => {
         this.errorMessage = 'Error al cargar las pollas o membresías';
