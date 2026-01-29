@@ -1,7 +1,7 @@
 
 
 import { AfterViewInit, Component, ElementRef, inject, NgZone, OnDestroy, OnInit, QueryList, ViewChildren } from '@angular/core';
-import { environment } from '../../../environments/environment';
+import { environment } from '../../../../environments/environment';
 import { OrderByPipe } from './orderBy.pipe';
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
