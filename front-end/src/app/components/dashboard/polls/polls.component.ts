@@ -2,7 +2,7 @@
 
 import { AfterViewInit, Component, ElementRef, inject, NgZone, OnDestroy, OnInit, QueryList, ViewChildren } from '@angular/core';
 import { environment } from '../../../../environments/environment';
-import { OrderByPipe } from './orderBy.pipe';
+// OrderByPipe removed from this component (not used)
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators, FormsModule } from '@angular/forms';
@@ -30,13 +30,15 @@ import {
 @Component({
   selector: 'app-polls',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, FormsModule, OrderByPipe],
+  imports: [CommonModule, ReactiveFormsModule, FormsModule],
   templateUrl: './polls.component.html',
   styleUrls: ['./polls.component.css']
 })
 export class PollsComponent implements OnInit, AfterViewInit, OnDestroy {
   detailedResults: any = null;
   loadingDetailedResults = false;
+  detailedParticipants: any[] = [];
+  detailedMatchesHeader: any[] = [];
     // ...existing code...
 
     /**
@@ -760,13 +762,61 @@ export class PollsComponent implements OnInit, AfterViewInit, OnDestroy {
     // Si la polla está finalizada, cargar resultados detallados
     if (poll.estado === 'FINALIZADA') {
       this.loadingDetailedResults = true;
+      this.detailedResults = null;
+      this.detailedParticipants = [];
+      this.detailedMatchesHeader = [];
       this.pollService.getPollDetailedResults(poll.id).subscribe({
         next: (res: any) => {
           this.detailedResults = res;
+          try {
+            const participantes = Array.isArray(res?.participantes) ? res.participantes : [];
+
+            // Derivar encabezados de partidos usando el primer participante con partidos
+            const firstWithMatches = participantes.find((p: any) => Array.isArray(p.partidos) && p.partidos.length > 0);
+            const matchesHeader = (firstWithMatches?.partidos || []).map((m: any, idx: number) => ({
+              idx,
+              equipoLocal: m.equipoLocal,
+              equipoVisitante: m.equipoVisitante,
+              equipoLocalLogo: m.equipoLocalLogo,
+              equipoVisitanteLogo: m.equipoVisitanteLogo,
+              fechaHoraPartido: m.fechaHoraPartido,
+              golesLocalReal: m.golesLocalReal,
+              golesVisitanteReal: m.golesVisitanteReal
+            }));
+
+            this.detailedMatchesHeader = matchesHeader;
+
+            const normalized = participantes.map((p: any) => {
+              const partidos = (p.partidos || []).map((pm: any, i: number) => ({
+                equipoLocal: pm.equipoLocal,
+                equipoVisitante: pm.equipoVisitante,
+                golesLocalReal: pm.golesLocalReal,
+                golesVisitanteReal: pm.golesVisitanteReal,
+                golesLocalPronosticado: pm.golesLocalPronosticado,
+                golesVisitantePronosticado: pm.golesVisitantePronosticado,
+                puntosObtenidos: pm.puntosObtenidos ?? pm.puntos ?? 0
+              }));
+
+              const total = Number(p.puntajeTotal ?? p.puntosTotales ?? p.puntos ?? 0);
+              const nombre = String(p.nombreParticipante || p.nombreUsuario || p.emailParticipante || '').trim() || 'Sin nombre';
+              return { nombre, partidos, puntajeTotal: total };
+            });
+
+            // Ordenar de mayor a menor por puntajeTotal
+            normalized.sort((a: any, b: any) => (b.puntajeTotal || 0) - (a.puntajeTotal || 0));
+            this.detailedParticipants = normalized;
+          } catch (e) {
+            console.warn('Error normalizando resultados detallados:', e);
+            this.detailedParticipants = [];
+            this.detailedMatchesHeader = [];
+          }
+
           this.loadingDetailedResults = false;
         },
         error: () => {
           this.detailedResults = null;
+          this.detailedParticipants = [];
+          this.detailedMatchesHeader = [];
           this.loadingDetailedResults = false;
         }
       });

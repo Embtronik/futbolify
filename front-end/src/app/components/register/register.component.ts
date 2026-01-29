@@ -1,4 +1,5 @@
 import { Component, inject } from '@angular/core';
+import { ActivatedRoute } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
@@ -18,6 +19,7 @@ export class RegisterComponent {
   private authService = inject(AuthService);
   private countryService = inject(CountryService);
   private router = inject(Router);
+  private route = inject(ActivatedRoute);
 
   registerForm: FormGroup;
   loading = false;
@@ -39,6 +41,15 @@ export class RegisterComponent {
 
     // Cargar códigos de país
     this.loadCountryCodes();
+  }
+
+  // Obtener returnUrl si viene en la querystring (para redirigir tras registro)
+  private getReturnUrl(): string {
+    try {
+      return this.route.snapshot.queryParams['returnUrl'] || '';
+    } catch (e) {
+      return '';
+    }
   }
 
   loadCountryCodes(): void {
@@ -116,10 +127,16 @@ export class RegisterComponent {
 
     this.authService.register(registerData).subscribe({
       next: () => {
-        this.successMessage = 'Registro exitoso. Por favor verifica tu correo electrónico.';
+        this.successMessage = 'Registro exitoso. Redirigiendo...';
+        const returnUrl = this.getReturnUrl();
         setTimeout(() => {
-          this.router.navigate(['/auth/login']);
-        }, 2000);
+          if (returnUrl) {
+            // Navegar a la URL de retorno (ej: /dashboard/join-team?code=XXX)
+            this.router.navigateByUrl(returnUrl, { replaceUrl: true });
+          } else {
+            this.router.navigate(['/auth/login']);
+          }
+        }, 1200);
       },
       error: (error) => {
         this.errorMessage = error.message || 'Error al registrarse';

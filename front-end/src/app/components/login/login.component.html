@@ -85,7 +85,7 @@
     <div class="auth-footer">
       <p>
         ¿No tienes una cuenta?
-        <a routerLink="/auth/register">Regístrate aquí</a>
+        <a [routerLink]="['/auth/register']" [queryParams]="{ returnUrl: returnUrl }">Regístrate aquí</a>
       </p>
     </div>
   </div>

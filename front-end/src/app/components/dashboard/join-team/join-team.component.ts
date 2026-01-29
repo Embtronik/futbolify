@@ -1,4 +1,5 @@
 import { Component, inject, OnInit } from '@angular/core';
+import { ActivatedRoute } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { TeamService } from '../../../services/team.service';
@@ -425,6 +426,7 @@ import { Team, TeamMember } from '../../../models/football.model';
 export class JoinTeamComponent implements OnInit {
   private teamService = inject(TeamService);
   private fb = inject(FormBuilder);
+  private route = inject(ActivatedRoute);
 
   myTeams: Team[] = [];
   pendingMemberships: TeamMember[] = [];
@@ -445,6 +447,20 @@ export class JoinTeamComponent implements OnInit {
 
   ngOnInit(): void {
     this.loadMyMemberships();
+    // Si la URL contiene ?code=ABC123, prellenar y enviar la solicitud automáticamente
+    try {
+      const code = this.route.snapshot.queryParamMap.get('code');
+      if (code && typeof code === 'string' && code.trim().length === 6) {
+        // Prefill the form and auto-submit after small delay to allow auth flows
+        this.joinForm.patchValue({ joinCode: code.toUpperCase() });
+        setTimeout(() => {
+          // Only submit if the form is valid
+          if (this.joinForm.valid) this.submitJoinRequest();
+        }, 400);
+      }
+    } catch (e) {
+      // ignore if ActivatedRoute not available in some contexts
+    }
   }
 
   loadMyMemberships(): void {
@@ -520,15 +536,16 @@ export class JoinTeamComponent implements OnInit {
         this.submitting = false;
         // Recargar membresías para reflejar el nuevo estado
         this.loadMyMemberships();
+        const teamName = membership.teamName || this.getTeamName(membership.teamId) || 'el grupo';
         if (membership.status === 'APPROVED') {
-          this.successMessage = '✅ ¡Te has unido al grupo exitosamente!';
+          this.successMessage = `✅ ¡Te has unido al grupo "${teamName}" exitosamente!`;
         } else {
-          this.successMessage = '✅ Solicitud enviada exitosamente. Esperando aprobación del administrador.';
+          this.successMessage = `✅ Solicitud enviada a "${teamName}". Esperando aprobación del administrador.`;
         }
         this.joinForm.reset();
         setTimeout(() => {
           this.successMessage = '';
-        }, 5000);
+        }, 6000);
       },
       error: (error) => {
         this.submitting = false;

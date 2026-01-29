@@ -1108,9 +1108,22 @@ export class TeamsComponent implements AfterViewInit {
   }
 
   copyCode(code: string): void {
-    navigator.clipboard.writeText(code).then(() => {
-      alert('¡Código copiado al portapapeles!');
-    });
+    try {
+      const origin = (typeof window !== 'undefined' && window.location && window.location.origin) ? window.location.origin : '';
+      const joinUrl = `${origin}/dashboard/join-team?code=${encodeURIComponent(code)}`;
+      navigator.clipboard.writeText(joinUrl).then(() => {
+        alert('¡Enlace de invitación copiado! Pégalo para compartir.');
+      }).catch(() => {
+        // Fallback: copiar solo el código
+        navigator.clipboard.writeText(code).then(() => {
+          alert('¡Código copiado al portapapeles!');
+        }).catch(() => {
+          alert('No se pudo copiar al portapapeles. Copia manualmente: ' + joinUrl);
+        });
+      });
+    } catch (e) {
+      alert('Error al copiar el enlace. Copia manualmente el código: ' + code);
+    }
   }
 
   viewTeam(team: Team): void {

@@ -229,29 +229,43 @@
       <button class="close-btn" (click)="closePollDetail()">&times;</button>
     </div>
     <div class="modal-body">
-      <!-- Resumen cuando la polla está finalizada: tabla simple y compacta -->
+      <!-- Resultados detallados cuando la polla está finalizada (vista administración) -->
       <div *ngIf="selectedPoll?.estado === 'FINALIZADA'">
-        <h3>Resumen de resultados</h3>
+        <h3>Resultados Detallados</h3>
         <div *ngIf="loadingDetailedResults">Cargando resultados...</div>
-        <div *ngIf="!loadingDetailedResults && detailedResults && detailedResults.participantes?.length > 0">
-          <table class="summary-table">
-            <thead>
-              <tr>
-                <th>#</th>
-                <th>Participante</th>
-                <th>Puntos</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr *ngFor="let participante of (detailedResults.participantes | orderBy: 'puntajeTotal':true); index as i">
-                <td class="pos-cell">{{ i + 1 }}</td>
-                <td class="name-cell">{{ participante.nombreParticipante || participante.nombreUsuario || participante.emailParticipante || 'Sin nombre' }}</td>
-                <td class="score-cell">{{ participante.puntajeTotal ?? participante.puntosTotales ?? participante.puntos ?? 0 }}</td>
-              </tr>
-            </tbody>
-          </table>
+        <div *ngIf="!loadingDetailedResults && detailedParticipants.length > 0">
+          <div class="table-wrap">
+            <table class="detailed-table">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Participante</th>
+                  <th *ngFor="let m of detailedMatchesHeader">
+                    <div class="match-header">
+                      <span class="team">{{ m.equipoLocal }}</span>
+                      <span class="vs">vs</span>
+                      <span class="team">{{ m.equipoVisitante }}</span>
+                    </div>
+                    <div class="real-score">Real: {{ m.golesLocalReal ?? '-' }} - {{ m.golesVisitanteReal ?? '-' }}</div>
+                  </th>
+                  <th>Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let participante of detailedParticipants; index as i">
+                  <td class="pos-cell">{{ i + 1 }}</td>
+                  <td class="name-cell">{{ participante.nombre }}</td>
+                  <td *ngFor="let partido of participante.partidos" class="match-cell">
+                    <div class="predicted">{{ partido.golesLocalPronosticado ?? '-' }} - {{ partido.golesVisitantePronosticado ?? '-' }}</div>
+                    <div class="points">{{ partido.puntosObtenidos ?? 0 }} pts</div>
+                  </td>
+                  <td class="score-cell total-cell">{{ participante.puntajeTotal ?? 0 }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </div>
-        <div *ngIf="!loadingDetailedResults && detailedResults && (!detailedResults.participantes || detailedResults.participantes.length === 0)">
+        <div *ngIf="!loadingDetailedResults && (!detailedParticipants || detailedParticipants.length === 0)">
           <p>No hay resultados para mostrar.</p>
         </div>
       </div>
