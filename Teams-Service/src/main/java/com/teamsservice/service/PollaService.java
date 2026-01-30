@@ -656,6 +656,43 @@ public class PollaService {
     }
 
     /**
+     * Eliminar un partido de una polla. Solo el creador puede hacerlo y solo cuando la polla está en estado CREADA.
+     * Elimina también los pronósticos asociados al partido.
+     */
+    @Transactional
+    public void eliminarPartido(Long pollaId, Long partidoId, String userEmail) {
+        log.info("Attempting to delete partido {} from polla {} by user {}", partidoId, pollaId, userEmail);
+
+        // Verificar que el usuario sea el creador
+        Polla polla = validateCreatorAccess(pollaId, userEmail);
+
+        // Solo se permiten cambios en estado CREADA
+        if (polla.getEstado() != Polla.PollaEstado.CREADA) {
+            throw new BusinessRuleException("Solo se pueden eliminar partidos cuando la polla está en estado CREADA");
+        }
+
+        // Buscar partido dentro de la polla
+        PollaPartido partido = partidoRepository.findByIdAndPollaId(partidoId, pollaId)
+                .orElseThrow(() -> new ResourceNotFoundException("Partido not found with id: " + partidoId + " in polla " + pollaId));
+
+        // No permitir eliminar partidos ya finalizados
+        if (Boolean.TRUE.equals(partido.getPartidoFinalizado())) {
+            throw new BusinessRuleException("No se puede eliminar un partido ya finalizado");
+        }
+
+        // Eliminar pronósticos relacionados
+        var pronosticos = pronosticoRepository.findByPollaPartidoId(partido.getId());
+        if (pronosticos != null && !pronosticos.isEmpty()) {
+            pronosticoRepository.deleteAll(pronosticos);
+            log.info("Deleted {} pronosticos for partido {}", pronosticos.size(), partido.getId());
+        }
+
+        // Eliminar el partido
+        partidoRepository.delete(partido);
+        log.info("Partido {} deleted from polla {}", partidoId, pollaId);
+    }
+
+    /**
      * Obtiene los resultados detallados de una polla.
      * Incluye SOLO los participantes que hicieron al menos un pronóstico,
      * con sus pronósticos, marcadores reales y puntos por partido.

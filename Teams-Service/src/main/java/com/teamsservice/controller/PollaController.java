@@ -129,6 +129,22 @@ public class PollaController {
     }
 
     /**
+     * DELETE /api/pollas/{id}/partidos/{partidoId} - Eliminar un partido de la polla (solo creador y cuando esté en estado CREADA)
+     */
+    @DeleteMapping("/{id}/partidos/{partidoId}")
+    public ResponseEntity<Void> eliminarPartido(
+            @PathVariable Long id,
+            @PathVariable Long partidoId,
+            @AuthenticationPrincipal UserPrincipal userPrincipal) {
+
+        log.info("Deleting match {} from polla {} by user {}", partidoId, id, userPrincipal.getEmail());
+
+        pollaService.eliminarPartido(id, partidoId, userPrincipal.getEmail());
+
+        return ResponseEntity.noContent().build();
+    }
+
+    /**
      * GET /api/pollas/{id}/partidos/{partidoId}/marcador - Obtiene marcador real (BD + TTL + API-Football)
      */
     @GetMapping("/{id}/partidos/{partidoId}/marcador")
