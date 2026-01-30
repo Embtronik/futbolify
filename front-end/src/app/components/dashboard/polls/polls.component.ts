@@ -390,6 +390,8 @@ export class PollsComponent implements OnInit, AfterViewInit, OnDestroy {
     forkJoin({ polls: this.pollService.getMyPolls(), memberships: this.teamService.getMyMemberships() }).subscribe({
       next: ({ polls: allPolls, memberships }) => {
         const safePolls: Poll[] = (allPolls || []).filter((p: any): p is Poll => !!p && typeof p.id === 'number');
+          // Normalizar estados para evitar discrepancias entre backend (es/en)
+          safePolls.forEach(p => { p.estado = this.canonicalEstado(p.estado); });
 
         // Preparar lista de teamIds donde el usuario está aprobado
         const approvedTeamIds: number[] = (memberships || [])
@@ -540,6 +542,9 @@ export class PollsComponent implements OnInit, AfterViewInit, OnDestroy {
 
     const safePolls: Poll[] = polls.filter((p: any): p is Poll => !!p && typeof p.id === 'number');
     if (safePolls.length === 0) return;
+
+    // Normalizar estados para que las filtraciones en la UI funcionen
+    safePolls.forEach(p => { p.estado = this.canonicalEstado(p.estado); });
 
     const detailRequests = safePolls.map((p) =>
       this.teamService.getPollById(p.id).pipe(
@@ -1423,24 +1428,50 @@ export class PollsComponent implements OnInit, AfterViewInit, OnDestroy {
 
   // ========== Utilidades ==========
 
+  /**
+   * Normaliza valores de estado provenientes del backend a códigos internos en español.
+   * Acepta variantes en inglés o español y devuelve 'CREADA'|'ABIERTA'|'FINALIZADA' u
+   * el valor uppercased por defecto si no coincide con ninguna conocida.
+   */
+  private canonicalEstado(status: any): 'CREADA' | 'ABIERTA' | 'CERRADA' | 'FINALIZADA' {
+    const fallback: 'CREADA' = 'CREADA';
+    if (status === null || status === undefined) return fallback;
+    const s = String(status).toUpperCase().trim();
+
+    if (['ABIERTA', 'ACTIVE', 'ACTIVA', 'ACTIVO'].includes(s)) return 'ABIERTA';
+    if (['CREADA', 'DRAFT', 'CREATED', 'PENDIENTE'].includes(s)) return 'CREADA';
+    if (['FINALIZADA', 'FINISHED', 'FINALIZADO', 'FINISH'].includes(s)) return 'FINALIZADA';
+    if (['CERRADA', 'CLOSED', 'CLOSE', 'CERRADO'].includes(s)) return 'CERRADA';
+
+    // If backend sends an unexpected but recognized Spanish union value, allow it
+    const allowed = ['CREADA', 'ABIERTA', 'CERRADA', 'FINALIZADA'];
+    if (allowed.includes(s)) return s as 'CREADA' | 'ABIERTA' | 'CERRADA' | 'FINALIZADA';
+
+    // Fallback to 'CREADA' to keep type safety — caller will treat unknown as created
+    return fallback;
+  }
+
   getStatusBadgeClass(status: string): string {
-    switch (status) {
-      case 'DRAFT': return 'badge-draft';
-      case 'ACTIVE': return 'badge-active';
-      case 'FINISHED': return 'badge-finished';
+    const s = this.canonicalEstado(status);
+    switch (s) {
+      case 'CREADA': return 'badge-draft';
+      case 'ABIERTA': return 'badge-active';
+      case 'FINALIZADA': return 'badge-finished';
+      case 'CERRADA': return 'badge-finished';
       default: return '';
     }
   }
 
   getStatusText(status: string): string {
-    switch (status) {
-      case 'DRAFT': return 'Borrador';
-      case 'ACTIVE': return 'Activa';
-      case 'FINISHED': return 'Finalizada';
-      default: return status;
+    const s = this.canonicalEstado(status);
+    switch (s) {
+      case 'CREADA': return 'Borrador';
+      case 'ABIERTA': return 'Activa';
+      case 'FINALIZADA': return 'Finalizada';
+      case 'CERRADA': return 'Cerrada';
+      default: return status || '';
     }
   }
-
 
   formatDateTime(dateValue: string | Date): string {
     let date: Date;
