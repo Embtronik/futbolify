@@ -414,9 +414,14 @@ export class PollsComponent implements OnInit, AfterViewInit, OnDestroy {
         this.myPolls = safePolls.filter((p: Poll) => (p.creadorEmail || '').toLowerCase().trim() === userEmail);
 
         // "Participar": donde soy invitado/participante o la polla fue dirigida a algún grupo donde estoy aprobado
+        const extractParticipantEmail = (part: any): string => {
+          if (!part) return '';
+          return (part.emailUsuario ?? part.emailParticipante ?? part.email ?? part.user?.email ?? '').toString().toLowerCase().trim();
+        };
+
         this.participantPolls = safePolls.filter((p: Poll) => {
-          const isParticipant = Array.isArray(p.participantes) && p.participantes.some(part => (part.emailUsuario || '').toLowerCase().trim() === userEmail);
-          const gruposInvitados: number[] = Array.isArray(p.gruposInvitados) ? p.gruposInvitados : [];
+          const isParticipant = Array.isArray(p.participantes) && p.participantes.some(part => extractParticipantEmail(part) === userEmail);
+          const gruposInvitados: number[] = Array.isArray(p.gruposInvitados) ? p.gruposInvitados.map((g:any) => typeof g === 'number' ? g : (g?.id ?? g?.teamId ?? g?.teamId) ) : [];
           const isGroupTargeted = gruposInvitados.some(gid => approvedTeamIds.includes(gid));
           return isParticipant || isGroupTargeted;
         });
