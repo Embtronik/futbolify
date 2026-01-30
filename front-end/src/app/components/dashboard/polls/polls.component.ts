@@ -359,6 +359,7 @@ export class PollsComponent implements OnInit, AfterViewInit, OnDestroy {
     this.teardownRealScoreRowObserver();
     this.stopAllRealScorePolling();
     this.stopStandingsPolling();
+    try { document.body.style.overflow = ''; } catch (e) { /* ignore */ }
   }
 
   initializeForms(): void {
@@ -754,6 +755,8 @@ export class PollsComponent implements OnInit, AfterViewInit, OnDestroy {
     }
     this.isParticiparView = (this.activeTab === 'invited');
     this.showPollDetailModal = true;
+    // Prevent the page behind the modal from scrolling so only the modal scrolls
+    try { document.body.style.overflow = 'hidden'; } catch (e) { /* ignore */ }
     this.participarModalTab = 'participar';
     this.detailedResults = null;
     this.loadingDetailedResults = false;
@@ -857,6 +860,8 @@ export class PollsComponent implements OnInit, AfterViewInit, OnDestroy {
 
     this.stopStandingsPolling();
     this.resetStandingsState();
+    // Restore body scroll when modal is closed
+    try { document.body.style.overflow = ''; } catch (e) { /* ignore */ }
   }
 
   setParticiparModalTab(tab: 'participar' | 'tabla'): void {

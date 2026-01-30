@@ -1087,7 +1087,8 @@
   max-width: 540px;
   min-width: 320px;
   max-height: 92vh;
-  overflow-y: auto;
+  /* Move scrolling to the inner modal-body to avoid dual scrollbars */
+  overflow: visible;
   box-shadow: 0 12px 48px rgba(0,0,0,0.22);
   padding: 24px 24px 28px 24px;
 }
@@ -1108,6 +1109,19 @@
   flex-direction: column;
   border: 1.5px solid #e0e7ef;
   animation: modal-pop 0.25s cubic-bezier(.4,2,.6,1) both;
+}
+
+/* Ensure modal body scrolls internally and fits within viewport */
+.modal-content .modal-body {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  /* Reserve space for header and footer (approx). Adjust if header/footer sizes change */
+  max-height: calc(92vh - 140px);
+  padding: 20px 36px;
+}
+
+.modal-content.large .modal-body {
+  max-height: calc(92vh - 160px);
 }
 
 @keyframes modal-pop {
