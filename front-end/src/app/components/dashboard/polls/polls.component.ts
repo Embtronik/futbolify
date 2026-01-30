@@ -573,7 +573,14 @@ export class PollsComponent implements OnInit, AfterViewInit, OnDestroy {
 
         this.myPolls = (this.myPolls || []).filter(this.isPoll).map(mergeCounts);
         this.participantPolls = (this.participantPolls || []).filter(this.isPoll).map(mergeCounts);
-        this.polls = (this.activeTab === 'my-polls' ? this.myPolls : this.participantPolls).filter(this.isPoll);
+        // Mantener el mismo comportamiento de filtrado que en loadData():
+        if (this.activeTab === 'all') {
+          this.polls = (this.myPolls || []).concat(this.participantPolls || []).filter(p => this.isPoll(p) && (p.estado === 'ABIERTA' || p.estado === 'FINALIZADA'));
+        } else if (this.activeTab === 'invited') {
+          this.polls = (this.participantPolls || []).filter(p => this.isPoll(p) && p.estado === 'ABIERTA');
+        } else {
+          this.polls = (this.myPolls || []).filter(this.isPoll);
+        }
       },
       error: (err: unknown) => {
         // Si falla, dejamos los conteos como vengan del listado
