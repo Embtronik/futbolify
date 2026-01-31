@@ -78,6 +78,7 @@ export class PollsComponent implements OnInit, AfterViewInit, OnDestroy {
   private realScoreRowObserver?: IntersectionObserver;
   private realScoreVisibleMatchIds = new Set<number>();
   private realScorePollers = new Map<number, number>();
+  private realScoreTimeouts = new Map<number, number>();
 
   participarModalTab: 'participar' | 'tabla' = 'participar';
 
@@ -1032,11 +1033,13 @@ export class PollsComponent implements OnInit, AfterViewInit, OnDestroy {
 
   private startPollMatchesPolling(): void {
     if (typeof this.pollMatchesPollerId === 'number') return;
+    console.debug('[polls] startPollMatchesPolling');
     this.pollMatchesPollerId = window.setInterval(() => {
       if (!this.showPollDetailModal || !this.isParticiparView || this.participarModalTab !== 'participar') {
         this.stopPollMatchesPolling();
         return;
       }
+      console.debug('[polls] pollMatchesPoller tick at', new Date().toISOString());
       this.runCentralRealScorePoller();
     }, 10_000);
   }
@@ -1046,6 +1049,7 @@ export class PollsComponent implements OnInit, AfterViewInit, OnDestroy {
       window.clearInterval(this.pollMatchesPollerId);
     }
     this.pollMatchesPollerId = undefined;
+    console.debug('[polls] stopPollMatchesPolling');
   }
 
   private runCentralRealScorePoller(): void {
@@ -1169,6 +1173,14 @@ export class PollsComponent implements OnInit, AfterViewInit, OnDestroy {
         setTimeout(() => {
           this.preloadRealScores(3);
           this.rebindRealScoreRowObserver();
+          // Force an immediate poll pass after rows are bound so the UI updates
+          // immediately on modal open (helps when Interval hasn't ticked yet)
+          try {
+            console.debug('[polls] loadPollMatches - triggering immediate runCentralRealScorePoller');
+            this.runCentralRealScorePoller();
+          } catch (e) {
+            console.warn('[polls] error running immediate runCentralRealScorePoller', e);
+          }
         }, 0);
       },
       error: (error: any) => {
@@ -1183,9 +1195,13 @@ export class PollsComponent implements OnInit, AfterViewInit, OnDestroy {
 
   formatApiSyncAt(value: string | null): string {
     if (!value) return '';
-    const d = new Date(value);
-    if (Number.isNaN(d.getTime())) return value;
-    return d.toLocaleString();
+    const d = this.parseMatchDate(value as any);
+    if (!d) return value;
+    return d.toLocaleDateString('es-ES', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    }) + ' ' + d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
   }
 
   private resetRealScoreState(): void {
@@ -1290,12 +1306,16 @@ export class PollsComponent implements OnInit, AfterViewInit, OnDestroy {
     ).subscribe((res: PartidoMarcadorResponse | null) => {
       this.realScoreLoadingByMatchId[matchId] = false;
       console.debug('[polls] loadRealScore - response', { matchId, res });
+      try {
+        console.debug('[polls] loadRealScore - meta', { matchId, ttlSeconds: res?.ttlSeconds, servedFrom: res?.servedFrom, lastApiSyncAt: res?.lastApiSyncAt });
+      } catch (e) { /* ignore */ }
       if (!res) {
         this.updatePollingForMatch(matchId);
         return;
       }
 
       this.realScoreByMatchId[matchId] = res;
+      // Mark fetched time as now. If backend indicates servedFrom 'API' the data is fresh.
       this.realScoreFetchedAtMsByMatchId[matchId] = Date.now();
       this.updatePollingForMatch(matchId);
     });
@@ -1317,11 +1337,37 @@ export class PollsComponent implements OnInit, AfterViewInit, OnDestroy {
       return;
     }
 
-    if (this.isLiveStatus(rs.apiStatusShort)) {
-      this.startRealScorePolling(matchId);
-    } else {
+    // Respect ttlSeconds from backend. If ttlSeconds === null => final score, stop polling.
+    const ttl = rs.ttlSeconds;
+    if (ttl === null || ttl === undefined) {
+      // If backend indicates no more polling, stop any timers/intervals
       this.stopRealScorePolling(matchId);
+      return;
     }
+
+    // Use ttlSeconds provided by backend. Apply a small jitter to avoid stampedes when many clients open simultaneously.
+    const ttlMs = Math.max(1000, ttl * 1000);
+    const jitterMs = Math.floor(Math.random() * Math.min(5000, ttlMs));
+    const scheduleMs = ttlMs + jitterMs;
+
+    // Clear any existing timeout for this match
+    const existingTimeout = this.realScoreTimeouts.get(matchId);
+    if (typeof existingTimeout === 'number') {
+      window.clearTimeout(existingTimeout);
+      this.realScoreTimeouts.delete(matchId);
+    }
+
+    // Schedule next refresh according to ttlSeconds
+    const timeoutId = window.setTimeout(() => {
+      // Ensure modal and visibility still valid
+      if (!this.showPollDetailModal || !this.isParticiparView || !this.realScoreVisibleMatchIds.has(matchId)) {
+        this.stopRealScorePolling(matchId);
+        return;
+      }
+      console.debug('[polls] scheduled refresh for match', matchId, 'after', scheduleMs, 'ms');
+      this.loadRealScore(matchId, true);
+    }, scheduleMs);
+    this.realScoreTimeouts.set(matchId, timeoutId);
   }
 
   private isLiveStatus(short: string | null | undefined): boolean {
@@ -1331,19 +1377,10 @@ export class PollsComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private startRealScorePolling(matchId: number): void {
+    // Legacy: keep a marker if intervals are used elsewhere. We prefer scheduling via ttlSeconds.
     if (this.realScorePollers.has(matchId)) return;
-    const intervalId = window.setInterval(() => {
-      if (!this.showPollDetailModal || !this.isParticiparView) {
-        this.stopRealScorePolling(matchId);
-        return;
-      }
-      if (!this.realScoreVisibleMatchIds.has(matchId)) {
-        this.stopRealScorePolling(matchId);
-        return;
-      }
-      this.loadRealScore(matchId, true);
-    }, 10_000);
-    this.realScorePollers.set(matchId, intervalId);
+    const marker = window.setInterval(() => {}, 24 * 60 * 60 * 1000); // dummy marker, cleared by stopRealScorePolling
+    this.realScorePollers.set(matchId, marker);
   }
 
   private stopRealScorePolling(matchId: number): void {
@@ -1352,6 +1389,12 @@ export class PollsComponent implements OnInit, AfterViewInit, OnDestroy {
       window.clearInterval(id);
     }
     this.realScorePollers.delete(matchId);
+
+    const t = this.realScoreTimeouts.get(matchId);
+    if (typeof t === 'number') {
+      window.clearTimeout(t);
+    }
+    this.realScoreTimeouts.delete(matchId);
   }
 
   private stopAllRealScorePolling(): void {
@@ -1359,6 +1402,10 @@ export class PollsComponent implements OnInit, AfterViewInit, OnDestroy {
       window.clearInterval(id);
     }
     this.realScorePollers.clear();
+    for (const t of this.realScoreTimeouts.values()) {
+      window.clearTimeout(t);
+    }
+    this.realScoreTimeouts.clear();
   }
 
   openAddMatchModal(): void {
