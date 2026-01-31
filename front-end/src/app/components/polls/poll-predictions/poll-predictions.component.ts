@@ -1131,15 +1131,14 @@ export class PollPredictionsComponent implements OnInit, OnDestroy {
   }
 
   formatDate(dateValue: string | Date): string {
-    const date = typeof dateValue === 'string' ? new Date(dateValue) : dateValue;
-    return date.toLocaleString('es-ES', {
+    const date = typeof dateValue === 'string' ? new Date(dateValue as any) : dateValue;
+    return date.toLocaleDateString('es-ES', {
       weekday: 'long',
       year: 'numeric',
       month: 'long',
       day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+      timeZone: 'UTC'
+    }) + ' ' + date.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' });
   }
 
   getStatusLabel(estado?: string): string {

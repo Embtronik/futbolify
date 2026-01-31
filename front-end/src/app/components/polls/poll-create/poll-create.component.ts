@@ -1300,14 +1300,13 @@ export class PollCreateComponent implements OnInit {
   }
 
   formatMatchDate(dateString: string): string {
-    const date = new Date(dateString);
-    return date.toLocaleString('es-ES', {
+    const date = new Date(dateString as any);
+    return date.toLocaleDateString('es-ES', {
       year: 'numeric',
       month: 'short',
       day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+      timeZone: 'UTC'
+    }) + ' ' + date.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' });
   }
 
   // Step 4: Confirm and Create

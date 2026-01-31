@@ -999,9 +999,8 @@ export class PollDetailComponent implements OnInit {
       year: 'numeric',
       month: 'long',
       day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+      timeZone: 'UTC'
+    }) + ' ' + date.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' });
   }
 
   getStatusLabel(estado?: string): string {

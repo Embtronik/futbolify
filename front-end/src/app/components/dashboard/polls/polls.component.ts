@@ -1201,7 +1201,8 @@ export class PollsComponent implements OnInit, AfterViewInit, OnDestroy {
       year: 'numeric',
       month: 'short',
       day: 'numeric',
-    }) + ' ' + d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+      timeZone: 'UTC'
+    }) + ' ' + d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' });
   }
 
   private resetRealScoreState(): void {
@@ -1443,10 +1444,9 @@ export class PollsComponent implements OnInit, AfterViewInit, OnDestroy {
     let addedCount = 0;
     let errorCount = 0;
     this.selectedFixtures.forEach((fixture, idx) => {
-      let fechaHoraPartido = fixture.fixture.date;
-      if (fechaHoraPartido) {
-        fechaHoraPartido = fechaHoraPartido.substring(0, 19);
-      }
+      // Preserve full ISO timestamp (including 'Z' or offset) so backend
+      // and DB receive the exact instant. Avoid truncating timezone info.
+      const fechaHoraPartido = fixture.fixture.date;
       const matchData: AddPollMatchRequest = {
         pollaId: this.selectedPoll!.id,
         idPartidoExterno: fixture.fixture.id.toString(),
