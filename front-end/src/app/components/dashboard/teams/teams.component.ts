@@ -787,6 +787,7 @@ export class TeamsComponent implements AfterViewInit {
   private auth = inject(AuthService);
   private fb = inject(FormBuilder);
   private googleMapsLoader = inject(GoogleMapsLoaderService);
+  private router = inject(Router);
 
   @ViewChild('addressInput') addressInput!: ElementRef;
   @ViewChild('editAddressInput') editAddressInput!: ElementRef;

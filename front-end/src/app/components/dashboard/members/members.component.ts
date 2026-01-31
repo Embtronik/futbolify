@@ -125,7 +125,7 @@ export class MembersComponent implements OnInit {
                 // If navigation included a teamId query param, load its members automatically
                 try {
                   const qp = this.route.snapshot.queryParams;
-                  const targetId = qp?.teamId ? Number(qp.teamId) : null;
+                  const targetId = qp && qp['teamId'] ? Number(qp['teamId']) : null;
                   if (targetId && Number.isFinite(targetId)) {
                     // Ensure team exists in list
                     if (mergedTeams.some(t => t.id === targetId)) {
