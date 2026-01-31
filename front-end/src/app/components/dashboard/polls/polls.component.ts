@@ -1075,7 +1075,10 @@ export class PollsComponent implements OnInit, AfterViewInit, OnDestroy {
       const start = this.parseMatchDate(m.fechaHoraPartido);
       if (!start) continue;
       const diffMs = start.getTime() - now;
+      const diffMin = Math.round(diffMs / 60000);
       const withinPre = diffMs <= this.PRE_POLL_MINUTES * 60_000 && diffMs >= -3 * 60 * 60_000; // up to 3h after start
+      // Debug info to help debug mobile/local time problems
+      console.debug('[polls] candidate check', { matchId: id, fechaHoraPartido: m.fechaHoraPartido, start: start.toString(), diffMin, withinPre });
       if (withinPre) {
         candidates.push(id);
       }
@@ -1083,6 +1086,7 @@ export class PollsComponent implements OnInit, AfterViewInit, OnDestroy {
 
     // Limit number of candidates
     const toPoll = candidates.slice(0, this.MAX_CONCURRENT_POLLS);
+    console.debug('[polls] runCentralRealScorePoller -> toPoll', toPoll);
     for (const matchId of toPoll) {
       // loadRealScore already guards against concurrent calls
       this.loadRealScore(matchId, true);
@@ -1092,12 +1096,36 @@ export class PollsComponent implements OnInit, AfterViewInit, OnDestroy {
   private parseMatchDate(value: string | Date | undefined | null): Date | null {
     if (!value) return null;
     try {
-      let iso = typeof value === 'string' ? value : (value as Date).toISOString();
-      if (/Z$|([+-]\d{2}:?\d{2})$/.test(iso) === false) iso = iso + 'Z';
-      const d = new Date(iso);
-      if (Number.isNaN(d.getTime())) return null;
-      return d;
-    } catch {
+      if (value instanceof Date) return value;
+      const s = String(value).trim();
+
+      // If string has explicit timezone (Z or +hh:mm), let Date parse it
+      if (/Z$|[+-]\d{2}:?\d{2}$/.test(s)) {
+        const d = new Date(s);
+        return Number.isNaN(d.getTime()) ? null : d;
+      }
+
+      // If string looks like YYYY-MM-DDTHH:mm[:ss] without timezone, treat it as UTC (backend stores UTC)
+      const m = s.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?$/);
+      if (m) {
+        const year = Number(m[1]);
+        const month = Number(m[2]) - 1;
+        const day = Number(m[3]);
+        const hour = Number(m[4]);
+        const minute = Number(m[5]);
+        const second = Number(m[6] || '0');
+        // Construct UTC timestamp because backend provides UTC without explicit Z
+        const utcMs = Date.UTC(year, month, day, hour, minute, second);
+        const d = new Date(utcMs);
+        console.debug('[polls] parseMatchDate treated as UTC', { input: s, parsed: d.toISOString() });
+        return Number.isNaN(d.getTime()) ? null : d;
+      }
+
+      // Fallback: let Date try to parse other formats
+      const d = new Date(s);
+      return Number.isNaN(d.getTime()) ? null : d;
+    } catch (err) {
+      console.warn('[polls] parseMatchDate error for', value, err);
       return null;
     }
   }
@@ -1251,14 +1279,17 @@ export class PollsComponent implements OnInit, AfterViewInit, OnDestroy {
     this.realScoreLoadingByMatchId[matchId] = true;
     delete this.realScoreErrorByMatchId[matchId];
 
+    console.debug('[polls] loadRealScore - request', { pollId: this.selectedPoll.id, matchId, force, at: new Date().toISOString() });
     this.pollService.getMatchRealScore(this.selectedPoll.id, matchId).pipe(
       catchError((err: unknown) => {
+        console.error('[polls] loadRealScore - request error', { matchId, err });
         const msg = this.getBackendErrorMessage(err, 'No se pudo cargar el marcador real');
         this.realScoreErrorByMatchId[matchId] = msg;
         return of(null);
       })
     ).subscribe((res: PartidoMarcadorResponse | null) => {
       this.realScoreLoadingByMatchId[matchId] = false;
+      console.debug('[polls] loadRealScore - response', { matchId, res });
       if (!res) {
         this.updatePollingForMatch(matchId);
         return;
