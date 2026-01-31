@@ -106,7 +106,7 @@ public class PollaRankingService {
 
                 // Si no hay marcador en BD, pedir snapshot (TTL+lock) para LIVE/SCHEDULED.
                 if (partido.getGolesLocal() == null || partido.getGolesVisitante() == null) {
-                    var marcador = marcadorService.getMarcador(pollaId, partido.getId(), userEmail);
+                    var marcador = marcadorService.getMarcador(pollaId, partido.getId(), userEmail, false);
                     actualHome = marcador.getGolesLocal();
                     actualAway = marcador.getGolesVisitante();
                     statusShort = marcador.getApiStatusShort();
