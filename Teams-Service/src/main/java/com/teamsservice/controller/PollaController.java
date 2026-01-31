@@ -155,7 +155,7 @@ public class PollaController {
 
         log.info("Getting real score for polla {} partido {} by user {}", id, partidoId, userPrincipal.getEmail());
 
-        PartidoMarcadorResponse response = pollaMarcadorService.getMarcador(id, partidoId, userPrincipal.getEmail());
+        PartidoMarcadorResponse response = pollaMarcadorService.getMarcador(id, partidoId, userPrincipal.getEmail(), false);
 
         return ResponseEntity.ok(response);
     }
@@ -171,6 +171,23 @@ public class PollaController {
         log.info("Getting polla ranking for polla {} by user {}", id, userPrincipal.getEmail());
 
         PollaRankingResponse response = pollaRankingService.getRanking(id, userPrincipal.getEmail());
+
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * GET /api/pollas/{id}/partidos/{partidoId}/marcador?force=true - Forzar consulta a API-Football ignorando TTL
+     */
+    @GetMapping(value = "/{id}/partidos/{partidoId}/marcador", params = "force")
+    public ResponseEntity<PartidoMarcadorResponse> getMarcadorForce(
+            @PathVariable Long id,
+            @PathVariable Long partidoId,
+            @RequestParam(name = "force") boolean force,
+            @AuthenticationPrincipal UserPrincipal userPrincipal) {
+
+        log.info("Getting real score (force={}) for polla {} partido {} by user {}", force, id, partidoId, userPrincipal.getEmail());
+
+        PartidoMarcadorResponse response = pollaMarcadorService.getMarcador(id, partidoId, userPrincipal.getEmail(), force);
 
         return ResponseEntity.ok(response);
     }

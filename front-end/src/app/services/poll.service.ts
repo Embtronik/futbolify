@@ -158,7 +158,9 @@ export class PollService {
    * GET /pollas/{pollaId}/partidos/{partidoId}/marcador
    */
   getMatchRealScore(pollId: number, matchId: number): Observable<PartidoMarcadorResponse> {
-    return this.http.get<PartidoMarcadorResponse>(`${this.API_URL}/pollas/${pollId}/partidos/${matchId}/marcador`);
+    // Force refresh param according to API: ?force=true
+    const url = `${this.API_URL}/pollas/${pollId}/partidos/${matchId}/marcador?force=true`;
+    return this.http.get<PartidoMarcadorResponse>(url);
   }
 
   /**

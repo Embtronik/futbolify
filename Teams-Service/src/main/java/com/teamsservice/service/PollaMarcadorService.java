@@ -69,7 +69,7 @@ public class PollaMarcadorService {
     }
 
     @Transactional
-    public PartidoMarcadorResponse getMarcador(Long pollaId, Long partidoId, String userEmail) {
+    public PartidoMarcadorResponse getMarcador(Long pollaId, Long partidoId, String userEmail, boolean forceApi) {
         Polla polla = pollaRepository.findByIdAndDeletedAtIsNull(pollaId)
                 .orElseThrow(() -> new ResourceNotFoundException("Polla not found with id: " + pollaId));
 
@@ -123,7 +123,7 @@ public class PollaMarcadorService {
             }
         }
 
-        boolean shouldCallApi = ttl.isZero() || ttl.isNegative() || partido.getLastApiSyncAt() == null;
+        boolean shouldCallApi = forceApi || ttl.isZero() || ttl.isNegative() || partido.getLastApiSyncAt() == null;
 
         if (!shouldCallApi) {
             // safety net
