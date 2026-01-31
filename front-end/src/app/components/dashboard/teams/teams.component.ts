@@ -4,6 +4,9 @@ import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angula
 import { TeamService } from '../../../services/team.service';
 import { GoogleMapsLoaderService } from '../../../services/google-maps-loader.service';
 import { Team } from '../../../models/football.model';
+import { Router } from '@angular/router';
+import { AuthService } from '../../../services/auth.service';
+import { User } from '../../../models/user.model';
 
 declare var google: any;
 
@@ -36,9 +39,11 @@ declare var google: any;
                 📋
               </button>
             </div>
-            <p class="team-players">👥 {{ team.memberCount || 0 }} miembros</p>
+            <p class="team-players" title="Ver integrantes" (click)="goToTeamPlayers(team)" style="cursor: pointer;">
+              👥 {{ team.memberCount || 0 }} miembros
+            </p>
           </div>
-          <div class="team-actions">
+          <div class="team-actions" *ngIf="isTeamOwner(team)">
             <button class="btn-icon" (click)="viewTeam(team)" title="Ver detalles">👁️</button>
             <button class="btn-icon" (click)="openEditModal(team)" title="Editar">✏️</button>
             <button class="btn-icon danger" (click)="confirmDelete(team)" title="Eliminar">🗑️</button>
@@ -779,6 +784,7 @@ declare var google: any;
 })
 export class TeamsComponent implements AfterViewInit {
   private teamService = inject(TeamService);
+  private auth = inject(AuthService);
   private fb = inject(FormBuilder);
   private googleMapsLoader = inject(GoogleMapsLoaderService);
 
@@ -787,6 +793,7 @@ export class TeamsComponent implements AfterViewInit {
 
   teams: Team[] = [];
   loading = false;
+  currentUser: User | null = null;
   showCreateModal = false;
   showEditModal = false;
   showViewModal = false;
@@ -823,6 +830,23 @@ export class TeamsComponent implements AfterViewInit {
 
   ngAfterViewInit(): void {
     // Inicializar cuando se abran los modales
+    try {
+      this.currentUser = this.auth.getCurrentUserValue();
+      this.auth.currentUser$.subscribe(u => this.currentUser = u);
+    } catch (e) {
+      this.currentUser = null;
+    }
+  }
+
+  isTeamOwner(team: Team | null | undefined): boolean {
+    if (!team) return false;
+    if (!this.currentUser) return false;
+    if (typeof this.currentUser.id === 'number' && typeof team.ownerUserId === 'number') {
+      if (this.currentUser.id === team.ownerUserId) return true;
+    }
+    const cu = (this.currentUser.email || '').toLowerCase().trim();
+    const oe = (team.ownerEmail || '').toLowerCase().trim();
+    return !!cu && !!oe && cu === oe;
   }
 
   initAutocomplete(inputElement: ElementRef, isEdit: boolean = false): void {
@@ -1235,5 +1259,11 @@ export class TeamsComponent implements AfterViewInit {
         alert('Error al eliminar el grupo. Por favor intenta de nuevo.');
       }
     });
+  }
+
+  goToTeamPlayers(team: Team): void {
+    if (!team || typeof team.id !== 'number') return;
+    // Navigate to players view with query param so PlayersComponent can load members for this team
+    this.router.navigate(['/dashboard/players'], { queryParams: { teamId: team.id, teamName: team.name } });
   }
 }

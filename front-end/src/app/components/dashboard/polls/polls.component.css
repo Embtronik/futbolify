@@ -1199,19 +1199,49 @@
   color: var(--dark-color);
 }
 
-.modal-body {
-  padding: 24px;
-  max-height: 70vh;
+.modal-content .modal-body {
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  /* Make body flexible so it can scroll while header/footer stay visible */
+  flex: 1 1 auto;
+  max-height: calc(92vh - 140px);
+  padding: 20px 36px;
 }
 
-.modal-footer {
-  padding: 24px;
+.modal-content .modal-footer {
+  /* Keep footer visible and pinned to bottom of modal while body scrolls */
+  position: sticky;
+  bottom: 0;
+  padding: 16px 24px;
   border-top: 1px solid var(--border-color);
   display: flex;
   gap: 12px;
   justify-content: flex-end;
   flex: 0 0 auto;
+  background: linear-gradient(180deg, rgba(255,255,255,0.95), rgba(255,255,255,0.98));
+  z-index: 4;
+}
+
+/* Responsive adjustments for small screens so footer stays visible */
+@media (max-width: 600px) {
+  .modal-overlay {
+    padding: 12px;
+  }
+  .modal-content {
+    padding: 12px 12px 8px 12px;
+    width: 100%;
+    max-width: 100%;
+    border-radius: 12px;
+  }
+  .modal-content .modal-body {
+    padding: 12px;
+    max-height: calc(92vh - 120px);
+  }
+  .modal-content .modal-footer {
+    padding: 10px 12px;
+    gap: 8px;
+    justify-content: space-between;
+  }
 }
 
 .polls-container {

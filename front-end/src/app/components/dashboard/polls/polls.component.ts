@@ -86,6 +86,9 @@ export class PollsComponent implements OnInit, AfterViewInit, OnDestroy {
   standingsLoading = false;
   standingsError = '';
   private standingsPollerId?: number;
+  private pollMatchesPollerId?: number;
+  private readonly PRE_POLL_MINUTES = 30; // start polling X minutes before match
+  private readonly MAX_CONCURRENT_POLLS = 6; // avoid too many simultaneous requests
 
   private getBackendErrorMessage(err: unknown, fallback: string): string {
     if (err instanceof HttpErrorResponse) {
@@ -784,6 +787,8 @@ export class PollsComponent implements OnInit, AfterViewInit, OnDestroy {
     this.loadingDetailedResults = false;
     this.refreshSelectedPollDetail(poll.id);
     this.loadPollMatches(poll.id);
+    // Iniciar polling periódico de partidos mientras la modal esté abierta
+    this.startPollMatchesPolling();
     // Si la polla está finalizada, cargar resultados detallados
     if (poll.estado === 'FINALIZADA') {
       this.loadingDetailedResults = true;
@@ -878,6 +883,7 @@ export class PollsComponent implements OnInit, AfterViewInit, OnDestroy {
 
     this.teardownRealScoreRowObserver();
     this.stopAllRealScorePolling();
+    this.stopPollMatchesPolling();
     this.resetRealScoreState();
 
     this.stopStandingsPolling();
@@ -894,6 +900,7 @@ export class PollsComponent implements OnInit, AfterViewInit, OnDestroy {
       // Pause real-score observers/polling while the table is visible
       this.teardownRealScoreRowObserver();
       this.stopAllRealScorePolling();
+      this.stopPollMatchesPolling();
       this.loadStandings(false);
       return;
     }
@@ -904,6 +911,7 @@ export class PollsComponent implements OnInit, AfterViewInit, OnDestroy {
     setTimeout(() => {
       this.preloadRealScores(3);
       this.rebindRealScoreRowObserver();
+      this.startPollMatchesPolling();
     }, 0);
   }
 
@@ -1020,6 +1028,78 @@ export class PollsComponent implements OnInit, AfterViewInit, OnDestroy {
       }
       this.loadStandings(true);
     }, 30_000);
+  }
+
+  private startPollMatchesPolling(): void {
+    if (typeof this.pollMatchesPollerId === 'number') return;
+    this.pollMatchesPollerId = window.setInterval(() => {
+      if (!this.showPollDetailModal || !this.isParticiparView || this.participarModalTab !== 'participar') {
+        this.stopPollMatchesPolling();
+        return;
+      }
+      this.runCentralRealScorePoller();
+    }, 10_000);
+  }
+
+  private stopPollMatchesPolling(): void {
+    if (typeof this.pollMatchesPollerId === 'number') {
+      window.clearInterval(this.pollMatchesPollerId);
+    }
+    this.pollMatchesPollerId = undefined;
+  }
+
+  private runCentralRealScorePoller(): void {
+    if (!Array.isArray(this.pollMatches) || this.pollMatches.length === 0) return;
+
+    const now = Date.now();
+    const candidates: number[] = [];
+
+    // First, prioritize visible rows
+    for (const id of Array.from(this.realScoreVisibleMatchIds)) {
+      if (!candidates.includes(id)) candidates.push(id);
+    }
+
+    // Then add matches that are live or within PRE_POLL_MINUTES window
+    for (const m of this.pollMatches) {
+      if (candidates.length >= this.MAX_CONCURRENT_POLLS) break;
+      const id = m.id;
+      if (candidates.includes(id)) continue;
+
+      // If we already have a recent real score showing the match is live, include it
+      const cached = this.realScoreByMatchId[id];
+      if (cached && this.isLiveStatus(cached.apiStatusShort) && !cached.partidoFinalizado) {
+        candidates.push(id);
+        continue;
+      }
+
+      const start = this.parseMatchDate(m.fechaHoraPartido);
+      if (!start) continue;
+      const diffMs = start.getTime() - now;
+      const withinPre = diffMs <= this.PRE_POLL_MINUTES * 60_000 && diffMs >= -3 * 60 * 60_000; // up to 3h after start
+      if (withinPre) {
+        candidates.push(id);
+      }
+    }
+
+    // Limit number of candidates
+    const toPoll = candidates.slice(0, this.MAX_CONCURRENT_POLLS);
+    for (const matchId of toPoll) {
+      // loadRealScore already guards against concurrent calls
+      this.loadRealScore(matchId, true);
+    }
+  }
+
+  private parseMatchDate(value: string | Date | undefined | null): Date | null {
+    if (!value) return null;
+    try {
+      let iso = typeof value === 'string' ? value : (value as Date).toISOString();
+      if (/Z$|([+-]\d{2}:?\d{2})$/.test(iso) === false) iso = iso + 'Z';
+      const d = new Date(iso);
+      if (Number.isNaN(d.getTime())) return null;
+      return d;
+    } catch {
+      return null;
+    }
   }
 
   private stopStandingsPolling(): void {

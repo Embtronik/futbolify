@@ -10,6 +10,7 @@ import { Team, TeamMember } from '../../../models/football.model';
 import { MemberSearchPipe } from './member-search.pipe';
 import { AuthService } from '../../../services/auth.service';
 import { User } from '../../../models/user.model';
+import { ActivatedRoute } from '@angular/router';
 
 @Component({
   selector: 'app-members',
@@ -23,6 +24,7 @@ export class MembersComponent implements OnInit {
   // ...
   private teamService = inject(TeamService);
   private authService = inject(AuthService);
+  private route = inject(ActivatedRoute);
 
   teams: Team[] = [];
   ownedTeamIds: Set<number> = new Set();
@@ -120,7 +122,20 @@ export class MembersComponent implements OnInit {
               team.memberCount = (membersArr[idx] || []).filter((m: any) => m.status === 'APPROVED').length;
             });
             this.teams = mergedTeams;
-            this.loading = false;
+                // If navigation included a teamId query param, load its members automatically
+                try {
+                  const qp = this.route.snapshot.queryParams;
+                  const targetId = qp?.teamId ? Number(qp.teamId) : null;
+                  if (targetId && Number.isFinite(targetId)) {
+                    // Ensure team exists in list
+                    if (mergedTeams.some(t => t.id === targetId)) {
+                      this.loadMembers(targetId);
+                    }
+                  }
+                } catch (e) {
+                  // ignore
+                }
+                this.loading = false;
           },
           error: (err) => {
             console.error('Error cargando miembros:', err);

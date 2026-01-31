@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { TeamService } from '../../../services/team.service';
 import { Team, TeamMember, Player } from '../../../models/football.model';
+import { ActivatedRoute } from '@angular/router';
 
 @Component({
   selector: 'app-players',
@@ -445,6 +446,7 @@ import { Team, TeamMember, Player } from '../../../models/football.model';
 export class PlayersComponent implements OnInit {
   private teamService = inject(TeamService);
   private fb = inject(FormBuilder);
+  private route = inject(ActivatedRoute);
 
   players: Player[] = [];
   loading = false;
@@ -460,7 +462,39 @@ export class PlayersComponent implements OnInit {
   });
 
   ngOnInit(): void {
-    this.loadPlayers();
+    // If a teamId query param is provided, load members for that team
+    const qp = this.route.snapshot.queryParams;
+    const teamId = qp?.teamId ? Number(qp.teamId) : null;
+    const teamName = qp?.teamName ? String(qp.teamName) : '';
+    if (teamId && Number.isFinite(teamId)) {
+      this.loadPlayersForTeam(teamId, teamName);
+    } else {
+      this.loadPlayers();
+    }
+  }
+
+  private loadPlayersForTeam(teamId: number, teamName: string): void {
+    this.loading = true;
+    this.teamService.getMembers(teamId).subscribe({
+      next: (members: TeamMember[]) => {
+        // Map TeamMember to Player-like objects for display
+        this.players = (members || []).map((m: TeamMember) => ({
+          id: m.userInfo?.id ?? m.id,
+          firstName: m.userInfo?.firstName ?? m.userEmail ?? 'Usuario',
+          lastName: m.userInfo?.lastName ?? '',
+          photo: undefined,
+          teamId: m.teamId,
+          teamName: teamName || undefined,
+          position: 'MIDFIELDER' as any
+        } as Player));
+        this.loading = false;
+      },
+      error: (err) => {
+        console.error('Error loading team members:', err);
+        this.players = [];
+        this.loading = false;
+      }
+    });
   }
 
   loadPlayers(): void {

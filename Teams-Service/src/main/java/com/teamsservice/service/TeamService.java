@@ -170,14 +170,20 @@ public class TeamService {
 
         // Handle logo update if provided
         if (logo != null && !logo.isEmpty()) {
-            // Delete old logo if exists
-            if (team.getLogoPath() != null) {
-                fileStorageService.deleteTeamLogo(team.getLogoPath());
+            try {
+                // Delete old logo if exists
+                if (team.getLogoPath() != null) {
+                    fileStorageService.deleteTeamLogo(team.getLogoPath());
+                }
+
+                // Save new logo
+                String logoPath = fileStorageService.saveTeamLogo(logo, team.getId());
+                team.setLogoPath(logoPath);
+            } catch (IOException e) {
+                log.error("Error saving team logo for team {}: {}", team.getId(), e.getMessage(), e);
+                // Convert to IllegalStateException so GlobalExceptionHandler returns 503
+                throw new IllegalStateException("File storage unavailable");
             }
-            
-            // Save new logo
-            String logoPath = fileStorageService.saveTeamLogo(logo, team.getId());
-            team.setLogoPath(logoPath);
         }
 
         team = teamRepository.save(team);
