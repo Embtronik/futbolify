@@ -226,7 +226,7 @@ export class PollService {
       return (match as any).puedePronosticar;
     }
     const now = new Date();
-    const limitDate = new Date(match.fechaLimitePronostico);
+    const limitDate = this.parseDateAsUTC(match.fechaLimitePronostico);
     return now < limitDate;
   }
 
@@ -235,7 +235,7 @@ export class PollService {
    */
   getTimeUntilLimit(match: PollMatch): { hours: number; minutes: number; expired: boolean } {
     const now = new Date();
-    const limitDate = new Date(match.fechaLimitePronostico);
+    const limitDate = this.parseDateAsUTC(match.fechaLimitePronostico);
     const diff = limitDate.getTime() - now.getTime();
 
     if (diff <= 0) {
@@ -246,5 +246,39 @@ export class PollService {
     const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
 
     return { hours, minutes, expired: false };
+  }
+
+  /**
+   * Parse a date value that may come without timezone info and treat
+   * timezone-less ISO strings as UTC to avoid client-local interpretation.
+   */
+  private parseDateAsUTC(value: string | Date): Date {
+    if (value instanceof Date) {
+      return value;
+    }
+    if (typeof value !== 'string') {
+      return new Date(value as any);
+    }
+
+    // If the string already contains timezone info (Z or +hh:mm / -hh:mm), use native parsing
+    const tzRegex = /[zZ]|[+\-]\d{2}:?\d{2}$/;
+    if (tzRegex.test(value)) {
+      return new Date(value);
+    }
+
+    // Try to parse YYYY-MM-DDTHH:mm[:ss] and treat it as UTC
+    const m = value.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?$/);
+    if (m) {
+      const year = parseInt(m[1], 10);
+      const month = parseInt(m[2], 10) - 1;
+      const day = parseInt(m[3], 10);
+      const hour = parseInt(m[4], 10);
+      const minute = parseInt(m[5], 10);
+      const second = m[6] ? parseInt(m[6], 10) : 0;
+      return new Date(Date.UTC(year, month, day, hour, minute, second));
+    }
+
+    // Fallback to default parsing
+    return new Date(value);
   }
 }
