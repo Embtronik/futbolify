@@ -97,20 +97,8 @@ public class PollaMarcadorService {
             return toResponse(pollaId, partido, "DB", null);
         }
 
-        // NUEVA LÓGICA: Si la fecha/hora del partido ya pasó (más un margen de 2 horas), forzar sync aunque el status no sea final
-        if (partido.getFechaHoraPartido() != null) {
-            LocalDateTime now = LocalDateTime.now();
-            LocalDateTime matchEndEstimate = partido.getFechaHoraPartido().plusHours(2); // margen de 2 horas
-            if (now.isAfter(matchEndEstimate)) {
-                log.info("Forzando syncFromApi porque la fecha/hora del partido ya pasó ({} > {})", now, matchEndEstimate);
-                partido = syncFromApi(partido);
-                // Si después de sync el partido está finalizado, finalizar polla si corresponde
-                if (Boolean.TRUE.equals(partido.getPartidoFinalizado())) {
-                    finalizePollaIfAllMatchesFinished(pollaId);
-                }
-                return toResponse(pollaId, partido, "API-FORCED", null);
-            }
-        }
+        // NOTE: Do not force API sync based solely on stored DB date, as DB times may be desynchronized.
+        // Rely on TTL/lastApiSyncAt/apiStatusShort and on API-provided fixture date during syncFromApi.
 
         Duration ttl = determineTtl(partido.getApiStatusShort(), partido.getGolesLocal(), partido.getGolesVisitante());
 
@@ -233,7 +221,13 @@ public class PollaMarcadorService {
             partido.setGolesLocal(snapshot.getHomeGoals());
             partido.setGolesVisitante(snapshot.getAwayGoals());
         }
-        partido.setLastApiSyncAt(LocalDateTime.ofInstant(snapshot.getFetchedAt(), ZoneId.systemDefault()));
+        // Store last API sync as UTC LocalDateTime to keep consistency with frontend (Jackson assumes UTC)
+        partido.setLastApiSyncAt(LocalDateTime.ofInstant(snapshot.getFetchedAt(), java.time.ZoneOffset.UTC));
+
+        // If API provided the fixture date, update the stored match datetime (convert to UTC)
+        if (snapshot.getFixtureDate() != null) {
+            partido.setFechaHoraPartido(LocalDateTime.ofInstant(snapshot.getFixtureDate(), java.time.ZoneOffset.UTC));
+        }
 
         boolean finished = isFinishedStatus(snapshot.getStatusShort())
                 && snapshot.getHomeGoals() != null

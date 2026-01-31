@@ -15,6 +15,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
 
 import java.time.Instant;
+import java.time.OffsetDateTime;
 
 @Component
 public class ApiFootballClient {
@@ -82,7 +83,22 @@ public class ApiFootballClient {
         log.info("API-Football fixture={} status={} goals={} - {} took={}ms", fixtureId, statusShort, formatScore(home, away),
                 remaining != null ? ("rateRemaining=" + remaining) : "", tookMs);
 
-        return new FixtureSnapshot(fixtureId, statusShort, statusLong, home, away, Instant.now());
+        // Try to parse fixture date if API provided it
+        String fixtureDateStr = item.getFixture() != null ? item.getFixture().getDate() : null;
+        Instant fixtureInstant = null;
+        if (fixtureDateStr != null && !fixtureDateStr.isBlank()) {
+            try {
+                fixtureInstant = OffsetDateTime.parse(fixtureDateStr).toInstant();
+            } catch (Exception e) {
+                try {
+                    fixtureInstant = Instant.parse(fixtureDateStr);
+                } catch (Exception ex) {
+                    log.debug("Could not parse fixture date from API for fixture {}: {}", fixtureId, fixtureDateStr);
+                }
+            }
+        }
+
+        return new FixtureSnapshot(fixtureId, statusShort, statusLong, home, away, Instant.now(), fixtureInstant);
     }
 
     private static String formatScore(Integer home, Integer away) {
@@ -110,14 +126,20 @@ public class ApiFootballClient {
         private final Integer homeGoals;
         private final Integer awayGoals;
         private final Instant fetchedAt;
+        private final Instant fixtureDate;
 
-        public FixtureSnapshot(String fixtureId, String statusShort, String statusLong, Integer homeGoals, Integer awayGoals, Instant fetchedAt) {
+        public FixtureSnapshot(String fixtureId, String statusShort, String statusLong, Integer homeGoals, Integer awayGoals, Instant fetchedAt, Instant fixtureDate) {
             this.fixtureId = fixtureId;
             this.statusShort = statusShort;
             this.statusLong = statusLong;
             this.homeGoals = homeGoals;
             this.awayGoals = awayGoals;
             this.fetchedAt = fetchedAt;
+            this.fixtureDate = fixtureDate;
+        }
+
+        public Instant getFixtureDate() {
+            return fixtureDate;
         }
     }
 }

@@ -28,6 +28,8 @@ public final class ApiFootballModels {
     @JsonIgnoreProperties(ignoreUnknown = true)
     public static class Fixture {
         private Status status;
+        // ISO 8601 date/time provided by API-Football for the fixture (may include offset)
+        private String date;
     }
 
     @Data
