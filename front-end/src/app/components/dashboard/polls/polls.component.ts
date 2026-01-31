@@ -1444,9 +1444,11 @@ export class PollsComponent implements OnInit, AfterViewInit, OnDestroy {
     let addedCount = 0;
     let errorCount = 0;
     this.selectedFixtures.forEach((fixture, idx) => {
-      // Preserve full ISO timestamp (including 'Z' or offset) so backend
-      // and DB receive the exact instant. Avoid truncating timezone info.
-      const fechaHoraPartido = fixture.fixture.date;
+      let fechaHoraPartido = fixture.fixture.date;
+      if (fechaHoraPartido) {
+        // Preserve only date+time part and force Z to indicate UTC
+        fechaHoraPartido = fechaHoraPartido.substring(0, 19) + 'Z';
+      }
       const matchData: AddPollMatchRequest = {
         pollaId: this.selectedPoll!.id,
         idPartidoExterno: fixture.fixture.id.toString(),
