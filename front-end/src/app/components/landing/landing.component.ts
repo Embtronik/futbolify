@@ -1,6 +1,6 @@
 import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterLink } from '@angular/router';
+import { RouterLink, Router } from '@angular/router';
 
 @Component({
   selector: 'app-landing',
@@ -10,6 +10,7 @@ import { RouterLink } from '@angular/router';
   styleUrl: './landing.component.css'
 })
 export class LandingComponent {
+  constructor(private router: Router) {}
   features = [
     {
       icon: '👥',
@@ -61,5 +62,13 @@ export class LandingComponent {
     if (element) {
       element.scrollIntoView({ behavior: 'smooth' });
     }
+  }
+
+  navigateToLogin(): void {
+    this.router.navigate(['/auth/login']);
+  }
+
+  navigateToRegister(): void {
+    this.router.navigate(['/auth/register']);
   }
 }

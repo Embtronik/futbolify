@@ -891,6 +891,9 @@ export class PollsComponent implements OnInit, AfterViewInit, OnDestroy {
     this.resetStandingsState();
     // Restore body scroll when modal is closed
     try { document.body.style.overflow = ''; } catch (e) { /* ignore */ }
+    
+    // Recargar datos para mostrar el estado actualizado de las pollas
+    this.loadData();
   }
 
   setParticiparModalTab(tab: 'participar' | 'tabla'): void {

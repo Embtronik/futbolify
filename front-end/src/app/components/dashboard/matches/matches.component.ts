@@ -72,6 +72,7 @@ import { environment } from '../../../../environments/environment';
                 <span class="map-label">Ver mapa</span>
                 <img
                   [src]="getGoogleMapsStaticMapUrl(match)"
+                  (error)="onMapImageError($event)"
                   alt="Ubicación del partido en el mapa"
                 >
               </a>
@@ -1097,6 +1098,11 @@ export class MatchesComponent implements OnInit {
   }
 
   getGoogleMapsStaticMapUrl(match: TeamMatch): string {
+    // Si ya falló antes, retornar placeholder directamente
+    if (this.mapImageFailed) {
+      return 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="200" viewBox="0 0 400 200"%3E%3Crect fill="%23f0f0f0" width="400" height="200"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="16" fill="%23666"%3E📍 Haz clic para ver en Google Maps%3C/text%3E%3C/svg%3E';
+    }
+
     const base = 'https://maps.googleapis.com/maps/api/staticmap';
     let centerParam: string;
 
@@ -1117,6 +1123,15 @@ export class MatchesComponent implements OnInit {
     ].join('&');
 
     return `${base}?${params}`;
+  }
+
+  mapImageFailed = false;
+
+  onMapImageError(event: Event): void {
+    this.mapImageFailed = true;
+    const img = event.target as HTMLImageElement;
+    // Mostrar un placeholder SVG cuando falla la carga
+    img.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="200" viewBox="0 0 400 200"%3E%3Crect fill="%23f0f0f0" width="400" height="200"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="16" fill="%23666"%3E📍 Haz clic para ver en Google Maps%3C/text%3E%3C/svg%3E';
   }
 
   private loadAttendance(): void {

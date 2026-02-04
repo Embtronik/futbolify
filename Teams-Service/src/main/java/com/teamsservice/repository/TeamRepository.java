@@ -18,9 +18,18 @@ public interface TeamRepository extends JpaRepository<Team, Long> {
 
     Page<Team> findByOwnerUserIdAndStatus(Long ownerUserId, TeamStatus status, Pageable pageable);
     
+    // Queries por email (para usuarios OAuth2)
+    List<Team> findByOwnerEmailIgnoreCaseAndStatus(String ownerEmail, TeamStatus status);
+    
+    Page<Team> findByOwnerEmailIgnoreCaseAndStatus(String ownerEmail, TeamStatus status, Pageable pageable);
+    
     Optional<Team> findByIdAndOwnerUserIdAndStatus(Long id, Long ownerUserId, TeamStatus status);
     
+    Optional<Team> findByIdAndOwnerEmailIgnoreCaseAndStatus(Long id, String ownerEmail, TeamStatus status);
+    
     boolean existsByNameAndOwnerUserIdAndStatus(String name, Long ownerUserId, TeamStatus status);
+    
+    boolean existsByNameAndOwnerEmailIgnoreCaseAndStatus(String name, String ownerEmail, TeamStatus status);
     
     // Buscar equipo por código de unión (solo activos)
     Optional<Team> findByJoinCodeAndStatus(String joinCode, TeamStatus status);

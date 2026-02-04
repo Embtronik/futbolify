@@ -14,8 +14,8 @@
       </nav>
 
       <div class="header-actions">
-        <a routerLink="/auth/login" class="btn btn-secondary btn-sm">Inicia Sesión</a>
-        <a routerLink="/auth/register" class="btn btn-primary btn-sm">Regístrate</a>
+        <button (click)="navigateToLogin()" class="btn btn-secondary btn-sm">Inicia Sesión</button>
+        <button (click)="navigateToRegister()" class="btn btn-primary btn-sm">Regístrate</button>
       </div>
     </div>
   </header>

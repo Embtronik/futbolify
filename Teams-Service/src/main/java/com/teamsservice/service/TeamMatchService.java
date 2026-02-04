@@ -60,7 +60,9 @@ public class TeamMatchService {
         Team team = teamRepository.findByIdAndStatus(teamId, TeamStatus.ACTIVE)
                 .orElseThrow(() -> new ResourceNotFoundException("Team not found with id: " + teamId));
 
-        if (!team.getOwnerUserId().equals(currentUserId)) {
+        boolean isOwner = (currentUserId != null && currentUserId != 0L && team.getOwnerUserId() != null && team.getOwnerUserId().equals(currentUserId)) ||
+                          (currentUserEmail != null && team.getOwnerEmail() != null && team.getOwnerEmail().equalsIgnoreCase(currentUserEmail));
+        if (!isOwner) {
             throw new UnauthorizedException("Only team owner can create matches");
         }
 
@@ -93,16 +95,20 @@ public class TeamMatchService {
 	Team team = teamRepository.findByIdAndStatus(teamId, TeamStatus.ACTIVE)
                 .orElseThrow(() -> new ResourceNotFoundException("Team not found with id: " + teamId));
 
-        boolean isOwner = team.getOwnerUserId().equals(currentUserId);
+        boolean isOwner = (currentUserId != null && currentUserId != 0L && team.getOwnerUserId() != null && team.getOwnerUserId().equals(currentUserId)) ||
+                          (currentUserEmail != null && team.getOwnerEmail() != null && team.getOwnerEmail().equalsIgnoreCase(currentUserEmail));
         boolean isApprovedMember = false;
         if (!isOwner) {
-            if (currentUserId != null && currentUserId != 0L) {
+            // Buscar primero por email (más confiable para OAuth2)
+            if (currentUserEmail != null && !currentUserEmail.isEmpty()) {
+                isApprovedMember = teamMemberRepository.existsByTeamIdAndUserEmailAndStatus(
+                        teamId, currentUserEmail, TeamMember.MembershipStatus.APPROVED);
+            }
+            // Si no se encontró por email y hay userId válido, buscar por userId
+            if (!isApprovedMember && currentUserId != null && currentUserId != 0L) {
                 isApprovedMember = teamMemberRepository.findByTeamIdAndUserId(teamId, currentUserId)
                         .map(m -> m.getStatus() == TeamMember.MembershipStatus.APPROVED)
                         .orElse(false);
-            } else if (currentUserEmail != null) {
-                isApprovedMember = teamMemberRepository.existsByTeamIdAndUserEmailAndStatus(
-                        teamId, currentUserEmail, TeamMember.MembershipStatus.APPROVED);
             }
             if (!isApprovedMember) {
                 throw new UnauthorizedException("You are not a member of this team");
@@ -150,13 +156,24 @@ public class TeamMatchService {
 
         // Permitir ver la asistencia al owner o a cualquier miembro aprobado
         Team team = match.getTeam();
-        boolean isOwner = team.getOwnerUserId().equals(currentUserId);
-        boolean isApprovedMember = teamMemberRepository.findByTeamIdAndUserId(teamId, currentUserId)
-                .map(m -> m.getStatus() == TeamMember.MembershipStatus.APPROVED)
-                .orElse(false);
-
-        if (!isOwner && !isApprovedMember) {
-            throw new UnauthorizedException("You are not allowed to view attendance for this match");
+        boolean isOwner = (currentUserId != null && currentUserId != 0L && team.getOwnerUserId() != null && team.getOwnerUserId().equals(currentUserId)) ||
+                          (currentUserEmail != null && team.getOwnerEmail() != null && team.getOwnerEmail().equalsIgnoreCase(currentUserEmail));
+        boolean isApprovedMember = false;
+        if (!isOwner) {
+            // Buscar primero por email (más confiable para OAuth2)
+            if (currentUserEmail != null && !currentUserEmail.isEmpty()) {
+                isApprovedMember = teamMemberRepository.existsByTeamIdAndUserEmailAndStatus(
+                        teamId, currentUserEmail, TeamMember.MembershipStatus.APPROVED);
+            }
+            // Si no se encontró por email y hay userId válido, buscar por userId
+            if (!isApprovedMember && currentUserId != null && currentUserId != 0L) {
+                isApprovedMember = teamMemberRepository.findByTeamIdAndUserId(teamId, currentUserId)
+                        .map(m -> m.getStatus() == TeamMember.MembershipStatus.APPROVED)
+                        .orElse(false);
+            }
+            if (!isApprovedMember) {
+                throw new UnauthorizedException("You are not a member of this team");
+            }
         }
 
         List<TeamMember> members = teamMemberRepository.findApprovedMembersByTeamId(teamId);
@@ -274,7 +291,9 @@ public class TeamMatchService {
         }
 
         Team team = match.getTeam();
-        if (!team.getOwnerUserId().equals(currentUserId)) {
+        boolean isOwner = (currentUserId != null && currentUserId != 0L && team.getOwnerUserId() != null && team.getOwnerUserId().equals(currentUserId)) ||
+                          (currentUserEmail != null && team.getOwnerEmail() != null && team.getOwnerEmail().equalsIgnoreCase(currentUserEmail));
+        if (!isOwner) {
             throw new UnauthorizedException("Only team owner can manage attendance");
         }
 

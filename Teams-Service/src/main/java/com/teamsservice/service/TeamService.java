@@ -40,12 +40,36 @@ public class TeamService {
     private final JoinCodeGeneratorService joinCodeGeneratorService;
     private final TeamMemberRepository teamMemberRepository;
 
+    /**
+     * Método helper para buscar un equipo por ID verificando permisos (soporta userId o email)
+     */
+    private Team findTeamByIdAndOwner(Long teamId, Long userId, String userEmail) {
+        if (userEmail != null && !userEmail.isEmpty()) {
+            return teamRepository.findByIdAndOwnerEmailIgnoreCaseAndStatus(teamId, userEmail, TeamStatus.ACTIVE)
+                    .orElseThrow(() -> new ResourceNotFoundException("Team not found with id: " + teamId));
+        } else {
+            return teamRepository.findByIdAndOwnerUserIdAndStatus(teamId, userId, TeamStatus.ACTIVE)
+                    .orElseThrow(() -> new ResourceNotFoundException("Team not found with id: " + teamId));
+        }
+    }
+
+    /**
+     * Método helper para verificar si existe un equipo con el mismo nombre
+     */
+    private boolean existsByNameAndOwner(String name, Long userId, String userEmail) {
+        if (userEmail != null && !userEmail.isEmpty()) {
+            return teamRepository.existsByNameAndOwnerEmailIgnoreCaseAndStatus(name, userEmail, TeamStatus.ACTIVE);
+        } else {
+            return teamRepository.existsByNameAndOwnerUserIdAndStatus(name, userId, TeamStatus.ACTIVE);
+        }
+    }
+
     @Transactional
     public TeamResponse createTeam(TeamCreateRequest request, MultipartFile logo, Long userId, String userEmail) throws IOException {
-        log.info("Creating team for user: {}", userId);
+        log.info("Creating team for user: {} (email: {})", userId, userEmail);
 
         // Check for duplicate team name for this user (solo equipos activos)
-        if (teamRepository.existsByNameAndOwnerUserIdAndStatus(request.getName(), userId, TeamStatus.ACTIVE)) {
+        if (existsByNameAndOwner(request.getName(), userId, userEmail)) {
             throw new DuplicateResourceException("Team with name '" + request.getName() + "' already exists");
         }
 
@@ -104,18 +128,16 @@ public class TeamService {
     }
 
     @Transactional(readOnly = true)
-    public TeamResponse getTeam(Long teamId, Long userId) {
-        log.info("Getting team {} for user {}", teamId, userId);
+    public TeamResponse getTeam(Long teamId, Long userId, String userEmail) {
+        log.info("Getting team {} for user {} (email: {})", teamId, userId, userEmail);
         
-        Team team = teamRepository.findByIdAndOwnerUserIdAndStatus(teamId, userId, TeamStatus.ACTIVE)
-                .orElseThrow(() -> new ResourceNotFoundException("Team not found with id: " + teamId));
-
+        Team team = findTeamByIdAndOwner(teamId, userId, userEmail);
         return teamMapper.toResponse(team);
     }
 
     @Transactional(readOnly = true)
-    public PageResponse<TeamResponse> getUserTeams(Long userId, int page, int size) {
-        log.info("Getting teams (page={}, size={}) for user {}", page, size, userId);
+    public PageResponse<TeamResponse> getUserTeams(Long userId, String userEmail, int page, int size) {
+        log.info("Getting teams (page={}, size={}) for user {} (email: {})", page, size, userId, userEmail);
 
         if (size <= 0) {
             size = 10;
@@ -126,7 +148,15 @@ public class TeamService {
 
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
 
-        Page<Team> teamsPage = teamRepository.findByOwnerUserIdAndStatus(userId, TeamStatus.ACTIVE, pageable);
+        // Buscar por email (usuarios OAuth2) o por userId (usuarios legacy)
+        Page<Team> teamsPage;
+        if (userEmail != null && !userEmail.isEmpty()) {
+            teamsPage = teamRepository.findByOwnerEmailIgnoreCaseAndStatus(userEmail, TeamStatus.ACTIVE, pageable);
+            log.debug("Found {} teams by email", teamsPage.getTotalElements());
+        } else {
+            teamsPage = teamRepository.findByOwnerUserIdAndStatus(userId, TeamStatus.ACTIVE, pageable);
+            log.debug("Found {} teams by userId", teamsPage.getTotalElements());
+        }
 
         List<TeamResponse> content = teamsPage.getContent().stream()
                 .map(team -> {
@@ -148,17 +178,16 @@ public class TeamService {
     }
 
     @Transactional
-    public TeamResponse updateTeam(Long teamId, TeamUpdateRequest request, MultipartFile logo, Long userId) throws IOException {
-        log.info("Updating team {} for user {}", teamId, userId);
+    public TeamResponse updateTeam(Long teamId, TeamUpdateRequest request, MultipartFile logo, Long userId, String userEmail) throws IOException {
+        log.info("Updating team {} for user {} (email: {})", teamId, userId, userEmail);
 
-        Team team = teamRepository.findByIdAndOwnerUserIdAndStatus(teamId, userId, TeamStatus.ACTIVE)
-                .orElseThrow(() -> new ResourceNotFoundException("Team not found with id: " + teamId));
+        Team team = findTeamByIdAndOwner(teamId, userId, userEmail);
 
         // Update fields if provided
         if (request.getName() != null && !request.getName().isEmpty()) {
             // Check for duplicate name (excluding current team, solo activos)
             if (!team.getName().equals(request.getName()) && 
-                teamRepository.existsByNameAndOwnerUserIdAndStatus(request.getName(), userId, TeamStatus.ACTIVE)) {
+                existsByNameAndOwner(request.getName(), userId, userEmail)) {
                 throw new DuplicateResourceException("Team with name '" + request.getName() + "' already exists");
             }
             team.setName(request.getName());
@@ -202,11 +231,10 @@ public class TeamService {
     }
 
     @Transactional
-    public void deleteTeam(Long teamId, Long userId) {
-        log.info("Soft deleting team {} for user {}", teamId, userId);
+    public void deleteTeam(Long teamId, Long userId, String userEmail) {
+        log.info("Soft deleting team {} for user {} (email: {})", teamId, userId, userEmail);
 
-        Team team = teamRepository.findByIdAndOwnerUserIdAndStatus(teamId, userId, TeamStatus.ACTIVE)
-                .orElseThrow(() -> new ResourceNotFoundException("Team not found with id: " + teamId));
+        Team team = findTeamByIdAndOwner(teamId, userId, userEmail);
 
         // Soft delete: cambiar estado a DELETED y registrar fecha
         team.setStatus(TeamStatus.DELETED);

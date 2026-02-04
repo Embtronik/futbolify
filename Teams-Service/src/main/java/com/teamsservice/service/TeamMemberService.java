@@ -43,9 +43,9 @@ public class TeamMemberService {
                 .orElseThrow(() -> new ResourceNotFoundException("Team not found with code: " + request.getJoinCode()));
 
         // Verificar que el usuario no sea el propietario
-        // Para OAuth2 users (userId=0), comparar por email
-        boolean isOwner = (userId != 0 && team.getOwnerUserId().equals(userId)) ||
-                          (userId == 0 && team.getOwnerEmail().equalsIgnoreCase(normalizedEmail));
+        // Comparar por userId (si disponible) o por email
+        boolean isOwner = (userId != null && userId != 0L && team.getOwnerUserId() != null && team.getOwnerUserId().equals(userId)) ||
+                          (normalizedEmail != null && team.getOwnerEmail() != null && team.getOwnerEmail().equalsIgnoreCase(normalizedEmail));
         if (isOwner) {
             throw new IllegalArgumentException("You are already the owner of this team");
         }
@@ -81,7 +81,7 @@ public class TeamMemberService {
         Team team = teamRepository.findByIdAndStatus(teamId, TeamStatus.ACTIVE)
                 .orElseThrow(() -> new ResourceNotFoundException("Team not found with id: " + teamId));
 
-        boolean isOwner = (userId != null && team.getOwnerUserId().equals(userId)) ||
+        boolean isOwner = (userId != null && userId != 0L && team.getOwnerUserId() != null && team.getOwnerUserId().equals(userId)) ||
             (userEmail != null && team.getOwnerEmail() != null && team.getOwnerEmail().equalsIgnoreCase(userEmail));
         if (!isOwner) {
             throw new UnauthorizedException("Only team owner can view pending requests");
@@ -108,7 +108,7 @@ public class TeamMemberService {
         Team team = teamRepository.findByIdAndStatus(teamId, TeamStatus.ACTIVE)
                 .orElseThrow(() -> new ResourceNotFoundException("Team not found with id: " + teamId));
 
-        boolean isOwner = (userId != null && team.getOwnerUserId().equals(userId)) ||
+        boolean isOwner = (userId != null && userId != 0L && team.getOwnerUserId() != null && team.getOwnerUserId().equals(userId)) ||
             (userEmail != null && team.getOwnerEmail() != null && team.getOwnerEmail().equalsIgnoreCase(userEmail));
         if (!isOwner) {
             throw new UnauthorizedException("Only team owner can approve membership requests");
@@ -166,21 +166,26 @@ public class TeamMemberService {
             .orElseThrow(() -> new ResourceNotFoundException("Team not found with id: " + teamId));
 
         // Verificar que el usuario sea el propietario o miembro aprobado
-        boolean isOwner = (userId != null && team.getOwnerUserId().equals(userId)) ||
+        boolean isOwner = (userId != null && userId != 0L && team.getOwnerUserId() != null && team.getOwnerUserId().equals(userId)) ||
             (userEmail != null && team.getOwnerEmail() != null && team.getOwnerEmail().equalsIgnoreCase(userEmail));
         if (!isOwner) {
-            boolean isApprovedMember;
-            if (userId != null && userId != 0L) {
-            isApprovedMember = teamMemberRepository.findByTeamIdAndUserId(teamId, userId)
-                .map(m -> m.getStatus() == TeamMember.MembershipStatus.APPROVED)
-                .orElse(false);
-            } else {
-            isApprovedMember = userEmail != null && teamMemberRepository.existsByTeamIdAndUserEmailAndStatus(
-                teamId, userEmail, TeamMember.MembershipStatus.APPROVED);
+            boolean isApprovedMember = false;
+            
+            // Buscar primero por email (más confiable para OAuth2)
+            if (userEmail != null && !userEmail.isEmpty()) {
+                isApprovedMember = teamMemberRepository.existsByTeamIdAndUserEmailAndStatus(
+                    teamId, userEmail, TeamMember.MembershipStatus.APPROVED);
+            }
+            
+            // Si no se encontró por email y hay userId válido, buscar por userId
+            if (!isApprovedMember && userId != null && userId != 0L) {
+                isApprovedMember = teamMemberRepository.findByTeamIdAndUserId(teamId, userId)
+                    .map(m -> m.getStatus() == TeamMember.MembershipStatus.APPROVED)
+                    .orElse(false);
             }
 
             if (!isApprovedMember) {
-            throw new UnauthorizedException("You are not a member of this team");
+                throw new UnauthorizedException("You are not a member of this team");
             }
         }
 
@@ -197,13 +202,15 @@ public class TeamMemberService {
      */
     @Transactional(readOnly = true)
     public List<TeamMemberResponse> getUserMemberships(Long userId, String userEmail) {
-        log.info("Getting team memberships for user {}", userId);
+        log.info("Getting team memberships for user {} (email: {})", userId, userEmail);
 
         List<TeamMember> memberships;
-        if (userId != null && userId != 0L) {
-            memberships = teamMemberRepository.findApprovedTeamsByUserId(userId);
-        } else if (userEmail != null) {
+        // Buscar primero por email (más confiable para OAuth2)
+        if (userEmail != null && !userEmail.isEmpty()) {
             memberships = teamMemberRepository.findApprovedTeamsByUserEmail(userEmail);
+        } else if (userId != null && userId != 0L) {
+            // Fallback: buscar por userId solo si no hay email
+            memberships = teamMemberRepository.findApprovedTeamsByUserId(userId);
         } else {
             memberships = List.of();
         }
