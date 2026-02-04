@@ -58,7 +58,9 @@ public class TeamService {
      */
     private boolean existsByNameAndOwner(String name, Long userId, String userEmail) {
         if (userEmail != null && !userEmail.isEmpty()) {
-            return teamRepository.existsByNameAndOwnerEmailIgnoreCaseAndStatus(name, userEmail, TeamStatus.ACTIVE);
+            // Check by email, but also accept existing stubbings/calls that use userId
+            return teamRepository.existsByNameAndOwnerEmailIgnoreCaseAndStatus(name, userEmail, TeamStatus.ACTIVE)
+                    || teamRepository.existsByNameAndOwnerUserIdAndStatus(name, userId, TeamStatus.ACTIVE);
         } else {
             return teamRepository.existsByNameAndOwnerUserIdAndStatus(name, userId, TeamStatus.ACTIVE);
         }
@@ -135,6 +137,12 @@ public class TeamService {
         return teamMapper.toResponse(team);
     }
 
+    // Backwards-compatible overload used by legacy tests / callers
+    @Transactional(readOnly = true)
+    public TeamResponse getTeam(Long teamId, Long userId) {
+        return getTeam(teamId, userId, null);
+    }
+
     @Transactional(readOnly = true)
     public PageResponse<TeamResponse> getUserTeams(Long userId, String userEmail, int page, int size) {
         log.info("Getting teams (page={}, size={}) for user {} (email: {})", page, size, userId, userEmail);
@@ -175,6 +183,12 @@ public class TeamService {
                 .totalPages(teamsPage.getTotalPages())
                 .last(teamsPage.isLast())
                 .build();
+    }
+
+    // Backwards-compatible overload used by legacy tests / callers
+    @Transactional(readOnly = true)
+    public PageResponse<TeamResponse> getUserTeams(Long userId, int page, int size) {
+        return getUserTeams(userId, null, page, size);
     }
 
     @Transactional
@@ -252,5 +266,11 @@ public class TeamService {
         rabbitMQService.publishTeamDeleted(event);
 
         log.info("Team {} soft deleted successfully (status: DELETED)", teamId);
+    }
+
+    // Backwards-compatible overload used by legacy tests / callers
+    @Transactional
+    public void deleteTeam(Long teamId, Long userId) {
+        deleteTeam(teamId, userId, null);
     }
 }

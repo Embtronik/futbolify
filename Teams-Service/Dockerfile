@@ -11,8 +11,8 @@ RUN ["mvn", "-B", "-ntp", "dependency:go-offline"]
 
 # Copy source code and build
 COPY src ./src
-# Use maven.test.skip=true to skip test compilation and execution
-RUN ["mvn", "-B", "-ntp", "-Dmaven.test.skip=true", "clean", "package"]
+# Use -DskipTests to skip running tests during package (keeps test compilation)
+RUN ["mvn", "-B", "-ntp", "-DskipTests", "clean", "package"]
 
 # Runtime stage
 FROM eclipse-temurin:21-jre

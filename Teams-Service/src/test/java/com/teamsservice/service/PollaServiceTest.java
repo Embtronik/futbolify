@@ -48,6 +48,7 @@ public class PollaServiceTest {
                 .nombre("Creada")
                 .creadorEmail(userEmail)
                 .fechaInicio(LocalDateTime.now())
+                .createdAt(LocalDateTime.now())
                 .montoEntrada(new BigDecimal("10.00"))
                 .build();
 
@@ -57,6 +58,7 @@ public class PollaServiceTest {
                 .nombre("Participada")
                 .creadorEmail("otro@example.com")
                 .fechaInicio(LocalDateTime.now())
+                .createdAt(LocalDateTime.now().minusHours(1))
                 .montoEntrada(new BigDecimal("5.00"))
                 .build();
 
@@ -67,7 +69,9 @@ public class PollaServiceTest {
                 .nombre("PorGrupo")
                 .creadorEmail("otro2@example.com")
                 .fechaInicio(LocalDateTime.now())
+                .createdAt(LocalDateTime.now().minusHours(2))
                 .montoEntrada(new BigDecimal("2.00"))
+                .estado(Polla.PollaEstado.ABIERTA)
                 .gruposInvitados(List.of(grupo))
                 .build();
 
