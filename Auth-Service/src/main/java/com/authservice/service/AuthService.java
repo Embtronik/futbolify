@@ -151,6 +151,15 @@ public class AuthService {
     
     @Transactional
     public AuthResponse processOAuth2User(User user) {
+        // Auto-accept active terms for OAuth2 users
+        if (!termsService.hasAcceptedActiveTerms(user.getId())) {
+            var activeTerms = termsService.getActiveTermsEntity();
+            var acceptRequest = new com.authservice.dto.terms.AcceptTermsRequest();
+            acceptRequest.setTermsVersion(activeTerms.getVersion());
+            acceptRequest.setDataProcessingAccepted(true);
+            termsService.acceptTerms(user, acceptRequest);
+        }
+        
         return buildAuthResponse(user);
     }
     

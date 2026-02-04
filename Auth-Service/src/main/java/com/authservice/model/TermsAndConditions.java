@@ -23,7 +23,6 @@ public class TermsAndConditions {
     @Column(nullable = false, unique = true, length = 50)
     private String version;
 
-    @Lob
     @Column(nullable = false, columnDefinition = "TEXT")
     private String content;
 
