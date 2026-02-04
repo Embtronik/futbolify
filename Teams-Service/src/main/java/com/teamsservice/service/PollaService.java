@@ -123,19 +123,31 @@ public class PollaService {
             throw new BusinessRuleException("La lista de pronósticos no puede estar vacía");
         }
 
-        // Reutilizar la lógica existente para cada pronóstico
-        List<PronosticoResponse> responses = requests.stream()
-                .map(req -> registrarPronostico(pollaId, req, userEmail))
-                .collect(Collectors.toList());
+        // To avoid sending duplicate notifications, save all pronósticos in batch and
+        // run the completion check only once after all are persisted.
+        List<PollaPronostico> toSave = requests.stream().map(req -> {
+            PollaPronostico p = pronosticoRepository
+                    .findByPollaPartidoIdAndEmailParticipante(req.getPollaPartidoId(), userEmail)
+                    .orElse(PollaPronostico.builder()
+                            .pollaPartido(partidoRepository.findById(req.getPollaPartidoId()).orElseThrow(() -> new ResourceNotFoundException("Partido not found with id: " + req.getPollaPartidoId())))
+                            .emailParticipante(userEmail)
+                            .build());
 
-        // registrarPronostico already triggers completion check, but ensure a final check here too
+            p.setGolesLocalPronosticado(req.getGolesLocalPronosticado());
+            p.setGolesVisitante(req.getGolesVisitantePronosticado());
+            return p;
+        }).collect(Collectors.toList());
+
+        List<PollaPronostico> saved = pronosticoRepository.saveAll(toSave);
+
+        // After saving all, run completion check once
         try {
             checkAndNotifyIfCompleted(pollaId, userEmail);
         } catch (Exception e) {
             log.warn("Error while checking/completing notifications for {}: {}", userEmail, e.getMessage());
         }
 
-        return responses;
+        return saved.stream().map(this::mapPronosticoToResponse).collect(Collectors.toList());
     }
 
     /**
@@ -347,25 +359,12 @@ public class PollaService {
                 log.warn("Could not fetch creator info for {}: {}", creadorEmail, e.getMessage());
             }
 
-            StringBuilder bodyBuilder = new StringBuilder();
-            bodyBuilder.append("El participante ");
-            bodyBuilder.append(participantName != null ? participantName : userEmail);
-            bodyBuilder.append(" ha ingresado todos los resultados para la polla '");
-            bodyBuilder.append(polla.getNombre()).append("'.\n\n");
-            bodyBuilder.append("Resumen de marcadores ingresados:\n");
 
-            for (PollaPronostico p : pronosticos) {
-                PollaPartido partido = p.getPollaPartido();
-                bodyBuilder.append("- ");
-                bodyBuilder.append(partido.getEquipoLocal()).append(" vs ").append(partido.getEquipoVisitante());
-                bodyBuilder.append(" (externalId: ").append(partido.getIdPartidoExterno()).append(") : ");
-                bodyBuilder.append(p.getGolesLocalPronosticado()).append("-").append(p.getGolesVisitante());
-                bodyBuilder.append("\n");
-            }
+            // Build concise notifications (no detalles de marcadores) and notify via EMAIL, SMS, WHATSAPP
+            String body = "Has registrado tus pronósticos para la polla '" + polla.getNombre() + "'. Gracias por participar.";
+            String creatorBody = "El participante " + (participantName != null ? participantName : userEmail)
+                    + " ha registrado sus pronósticos en la polla '" + polla.getNombre() + "'.";
 
-            String body = bodyBuilder.toString();
-
-            // Prepare multi-channel notification: EMAIL, SMS, WHATSAPP
             List<String> channels = List.of("EMAIL", "SMS", "WHATSAPP");
 
             String participantPhone = null;
@@ -392,7 +391,7 @@ public class PollaService {
                 log.warn("Could not fetch creator phone for {}: {}", creadorEmail, e.getMessage());
             }
 
-            NotificationSendRequest toParticipant = NotificationSendRequest.builder()
+                NotificationSendRequest toParticipant = NotificationSendRequest.builder()
                     .channels(channels)
                     .recipient(userEmail)
                     .recipientPhone(participantPhone)
@@ -401,12 +400,12 @@ public class PollaService {
                     .serviceOrigin("teams-service")
                     .build();
 
-            NotificationSendRequest toCreator = NotificationSendRequest.builder()
+                NotificationSendRequest toCreator = NotificationSendRequest.builder()
                     .channels(channels)
                     .recipient(creadorEmail)
                     .recipientPhone(creatorPhone)
-                    .subject("El participante " + (participantName != null ? participantName : userEmail) + " completó pronósticos en " + polla.getNombre())
-                    .body("El participante " + (participantName != null ? participantName : userEmail) + " completó todos los pronósticos.\n\n" + body)
+                    .subject("Participante completó pronósticos en " + polla.getNombre())
+                    .body(creatorBody)
                     .serviceOrigin("teams-service")
                     .build();
 

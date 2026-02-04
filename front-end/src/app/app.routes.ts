@@ -15,6 +15,11 @@ export const routes: Routes = [
     loadComponent: () => import('./components/register/register.component').then(m => m.RegisterComponent)
   },
   {
+    path: 'terms',
+    canActivate: [authGuard],
+    loadComponent: () => import('./components/terms/terms.component').then(m => m.TermsComponent)
+  },
+  {
     path: 'oauth2/redirect',
     loadComponent: () => import('./components/oauth-redirect/oauth-redirect.component').then(m => m.OauthRedirectComponent)
   },

@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { Router, RouterLink, ActivatedRoute } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
+import { TermsService } from '../../services/terms.service';
 
 @Component({
   selector: 'app-login',
@@ -14,6 +15,7 @@ import { AuthService } from '../../services/auth.service';
 export class LoginComponent {
   private fb = inject(FormBuilder);
   private authService = inject(AuthService);
+  private termsService = inject(TermsService);
   private router = inject(Router);
   private route = inject(ActivatedRoute);
 
@@ -51,7 +53,25 @@ export class LoginComponent {
 
     this.authService.login(this.loginForm.value).subscribe({
       next: () => {
-        this.router.navigate([this.returnUrl], { replaceUrl: true });
+        // After login, verify terms acceptance
+        this.termsService.getMyStatus().subscribe({
+          next: (status) => {
+              if (status && status.accepted === false) {
+                // redirect to terms acceptance screen and pass required version if provided
+                const params: any = { returnUrl: this.returnUrl };
+                if ((status as any).requiredTermsVersion) {
+                  params.requiredTermsVersion = (status as any).requiredTermsVersion;
+                }
+                this.router.navigate(['/terms'], { queryParams: params });
+              } else {
+                this.router.navigate([this.returnUrl], { replaceUrl: true });
+              }
+          },
+          error: () => {
+            // If we can't determine, navigate to returnUrl
+            this.router.navigate([this.returnUrl], { replaceUrl: true });
+          }
+        });
       },
       error: (error) => {
         this.errorMessage = error.message || 'Error al iniciar sesión';

@@ -3,6 +3,7 @@ import { inject } from '@angular/core';
 import { AuthService } from '../services/auth.service';
 import { catchError, switchMap, throwError } from 'rxjs';
 import { HttpErrorResponse } from '@angular/common/http';
+import { Router } from '@angular/router';
 
 export const authInterceptor: HttpInterceptorFn = (req, next) => {
   const authService = inject(AuthService);
@@ -36,6 +37,7 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
 
   return next(authReq).pipe(
     catchError((error: HttpErrorResponse) => {
+      const router = inject(Router);
       // Si el error es 401 (no autorizado) y no es un endpoint de auth ni API externa
       if (error.status === 401 && !isAuthEndpoint && !isExternalApi) {
         // Intentar refrescar el token
@@ -58,6 +60,14 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
           })
         );
       }
+      // Si el backend devuelve 403 indicando que debe aceptar términos, redirigir
+      try {
+        const msg = (error.error && (error.error.message || error.error.error)) || '';
+        if (error.status === 403 && typeof msg === 'string' && msg.toLowerCase().includes('termin')) {
+          // Navigate to terms acceptance screen
+          router.navigate(['/terms']);
+        }
+      } catch (e) { /* ignore */ }
       
       return throwError(() => error);
     })

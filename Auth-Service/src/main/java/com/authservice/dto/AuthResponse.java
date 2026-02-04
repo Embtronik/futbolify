@@ -28,5 +28,20 @@ public class AuthResponse {
         private String lastName;
         private boolean emailVerified;
         private String provider;
+
+        /**
+         * True if the user has accepted the currently active terms version.
+         */
+        private boolean termsAccepted;
+
+        /**
+         * The currently active terms version required by the system.
+         */
+        private String requiredTermsVersion;
+
+        /**
+         * The latest accepted terms version (may differ from requiredTermsVersion).
+         */
+        private String acceptedTermsVersion;
     }
 }

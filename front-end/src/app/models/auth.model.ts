@@ -20,6 +20,9 @@ export interface RegisterRequest {
   lastName: string;
   countryCode: string;
   phoneNumber: string;
+  acceptTerms?: boolean;
+  dataProcessingAccepted?: boolean;
+  termsVersion?: string;
 }
 
 export interface RefreshTokenRequest {

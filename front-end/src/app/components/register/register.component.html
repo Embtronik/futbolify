@@ -165,6 +165,31 @@
           <span class="spinner"></span> Creando cuenta...
         </span>
       </button>
+
+      <div class="form-group terms-row">
+        <label class="terms-label">
+          <input type="checkbox" formControlName="acceptTerms" />
+          <span>Al crear tu cuenta aceptas el tratamiento de tus datos personales y el envío de notificaciones relacionadas con el uso de la plataforma.</span>
+        </label>
+        <a class="link-muted" href="#" (click)="openTermsModal(); $event.preventDefault()">Ver más información</a>
+        <div *ngIf="registerForm.get('acceptTerms')?.invalid && (registerForm.get('acceptTerms')?.touched || registerForm.touched)" class="error-message">Debes aceptar los términos antes de continuar.</div>
+      </div>
+
+      <!-- Terms modal -->
+      <div class="modal-backdrop" *ngIf="showTermsModal">
+        <div class="modal">
+          <div class="modal-header">
+            <h3>Términos y Condiciones (v{{ termsVersion }})</h3>
+            <button class="btn-close" (click)="closeTermsModal()">✕</button>
+          </div>
+          <div class="modal-body">
+            <div class="terms-content" [innerHTML]="termsContent"></div>
+          </div>
+          <div class="modal-footer">
+            <button class="btn btn-secondary" (click)="closeTermsModal()">Cerrar</button>
+          </div>
+        </div>
+      </div>
     </form>
 
     <div class="divider">

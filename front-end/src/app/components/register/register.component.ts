@@ -4,6 +4,7 @@ import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
+import { TermsService } from '../../services/terms.service';
 import { CountryService } from '../../services/country.service';
 import { CountryCode } from '../../models/country.model';
 
@@ -17,6 +18,7 @@ import { CountryCode } from '../../models/country.model';
 export class RegisterComponent {
   private fb = inject(FormBuilder);
   private authService = inject(AuthService);
+  private termsService = inject(TermsService);
   private countryService = inject(CountryService);
   private router = inject(Router);
   private route = inject(ActivatedRoute);
@@ -27,17 +29,33 @@ export class RegisterComponent {
   successMessage = '';
   countryCodes: CountryCode[] = [];
   loadingCountries = true;
+  // Terms state
+  termsVersion: string;
+  termsContent: string;
+  showTermsModal: boolean;
 
   constructor() {
     this.registerForm = this.fb.group({
       firstName: ['', [Validators.required, Validators.minLength(2)]],
       lastName: ['', [Validators.required, Validators.minLength(2)]],
       email: ['', [Validators.required, Validators.email]],
+      
       countryCode: ['+57', [Validators.required]], // Default Colombia
       phoneNumber: ['', [Validators.required, Validators.pattern(/^\d{7,15}$/)]],
+      acceptTerms: [false, [Validators.requiredTrue]],
       password: ['', [Validators.required, Validators.minLength(8), this.passwordValidator]],
       confirmPassword: ['', Validators.required]
     }, { validators: this.passwordMatchValidator });
+
+    // Terms-related state
+    this.termsVersion = '';
+    this.termsContent = '';
+    this.showTermsModal = false;
+    this.acceptTermsChecked = false;
+
+    // Load active terms (non-blocking; UI will still work)
+    this.loadActiveTerms();
+
 
     // Cargar códigos de país
     this.loadCountryCodes();
@@ -123,7 +141,21 @@ export class RegisterComponent {
     this.errorMessage = '';
     this.successMessage = '';
 
-    const { confirmPassword, ...registerData } = this.registerForm.value;
+    const { confirmPassword, ...formValues } = this.registerForm.value;
+
+    // Ensure acceptance flags are present and true (reactive form control)
+    if (!this.registerForm.get('acceptTerms')?.value) {
+      this.errorMessage = 'Debes aceptar los términos antes de continuar.';
+      this.loading = false;
+      return;
+    }
+
+    const registerData = {
+      ...formValues,
+      acceptTerms: true,
+      dataProcessingAccepted: true,
+      termsVersion: this.termsVersion || undefined
+    };
 
     this.authService.register(registerData).subscribe({
       next: () => {
@@ -145,6 +177,31 @@ export class RegisterComponent {
     });
   }
 
+  private loadActiveTerms(): void {
+    try {
+      this.termsService.getActiveTerms().subscribe({
+        next: (res) => {
+          this.termsVersion = res.version || '';
+          this.termsContent = res.content || '';
+        },
+        error: () => {
+          // ignore
+        }
+      });
+    } catch (e) {
+      // ignore
+    }
+  }
+
+  openTermsModal(): void {
+    this.showTermsModal = true;
+  }
+
+  closeTermsModal(): void {
+    this.showTermsModal = false;
+  }
+
+
   loginWithGoogle(): void {
     this.authService.loginWithGoogle();
   }
@@ -158,4 +215,5 @@ export class RegisterComponent {
     return this.registerForm.hasError(error) && 
            this.registerForm.get('confirmPassword')?.touched || false;
   }
-}
+
+  

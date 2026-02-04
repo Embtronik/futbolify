@@ -17,6 +17,7 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
@@ -32,15 +33,18 @@ import java.util.List;
 public class SecurityConfig {
     
     private final JwtAuthenticationFilter jwtAuthFilter;
+    private final TermsAcceptanceFilter termsAcceptanceFilter;
     private final UserRepository userRepository;
     private final CustomOAuth2UserService customOAuth2UserService;
     private final OAuth2AuthenticationSuccessHandler oauth2SuccessHandler;
     
     public SecurityConfig(@Lazy JwtAuthenticationFilter jwtAuthFilter,
+                         TermsAcceptanceFilter termsAcceptanceFilter,
                          UserRepository userRepository,
                          CustomOAuth2UserService customOAuth2UserService,
                          OAuth2AuthenticationSuccessHandler oauth2SuccessHandler) {
         this.jwtAuthFilter = jwtAuthFilter;
+        this.termsAcceptanceFilter = termsAcceptanceFilter;
         this.userRepository = userRepository;
         this.customOAuth2UserService = customOAuth2UserService;
         this.oauth2SuccessHandler = oauth2SuccessHandler;
@@ -63,6 +67,7 @@ public class SecurityConfig {
                                 "/actuator/info",
                                 "/error"
                         ).permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/terms/active", "/api/v1/terms/*").permitAll()
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session
@@ -75,7 +80,8 @@ public class SecurityConfig {
                         .successHandler(oauth2SuccessHandler)
                 )
                 .authenticationProvider(authenticationProvider())
-                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterAfter(termsAcceptanceFilter, JwtAuthenticationFilter.class);
         
         return http.build();
     }
