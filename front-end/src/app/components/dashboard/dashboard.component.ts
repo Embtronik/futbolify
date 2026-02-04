@@ -188,6 +188,7 @@ import { filter, Subscription } from 'rxjs';
       flex: 1;
       padding: 20px 0;
       overflow-y: auto;
+      min-height: 0;
     }
 
     .nav-item {
@@ -232,6 +233,7 @@ import { filter, Subscription } from 'rxjs';
     .sidebar-footer {
       border-top: 1px solid rgba(255, 255, 255, 0.1);
       padding: 20px 0;
+      flex-shrink: 0;
     }
 
     .logout-btn {
@@ -349,6 +351,7 @@ import { filter, Subscription } from 'rxjs';
         position: fixed;
         left: 0;
         top: 0;
+        height: 100dvh;
         height: 100vh;
         z-index: 1000;
         width: 280px;
