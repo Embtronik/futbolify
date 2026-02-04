@@ -33,6 +33,7 @@ export class RegisterComponent {
   termsVersion: string;
   termsContent: string;
   showTermsModal: boolean;
+  acceptTermsChecked: boolean;
 
   constructor() {
     this.registerForm = this.fb.group({
@@ -215,5 +216,4 @@ export class RegisterComponent {
     return this.registerForm.hasError(error) && 
            this.registerForm.get('confirmPassword')?.touched || false;
   }
-
-  
+}
