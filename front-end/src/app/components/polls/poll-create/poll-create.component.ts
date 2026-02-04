@@ -262,6 +262,10 @@ interface SelectedMatch {
                   class="form-control">
               </div>
 
+              <div class="match-counter-info" *ngIf="selectedMatches.length > 0">
+                ✅ Has agregado <strong>{{ selectedMatches.length }}</strong> partido{{ selectedMatches.length !== 1 ? 's' : '' }}
+              </div>
+
               <button 
                 type="button"
                 class="btn-add-match"
@@ -272,8 +276,22 @@ interface SelectedMatch {
             </div>
           </div>
 
+          <!-- Badge flotante con contador -->
+          <div class="floating-matches-badge" *ngIf="selectedMatches.length > 0" (click)="scrollToMatchesList()">
+            <div class="badge-content">
+              <span class="badge-icon">⚽</span>
+              <span class="badge-count">{{ selectedMatches.length }}</span>
+            </div>
+            <span class="badge-label">Ver partidos</span>
+          </div>
+
+          <!-- Animación de confirmación -->
+          <div class="match-added-animation" *ngIf="showMatchAddedAnimation">
+            ✅ ¡Partido agregado!
+          </div>
+
           <!-- Lista de Partidos Agregados -->
-          <div class="matches-list" *ngIf="selectedMatches.length > 0">
+          <div class="matches-list" #matchesList *ngIf="selectedMatches.length > 0">
             <h4>Partidos Agregados ({{ selectedMatches.length }})</h4>
             <div class="matches-grid">
               <div *ngFor="let match of selectedMatches; let i = index" class="match-item">
@@ -792,9 +810,126 @@ interface SelectedMatch {
       cursor: not-allowed;
     }
 
+    /* Contador de partidos antes del botón */
+    .match-counter-info {
+      padding: 0.75rem;
+      background: #d4edda;
+      border: 1px solid #c3e6cb;
+      border-radius: 6px;
+      color: #155724;
+      text-align: center;
+      font-size: 0.95rem;
+      margin: 0.5rem 0;
+    }
+
+    .match-counter-info strong {
+      font-size: 1.1rem;
+      color: #0f5132;
+    }
+
+    /* Badge flotante con contador de partidos */
+    .floating-matches-badge {
+      position: fixed;
+      bottom: 2rem;
+      right: 2rem;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border-radius: 50px;
+      padding: 0.75rem 1.5rem;
+      box-shadow: 0 4px 20px rgba(102, 126, 234, 0.4);
+      cursor: pointer;
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.25rem;
+      transition: all 0.3s ease;
+      animation: pulse 2s infinite;
+    }
+
+    .floating-matches-badge:hover {
+      transform: translateY(-4px) scale(1.05);
+      box-shadow: 0 6px 25px rgba(102, 126, 234, 0.6);
+    }
+
+    .badge-content {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .badge-icon {
+      font-size: 1.5rem;
+    }
+
+    .badge-count {
+      font-size: 1.5rem;
+      font-weight: 700;
+      background: white;
+      color: #667eea;
+      border-radius: 50%;
+      width: 36px;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .badge-label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      opacity: 0.9;
+    }
+
+    @keyframes pulse {
+      0%, 100% {
+        box-shadow: 0 4px 20px rgba(102, 126, 234, 0.4);
+      }
+      50% {
+        box-shadow: 0 4px 30px rgba(102, 126, 234, 0.7);
+      }
+    }
+
+    /* Animación de confirmación */
+    .match-added-animation {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: linear-gradient(135deg, #00b894 0%, #00a185 100%);
+      color: white;
+      padding: 1.5rem 2.5rem;
+      border-radius: 12px;
+      box-shadow: 0 8px 30px rgba(0, 184, 148, 0.5);
+      font-size: 1.2rem;
+      font-weight: 700;
+      z-index: 2000;
+      animation: fadeInOut 2s ease-in-out;
+    }
+
+    @keyframes fadeInOut {
+      0% {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(0.5);
+      }
+      20% {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1.1);
+      }
+      80% {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1);
+      }
+      100% {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(0.8);
+      }
+    }
+
     /* Matches List */
     .matches-list {
       margin-top: 2rem;
+      scroll-margin-top: 2rem;
     }
 
     .matches-grid {
@@ -1013,6 +1148,35 @@ interface SelectedMatch {
         padding: 1rem;
       }
 
+      .floating-matches-badge {
+        bottom: 1rem;
+        right: 1rem;
+        padding: 0.5rem 1rem;
+      }
+
+      .badge-icon {
+        font-size: 1.2rem;
+      }
+
+      .badge-count {
+        font-size: 1.2rem;
+        width: 30px;
+        height: 30px;
+      }
+
+      .badge-label {
+        font-size: 0.7rem;
+      }
+
+      .match-added-animation {
+        padding: 1rem 1.5rem;
+        font-size: 1rem;
+      }
+
+      .match-counter-info {
+        font-size: 0.9rem;
+      }
+
       .steps {
         flex-wrap: wrap;
       }
@@ -1092,6 +1256,7 @@ export class PollCreateComponent implements OnInit {
   selectedAwayTeam: FootballTeam | null = null;
   matchDateTime = '';
   selectedMatches: SelectedMatch[] = [];
+  showMatchAddedAnimation = false;
 
   constructor() {
     this.pollDetailsForm = this.fb.group({
@@ -1289,10 +1454,23 @@ export class PollCreateComponent implements OnInit {
 
     this.selectedMatches.push(match);
     
+    // Mostrar animación de confirmación
+    this.showMatchAddedAnimation = true;
+    setTimeout(() => {
+      this.showMatchAddedAnimation = false;
+    }, 2000);
+    
     // Reset selection
     this.selectedHomeTeam = null;
     this.selectedAwayTeam = null;
     this.matchDateTime = '';
+  }
+
+  scrollToMatchesList(): void {
+    const element = document.querySelector('.matches-list');
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
   }
 
   removeMatch(index: number): void {
