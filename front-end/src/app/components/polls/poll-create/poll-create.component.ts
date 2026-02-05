@@ -181,6 +181,47 @@ interface SelectedMatch {
         <!-- Paso 3: Agregar Partidos -->
         <div class="step-content" *ngIf="currentStep === 3">
           <h3>Agregar Partidos</h3>
+
+          <!-- Partidos Seleccionados - En la parte superior -->
+          <div class="selected-matches-showcase" *ngIf="selectedMatches.length > 0">
+            <div class="showcase-header">
+              <h4>⚽ Partidos Agregados ({{ selectedMatches.length }})</h4>
+              <p class="showcase-subtitle">Estos son los partidos que formarán parte de tu polla</p>
+            </div>
+            <div class="selected-matches-grid">
+              <div *ngFor="let match of selectedMatches; let i = index" class="selected-match-card">
+                <div class="match-number">#{i + 1}</div>
+                <div class="match-content">
+                  <div class="match-teams-display">
+                    <div class="team-display">
+                      <img [src]="match.logoLocal" [alt]="match.equipoLocal" *ngIf="match.logoLocal" class="team-logo">
+                      <span class="team-name">{{ match.equipoLocal }}</span>
+                    </div>
+                    <span class="vs-badge">VS</span>
+                    <div class="team-display">
+                      <img [src]="match.logoVisitante" [alt]="match.equipoVisitante" *ngIf="match.logoVisitante" class="team-logo">
+                      <span class="team-name">{{ match.equipoVisitante }}</span>
+                    </div>
+                  </div>
+                  <div class="match-datetime">
+                    📅 {{ formatMatchDate(match.fechaHoraPartido) }}
+                  </div>
+                </div>
+                <button type="button" class="btn-remove-match" (click)="removeMatch(i)" title="Eliminar partido">
+                  🗑️
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Mensaje cuando no hay partidos -->
+          <div class="no-matches-alert" *ngIf="selectedMatches.length === 0">
+            <div class="alert-icon">⚽</div>
+            <div class="alert-content">
+              <h4>Aún no has agregado partidos</h4>
+              <p>Usa el formulario de abajo para agregar los partidos que deseas incluir en tu polla</p>
+            </div>
+          </div>
           
           <!-- Búsqueda de Equipos -->
           <div class="match-search-section">
@@ -262,64 +303,21 @@ interface SelectedMatch {
                   class="form-control">
               </div>
 
-              <div class="match-counter-info" *ngIf="selectedMatches.length > 0">
-                ✅ Has agregado <strong>{{ selectedMatches.length }}</strong> partido{{ selectedMatches.length !== 1 ? 's' : '' }}
-              </div>
-
               <button 
                 type="button"
                 class="btn-add-match"
                 [disabled]="!canAddMatch()"
                 (click)="addMatch()">
-                + Agregar Partido
+                <span class="btn-icon">➕</span>
+                Agregar Partido a la Lista
               </button>
             </div>
           </div>
 
-          <!-- Badge flotante con contador -->
-          <div class="floating-matches-badge" *ngIf="selectedMatches.length > 0" (click)="scrollToMatchesList()">
-            <div class="badge-content">
-              <span class="badge-icon">⚽</span>
-              <span class="badge-count">{{ selectedMatches.length }}</span>
-            </div>
-            <span class="badge-label">Ver partidos</span>
-          </div>
-
           <!-- Animación de confirmación -->
-          <div class="match-added-animation" *ngIf="showMatchAddedAnimation">
-            ✅ ¡Partido agregado!
-          </div>
-
-          <!-- Lista de Partidos Agregados -->
-          <div class="matches-list" #matchesList *ngIf="selectedMatches.length > 0">
-            <h4>Partidos Agregados ({{ selectedMatches.length }})</h4>
-            <div class="matches-grid">
-              <div *ngFor="let match of selectedMatches; let i = index" class="match-item">
-                <div class="match-info">
-                  <div class="match-teams">
-                    <div class="team">
-                      <img [src]="match.logoLocal" [alt]="match.equipoLocal" *ngIf="match.logoLocal">
-                      <span>{{ match.equipoLocal }}</span>
-                    </div>
-                    <span class="vs">VS</span>
-                    <div class="team">
-                      <img [src]="match.logoVisitante" [alt]="match.equipoVisitante" *ngIf="match.logoVisitante">
-                      <span>{{ match.equipoVisitante }}</span>
-                    </div>
-                  </div>
-                  <div class="match-date">
-                    {{ formatMatchDate(match.fechaHoraPartido) }}
-                  </div>
-                </div>
-                <button type="button" class="btn-remove" (click)="removeMatch(i)">
-                  Eliminar
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <div class="warning" *ngIf="selectedMatches.length === 0">
-            Debes agregar al menos un partido para continuar
+          <div class="match-added-toast" *ngIf="showMatchAddedAnimation">
+            <span class="toast-icon">✅</span>
+            <span class="toast-text">¡Partido agregado exitosamente!</span>
           </div>
         </div>
 
@@ -655,6 +653,262 @@ interface SelectedMatch {
     /* Match Search */
     .match-search-section {
       margin-bottom: 2rem;
+    }
+
+    /* Partidos Seleccionados - Showcase en la parte superior */
+    .selected-matches-showcase {
+      margin-bottom: 2rem;
+      background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+      border: 2px solid #0ea5e9;
+      border-radius: 12px;
+      padding: 1.5rem;
+      animation: slideDown 0.3s ease-out;
+    }
+
+    @keyframes slideDown {
+      from {
+        opacity: 0;
+        transform: translateY(-20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .showcase-header {
+      margin-bottom: 1.5rem;
+      text-align: center;
+    }
+
+    .showcase-header h4 {
+      margin: 0 0 0.5rem 0;
+      color: #0369a1;
+      font-size: 1.4rem;
+      font-weight: 700;
+    }
+
+    .showcase-subtitle {
+      color: #64748b;
+      font-size: 0.95rem;
+      margin: 0;
+    }
+
+    .selected-matches-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 1rem;
+    }
+
+    .selected-match-card {
+      position: relative;
+      background: white;
+      border: 2px solid #0ea5e9;
+      border-radius: 10px;
+      padding: 1rem;
+      box-shadow: 0 2px 8px rgba(14, 165, 233, 0.15);
+      transition: all 0.3s ease;
+      animation: cardAppear 0.4s ease-out;
+    }
+
+    @keyframes cardAppear {
+      from {
+        opacity: 0;
+        transform: scale(0.9);
+      }
+      to {
+        opacity: 1;
+        transform: scale(1);
+      }
+    }
+
+    .selected-match-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 6px 16px rgba(14, 165, 233, 0.25);
+    }
+
+    .match-number {
+      position: absolute;
+      top: 0.5rem;
+      left: 0.5rem;
+      background: #0ea5e9;
+      color: white;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 0.85rem;
+    }
+
+    .match-content {
+      padding-top: 0.5rem;
+    }
+
+    .match-teams-display {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+    }
+
+    .team-display {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.5rem;
+      flex: 1;
+    }
+
+    .team-display .team-logo {
+      width: 48px;
+      height: 48px;
+      object-fit: contain;
+      border-radius: 8px;
+      background: #f8fafc;
+      padding: 4px;
+    }
+
+    .team-display .team-name {
+      font-weight: 600;
+      font-size: 0.9rem;
+      color: #1e293b;
+      text-align: center;
+      line-height: 1.2;
+    }
+
+    .vs-badge {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 0.4rem 0.8rem;
+      border-radius: 20px;
+      font-weight: 700;
+      font-size: 0.85rem;
+      box-shadow: 0 2px 6px rgba(102, 126, 234, 0.3);
+    }
+
+    .match-datetime {
+      text-align: center;
+      font-size: 0.9rem;
+      color: #64748b;
+      padding: 0.5rem;
+      background: #f8fafc;
+      border-radius: 6px;
+      margin-bottom: 0.5rem;
+    }
+
+    .btn-remove-match {
+      width: 100%;
+      padding: 0.5rem;
+      background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-remove-match:hover {
+      transform: scale(1.02);
+      box-shadow: 0 2px 8px rgba(239, 68, 68, 0.4);
+    }
+
+    /* Mensaje cuando no hay partidos */
+    .no-matches-alert {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+      background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+      border: 2px dashed #f59e0b;
+      border-radius: 12px;
+      margin-bottom: 2rem;
+    }
+
+    .alert-icon {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+      animation: bounce 2s infinite;
+    }
+
+    @keyframes bounce {
+      0%, 100% {
+        transform: translateY(0);
+      }
+      50% {
+        transform: translateY(-10px);
+      }
+    }
+
+    .alert-content h4 {
+      margin: 0 0 0.5rem 0;
+      color: #92400e;
+      font-size: 1.2rem;
+    }
+
+    .alert-content p {
+      margin: 0;
+      color: #b45309;
+      font-size: 0.95rem;
+    }
+
+    /* Toast de confirmación mejorado */
+    .match-added-toast {
+      position: fixed;
+      top: 2rem;
+      right: 2rem;
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+      color: white;
+      padding: 1rem 1.5rem;
+      border-radius: 10px;
+      box-shadow: 0 8px 24px rgba(16, 185, 129, 0.4);
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      z-index: 2000;
+      animation: toastSlideIn 0.3s ease-out, toastSlideOut 0.3s ease-in 2.2s;
+      animation-fill-mode: forwards;
+    }
+
+    @keyframes toastSlideIn {
+      from {
+        opacity: 0;
+        transform: translateX(100%);
+      }
+      to {
+        opacity: 1;
+        transform: translateX(0);
+      }
+    }
+
+    @keyframes toastSlideOut {
+      from {
+        opacity: 1;
+        transform: translateX(0);
+      }
+      to {
+        opacity: 0;
+        transform: translateX(100%);
+      }
+    }
+
+    .toast-icon {
+      font-size: 1.5rem;
+    }
+
+    .toast-text {
+      font-weight: 600;
+      font-size: 1rem;
+    }
+
+    .btn-add-match .btn-icon {
+      font-size: 1.2rem;
     }
 
     .search-options {
@@ -1148,6 +1402,41 @@ interface SelectedMatch {
         padding: 1rem;
       }
 
+      .selected-matches-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .match-added-toast {
+        top: 1rem;
+        right: 1rem;
+        left: 1rem;
+        padding: 0.75rem 1rem;
+      }
+
+      .toast-icon {
+        font-size: 1.2rem;
+      }
+
+      .toast-text {
+        font-size: 0.9rem;
+      }
+
+      .no-matches-alert {
+        padding: 1.5rem;
+      }
+
+      .alert-icon {
+        font-size: 2.5rem;
+      }
+
+      .alert-content h4 {
+        font-size: 1.1rem;
+      }
+
+      .alert-content p {
+        font-size: 0.9rem;
+      }
+
       .floating-matches-badge {
         bottom: 1rem;
         right: 1rem;
@@ -1458,12 +1747,22 @@ export class PollCreateComponent implements OnInit {
     this.showMatchAddedAnimation = true;
     setTimeout(() => {
       this.showMatchAddedAnimation = false;
-    }, 2000);
+    }, 2500);
+    
+    // Scroll suave a la parte superior donde están los partidos seleccionados
+    setTimeout(() => {
+      const element = document.querySelector('.selected-matches-showcase');
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }, 100);
     
     // Reset selection
     this.selectedHomeTeam = null;
     this.selectedAwayTeam = null;
     this.matchDateTime = '';
+    this.searchResults = [];
+    this.teamSearchTerm = '';
   }
 
   scrollToMatchesList(): void {

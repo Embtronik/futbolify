@@ -81,39 +81,49 @@ interface MatchWithPrediction {
             <!-- Pronóstico + marcador real -->
             <div class="scores-grid">
               <div class="pred-box">
-                <div class="pred-title">Tu pronóstico</div>
+                <div class="pred-title">🎯 Tu Pronóstico</div>
 
-                <div class="match-teams">
-                  <div class="team team-local">
-                    <span class="team-name">{{ item.match.equipoLocal }}</span>
-                    <div class="score-input">
+                <div class="prediction-input-area">
+                  <!-- Equipo Local -->
+                  <div class="team-prediction-card">
+                    <div class="team-label">Equipo Local</div>
+                    <div class="team-name-display">{{ item.match.equipoLocal }}</div>
+                    <div class="score-control">
+                      <label class="score-label">¿Cuántos goles?</label>
                       <input 
                         type="number" 
                         [(ngModel)]="item.golesLocal"
                         [disabled]="!item.canPredict"
                         min="0"
                         max="99"
-                        placeholder="-"
+                        placeholder="0"
                         (ngModelChange)="onPredictionChange(item)"
-                        class="score-field">
+                        inputmode="numeric"
+                        class="score-field-new">
                     </div>
                   </div>
 
-                  <div class="vs-separator">VS</div>
+                  <div class="vs-divider">
+                    <span class="vs-text">VS</span>
+                  </div>
 
-                  <div class="team team-visitante">
-                    <div class="score-input">
+                  <!-- Equipo Visitante -->
+                  <div class="team-prediction-card">
+                    <div class="team-label">Equipo Visitante</div>
+                    <div class="team-name-display">{{ item.match.equipoVisitante }}</div>
+                    <div class="score-control">
+                      <label class="score-label">¿Cuántos goles?</label>
                       <input 
                         type="number" 
                         [(ngModel)]="item.golesVisitante"
                         [disabled]="!item.canPredict"
                         min="0"
                         max="99"
-                        placeholder="-"
+                        placeholder="0"
                         (ngModelChange)="onPredictionChange(item)"
-                        class="score-field">
+                        inputmode="numeric"
+                        class="score-field-new">
                     </div>
-                    <span class="team-name">{{ item.match.equipoVisitante }}</span>
                   </div>
                 </div>
               </div>
@@ -386,15 +396,6 @@ interface MatchWithPrediction {
       color: #d63031;
     }
 
-    .match-teams {
-      display: grid;
-      grid-template-columns: 1fr auto 1fr;
-      gap: 2rem;
-      align-items: center;
-      margin-bottom: 0;
-      padding: 1rem;
-    }
-
     .scores-grid {
       display: grid;
       grid-template-columns: 1.15fr 0.85fr;
@@ -403,19 +404,151 @@ interface MatchWithPrediction {
     }
 
     .pred-box {
-      background: rgba(0, 184, 148, 0.06);
-      border: 1px solid rgba(0, 184, 148, 0.20);
-      border-radius: 12px;
+      background: linear-gradient(135deg, rgba(0, 184, 148, 0.08) 0%, rgba(0, 184, 148, 0.04) 100%);
+      border: 2px solid rgba(0, 184, 148, 0.25);
+      border-radius: 16px;
       overflow: hidden;
+      box-shadow: 0 4px 12px rgba(0, 184, 148, 0.1);
     }
 
     .pred-title {
       font-weight: 800;
-      font-size: 0.85rem;
+      font-size: 1rem;
       color: #065f46;
-      padding: 0.85rem 1rem;
-      background: rgba(0, 184, 148, 0.12);
-      border-bottom: 1px solid rgba(0, 184, 148, 0.20);
+      padding: 1rem 1.25rem;
+      background: linear-gradient(135deg, rgba(0, 184, 148, 0.15) 0%, rgba(0, 184, 148, 0.08) 100%);
+      border-bottom: 2px solid rgba(0, 184, 148, 0.25);
+      text-align: center;
+    }
+
+    .prediction-input-area {
+      padding: 1.5rem 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    .team-prediction-card {
+      background: white;
+      border: 2px solid rgba(102, 126, 234, 0.2);
+      border-radius: 12px;
+      padding: 1.25rem;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+      transition: all 0.2s;
+    }
+
+    .team-prediction-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+    }
+
+    .team-label {
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      color: #64748b;
+      letter-spacing: 0.5px;
+      margin-bottom: 0.5rem;
+    }
+
+    .team-name-display {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: #1e293b;
+      margin-bottom: 1rem;
+      text-align: center;
+      padding: 0.5rem;
+      background: rgba(102, 126, 234, 0.05);
+      border-radius: 8px;
+    }
+
+    .score-control {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      align-items: center;
+    }
+
+    .score-label {
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: #334155;
+      text-align: center;
+    }
+
+    .score-field-new {
+      width: 100%;
+      max-width: 140px;
+      height: 75px;
+      font-size: 3rem;
+      font-weight: 700;
+      text-align: center;
+      border: 3px solid #667eea;
+      border-radius: 16px;
+      background: white;
+      color: #1a1a1a;
+      transition: all 0.2s;
+      -webkit-appearance: none;
+      -moz-appearance: textfield;
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.1);
+    }
+
+    .score-field-new:focus {
+      outline: none;
+      border-color: #764ba2;
+      box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.2), 0 8px 20px rgba(102, 126, 234, 0.15);
+      transform: scale(1.03);
+    }
+
+    .score-field-new:disabled {
+      background: #f5f5f5;
+      border-color: #ddd;
+      color: #999;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+
+    .score-field-new::placeholder {
+      color: #cbd5e1;
+      font-size: 2.5rem;
+    }
+
+    .score-field-new::-webkit-inner-spin-button,
+    .score-field-new::-webkit-outer-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+
+    .vs-divider {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      margin: 0.5rem 0;
+    }
+
+    .vs-divider::before,
+    .vs-divider::after {
+      content: '';
+      flex: 1;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, rgba(102, 126, 234, 0.3), transparent);
+    }
+
+    .vs-text {
+      padding: 0 1rem;
+      font-size: 1.25rem;
+      font-weight: 900;
+      color: #667eea;
+      background: white;
+      border: 2px solid #667eea;
+      border-radius: 50%;
+      width: 48px;
+      height: 48px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 2px 8px rgba(102, 126, 234, 0.2);
     }
 
     .real-box {
@@ -665,24 +798,51 @@ interface MatchWithPrediction {
     }
 
     .btn-save {
-      padding: 0.75rem 1.5rem;
-      background: #667eea;
+      padding: 0.85rem 1.75rem;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
       color: white;
       border: none;
-      border-radius: 6px;
-      font-weight: 600;
+      border-radius: 10px;
+      font-weight: 700;
+      font-size: 1rem;
       cursor: pointer;
-      transition: all 0.2s;
+      transition: all 0.3s;
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
     }
 
     .btn-save:hover:not(:disabled) {
-      background: #5568d3;
+      background: linear-gradient(135deg, #5568d3 0%, #6941a0 100%);
       transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(102, 126, 234, 0.4);
+    }
+
+    .btn-save:active:not(:disabled) {
+      transform: translateY(0);
     }
 
     .btn-save:disabled {
       opacity: 0.5;
       cursor: not-allowed;
+      box-shadow: none;
+    }
+
+    .match-card.save-success {
+      animation: successPulse 0.6s ease-out;
+    }
+
+    @keyframes successPulse {
+      0% {
+        transform: scale(1);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      }
+      50% {
+        transform: scale(1.02);
+        box-shadow: 0 8px 24px rgba(0, 184, 148, 0.3);
+      }
+      100% {
+        transform: scale(1);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      }
     }
 
     .warning-message, .urgency-message {
@@ -770,23 +930,33 @@ interface MatchWithPrediction {
         grid-template-columns: 1fr;
       }
 
-      .match-teams {
-        grid-template-columns: 1fr;
+      .prediction-input-area {
+        padding: 1rem 0.75rem;
         gap: 1rem;
       }
 
-      .team {
-        flex-direction: column !important;
-        text-align: center;
+      .team-prediction-card {
+        padding: 1rem;
       }
 
-      .team-name {
-        text-align: center !important;
+      .team-name-display {
+        font-size: 1rem;
       }
 
-      .vs-separator {
-        transform: rotate(90deg);
-        margin: 0.5rem 0;
+      .score-field-new {
+        max-width: 120px;
+        height: 80px;
+        font-size: 3rem;
+      }
+
+      .score-label {
+        font-size: 0.95rem;
+      }
+
+      .vs-text {
+        width: 44px;
+        height: 44px;
+        font-size: 1.1rem;
       }
 
       .match-footer {
@@ -797,7 +967,25 @@ interface MatchWithPrediction {
 
       .btn-save {
         width: 100%;
+        padding: 1rem;
       }
+
+      .summary-stats {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .stat {
+        padding: 0.75rem;
+      }
+
+      .stat-value {
+        font-size: 1.5rem;
+      }
+
+      .stat-label {
+        font-size: 0.8rem;
+      }
+    }
 
       .summary-stats {
         grid-template-columns: repeat(2, 1fr);
@@ -1083,12 +1271,21 @@ export class PollPredictionsComponent implements OnInit, OnDestroy {
   }
 
   onPredictionChange(item: MatchWithPrediction): void {
-    // Validate input
-    if (item.golesLocal !== null && item.golesLocal < 0) {
-      item.golesLocal = 0;
+    // Validate and restrict to numeric values between 0-99
+    if (item.golesLocal !== null) {
+      if (item.golesLocal < 0) {
+        item.golesLocal = 0;
+      } else if (item.golesLocal > 99) {
+        item.golesLocal = 99;
+      }
     }
-    if (item.golesVisitante !== null && item.golesVisitante < 0) {
-      item.golesVisitante = 0;
+    
+    if (item.golesVisitante !== null) {
+      if (item.golesVisitante < 0) {
+        item.golesVisitante = 0;
+      } else if (item.golesVisitante > 99) {
+        item.golesVisitante = 99;
+      }
     }
   }
 
