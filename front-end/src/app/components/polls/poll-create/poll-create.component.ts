@@ -190,7 +190,7 @@ interface SelectedMatch {
             </div>
             <div class="selected-matches-grid">
               <div *ngFor="let match of selectedMatches; let i = index" class="selected-match-card">
-                <div class="match-number">#{i + 1}</div>
+                <div class="match-number">#{{ i + 1 }}</div>
                 <div class="match-content">
                   <div class="match-teams-display">
                     <div class="team-display">
