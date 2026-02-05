@@ -338,11 +338,11 @@ interface SelectedMatch {
                 <strong>Fecha de Inicio:</strong> {{ formatDate(pollDetailsForm.get('fechaInicio')?.value) }}
               </div>
               <div class="summary-item">
-                <strong>Monto de Entrada:</strong> <span>$</span><span>{{ pollDetailsForm.get('montoEntrada')?.value | number }}</span>
+                <strong>Monto de Entrada:</strong> ${{ pollDetailsForm.get('montoEntrada')?.value | number }}
               </div>
               <div class="summary-item prize-info">
-                <strong>💰 Premio Total Estimado:</strong> <span>$</span><span>{{ getTotalPrize() | number }}</span>
-                <small class="prize-note">{{ selectedEmails.size }} participantes x <span>$</span><span>{{ pollDetailsForm.get('montoEntrada')?.value | number }}</span></small>
+                <strong>💰 Premio Total Estimado:</strong> ${{ getTotalPrize() | number }}
+                <small class="prize-note">{{ selectedEmails.size }} participantes x ${{ pollDetailsForm.get('montoEntrada')?.value | number }}</small>
               </div>
             </div>
 

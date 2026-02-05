@@ -96,7 +96,7 @@ import { Poll, PollParticipant } from '../../../models/football.model';
               </div>
               <div class="detail-item">
                 <span class="icon">👥</span>
-                <span>{{ poll.participantesCount || 0 }} participantes</span>
+                <span>{{ getParticipantsCount(poll) }} participantes</span>
               </div>
             </div>
 
@@ -558,12 +558,42 @@ export class PollsListComponent implements OnInit {
     this.pollService.getMyPolls().subscribe({
       next: (polls) => {
         this.allPolls = polls;
+        // Cargar participantes para cada polla
+        polls.forEach(poll => {
+          if (poll.id) {
+            this.loadPollParticipants(poll.id);
+          }
+        });
         this.separatePolls(polls);
         this.loading = false;
       },
       error: (err) => {
         console.error('Error loading polls:', err);
         this.loading = false;
+      }
+    });
+  }
+
+  loadPollParticipants(pollId: number): void {
+    this.pollService.getParticipants(pollId).subscribe({
+      next: (participants) => {
+        // Actualizar el poll con la información de participantes
+        const poll = this.allPolls.find(p => p.id === pollId);
+        if (poll) {
+          poll.participantes = participants;
+          // Actualizar también en las listas separadas
+          const createdPoll = this.createdPolls.find(p => p.id === pollId);
+          if (createdPoll) {
+            createdPoll.participantes = participants;
+          }
+          const joinedPoll = this.joinedPolls.find(p => p.id === pollId);
+          if (joinedPoll) {
+            joinedPoll.participantes = participants;
+          }
+        }
+      },
+      error: (err) => {
+        console.error(`Error loading participants for poll ${pollId}:`, err);
       }
     });
   }
@@ -653,6 +683,14 @@ export class PollsListComponent implements OnInit {
       'FINALIZADA': 'Finalizada'
     };
     return labels[estado] || estado;
+  }
+
+  getParticipantsCount(poll: Poll): number {
+    // Prioridad: contar participantes aceptados del array, luego totalParticipantes, luego participantesCount
+    if (poll.participantes && Array.isArray(poll.participantes)) {
+      return poll.participantes.filter(p => p.estado === 'ACEPTADO').length;
+    }
+    return poll.totalParticipantes || poll.participantesCount || 0;
   }
 
   formatDate(dateString: string | Date): string {
