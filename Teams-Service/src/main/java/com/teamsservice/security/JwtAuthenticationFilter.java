@@ -51,9 +51,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 String email = tokenProvider.getEmailFromToken(jwt);
                 List<GrantedAuthority> authorities = tokenProvider.getAuthoritiesFromToken(jwt);
 
+                log.info("Processing JWT - userId: {}, email: {}, authorities: {}", 
+                    userId, email != null ? email : "NULL", 
+                    authorities != null ? authorities.size() : 0);
+
                 // Validar que el email no sea null o vacío - es requerido para autorización
                 if (!StringUtils.hasText(email)) {
-                    log.error("JWT token is missing email claim - authentication rejected");
+                    log.error("JWT token is missing email claim and subject - authentication rejected. Token starts with: {}...", 
+                        jwt.substring(0, Math.min(30, jwt.length())));
                     filterChain.doFilter(request, response);
                     return;
                 }
@@ -64,7 +69,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     Long derived = deriveStableUserIdFromEmail(email);
                     if (derived != null) {
                         userId = derived;
-                        log.warn("No userId in token; derived stable userId from email. Email: {}", email);
+                        log.info("No userId in token; derived stable userId from email. Email: {}, userId: {}", email, derived);
                     } else {
                         userId = 0L;
                         log.warn("No userId in token; using fallback userId=0. Email: {}", email);

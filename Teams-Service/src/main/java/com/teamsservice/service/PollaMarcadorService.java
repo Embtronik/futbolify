@@ -6,6 +6,8 @@ import com.teamsservice.entity.Polla;
 import com.teamsservice.entity.PollaPartido;
 import com.teamsservice.entity.PollaPuntajePartido;
 import com.teamsservice.entity.PollaPronostico;
+import com.teamsservice.entity.Team;
+import com.teamsservice.entity.TeamMember;
 import com.teamsservice.exception.ResourceNotFoundException;
 import com.teamsservice.exception.UnauthorizedException;
 import com.teamsservice.repository.PollaPartidoRepository;
@@ -13,6 +15,7 @@ import com.teamsservice.repository.PollaParticipanteRepository;
 import com.teamsservice.repository.PollaPuntajePartidoRepository;
 import com.teamsservice.repository.PollaPronosticoRepository;
 import com.teamsservice.repository.PollaRepository;
+import com.teamsservice.repository.TeamMemberRepository;
 import com.teamsservice.service.apifootball.ApiFootballClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -43,6 +46,7 @@ public class PollaMarcadorService {
     private final PollaPuntajePartidoRepository puntajePartidoRepository;
     private final ApiFootballClient apiFootballClient;
     private final PollaScoringProperties scoringProperties;
+    private final TeamMemberRepository teamMemberRepository;
 
     private final JdbcTemplate jdbcTemplate;
     private final DataSource dataSource;
@@ -55,6 +59,7 @@ public class PollaMarcadorService {
             PollaPuntajePartidoRepository puntajePartidoRepository,
             ApiFootballClient apiFootballClient,
             PollaScoringProperties scoringProperties,
+            TeamMemberRepository teamMemberRepository,
             JdbcTemplate jdbcTemplate,
             DataSource dataSource
     ) {
@@ -65,6 +70,7 @@ public class PollaMarcadorService {
         this.puntajePartidoRepository = puntajePartidoRepository;
         this.apiFootballClient = apiFootballClient;
         this.scoringProperties = scoringProperties;
+        this.teamMemberRepository = teamMemberRepository;
         this.jdbcTemplate = jdbcTemplate;
         this.dataSource = dataSource;
     }
@@ -73,14 +79,34 @@ public class PollaMarcadorService {
     public PartidoMarcadorResponse getMarcador(Long pollaId, Long partidoId, String userEmail, boolean forceApi) {
         // Validar que userEmail no sea null o vacío
         if (!StringUtils.hasText(userEmail)) {
+            log.error("getMarcador called with null or empty userEmail for pollaId: {}, partidoId: {}", pollaId, partidoId);
             throw new UnauthorizedException("Email de usuario no válido en el contexto de autenticación");
         }
+
+        log.info("getMarcador - pollaId: {}, partidoId: {}, userEmail: {}, forceApi: {}", 
+            pollaId, partidoId, userEmail, forceApi);
 
         Polla polla = pollaRepository.findByIdAndDeletedAtIsNull(pollaId)
                 .orElseThrow(() -> new ResourceNotFoundException("Polla not found with id: " + pollaId));
 
-        if (!polla.getCreadorEmail().equalsIgnoreCase(userEmail)
-                && !participanteRepository.existsByPollaIdAndEmailUsuario(pollaId, userEmail)) {
+        boolean isCreator = polla.getCreadorEmail().equalsIgnoreCase(userEmail);
+        boolean isParticipant = participanteRepository.existsByPollaIdAndEmailUsuario(pollaId, userEmail);
+        
+        // Verificar si es miembro aprobado de algún grupo invitado
+        boolean isApprovedMemberOfInvitedGroup = false;
+        if (polla.getGruposInvitados() != null && !polla.getGruposInvitados().isEmpty()) {
+            List<Long> gruposIds = polla.getGruposInvitados().stream()
+                .map(Team::getId)
+                .toList();
+            isApprovedMemberOfInvitedGroup = teamMemberRepository.existsByTeamIdInAndUserEmailAndStatus(
+                gruposIds, userEmail, TeamMember.MembershipStatus.APPROVED);
+        }
+        
+        log.info("Access check - creadorEmail: {}, userEmail: {}, isCreator: {}, isParticipant: {}, isApprovedMember: {}",
+            polla.getCreadorEmail(), userEmail, isCreator, isParticipant, isApprovedMemberOfInvitedGroup);
+
+        if (!isCreator && !isParticipant && !isApprovedMemberOfInvitedGroup) {
+            log.error("Access denied for user {} to polla {}", userEmail, pollaId);
             throw new UnauthorizedException("No tienes acceso a esta polla");
         }
 
