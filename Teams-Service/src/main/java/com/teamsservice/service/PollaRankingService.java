@@ -17,6 +17,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -63,6 +64,11 @@ public class PollaRankingService {
      */
     @Transactional
     public PollaRankingResponse getRanking(Long pollaId, String userEmail) {
+        // Validar que userEmail no sea null o vacío
+        if (!StringUtils.hasText(userEmail)) {
+            throw new UnauthorizedException("Email de usuario no válido en el contexto de autenticación");
+        }
+
         Polla polla = pollaRepository.findByIdAndDeletedAtIsNull(pollaId)
                 .orElseThrow(() -> new ResourceNotFoundException("Polla not found with id: " + pollaId));
 

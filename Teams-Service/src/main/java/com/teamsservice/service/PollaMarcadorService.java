@@ -19,6 +19,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
@@ -70,6 +71,11 @@ public class PollaMarcadorService {
 
     @Transactional
     public PartidoMarcadorResponse getMarcador(Long pollaId, Long partidoId, String userEmail, boolean forceApi) {
+        // Validar que userEmail no sea null o vacío
+        if (!StringUtils.hasText(userEmail)) {
+            throw new UnauthorizedException("Email de usuario no válido en el contexto de autenticación");
+        }
+
         Polla polla = pollaRepository.findByIdAndDeletedAtIsNull(pollaId)
                 .orElseThrow(() -> new ResourceNotFoundException("Polla not found with id: " + pollaId));
 

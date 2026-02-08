@@ -540,6 +540,9 @@ public class PollaService {
                         .collect(Collectors.toList())
                 : java.util.Collections.emptyList();
 
+        // Contar participantes reales: solo aquellos que han agregado al menos un pronóstico
+        long totalParticipantesReales = pronosticoRepository.countUniqueParticipantsByPollaId(polla.getId());
+
         return PollaResponse.builder()
                 .id(polla.getId())
                 .nombre(polla.getNombre())
@@ -547,7 +550,7 @@ public class PollaService {
                 .creadorEmail(polla.getCreadorEmail())
                 .fechaInicio(polla.getFechaInicio())
                 .montoEntrada(polla.getMontoEntrada())
-                .totalParticipantes(polla.getParticipantes() != null ? polla.getParticipantes().size() : 0)
+                .totalParticipantes((int) totalParticipantesReales)
                 .totalPartidos(polla.getPartidos() != null ? polla.getPartidos().size() : 0)
                 .participantes(participantesResponse)
                 .partidos(partidosResponse)

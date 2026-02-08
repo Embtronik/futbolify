@@ -51,6 +51,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 String email = tokenProvider.getEmailFromToken(jwt);
                 List<GrantedAuthority> authorities = tokenProvider.getAuthoritiesFromToken(jwt);
 
+                // Validar que el email no sea null o vacío - es requerido para autorización
+                if (!StringUtils.hasText(email)) {
+                    log.error("JWT token is missing email claim - authentication rejected");
+                    filterChain.doFilter(request, response);
+                    return;
+                }
+
                 // OAuth tokens may not include a numeric userId.
                 // To avoid collisions (many users would become userId=0) we derive a stable per-email id.
                 if (userId == null || userId == 0L) {
@@ -60,7 +67,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                         log.warn("No userId in token; derived stable userId from email. Email: {}", email);
                     } else {
                         userId = 0L;
-                        log.warn("No userId and no email in token; using placeholder userId=0");
+                        log.warn("No userId in token; using fallback userId=0. Email: {}", email);
                     }
                 }
 
