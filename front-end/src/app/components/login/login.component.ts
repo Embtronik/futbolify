@@ -22,6 +22,7 @@ export class LoginComponent {
   loginForm: FormGroup;
   loading = false;
   errorMessage = '';
+  sessionExpired = false;
   returnUrl = '/dashboard';
 
   constructor() {
@@ -32,6 +33,9 @@ export class LoginComponent {
 
     // Obtener la URL de retorno si existe
     this.returnUrl = this.route.snapshot.queryParams['returnUrl'] || '/dashboard';
+    
+    // Verificar si la sesión expiró
+    this.sessionExpired = this.route.snapshot.queryParams['expired'] === 'true';
   }
 
   get email() {

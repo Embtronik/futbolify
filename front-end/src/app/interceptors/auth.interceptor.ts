@@ -54,8 +54,12 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
             return next(retryReq);
           }),
           catchError((refreshError) => {
-            // Si falla el refresh, cerrar sesión
+            // Si falla el refresh, cerrar sesión y redirigir al login
             authService.logout();
+            router.navigate(['/login'], { 
+              queryParams: { expired: 'true' },
+              replaceUrl: true 
+            });
             return throwError(() => refreshError);
           })
         );

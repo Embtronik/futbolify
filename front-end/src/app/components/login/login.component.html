@@ -9,6 +9,10 @@
       <p>Accede a tu cuenta para gestionar tus equipos</p>
     </div>
 
+    <div *ngIf="sessionExpired" class="alert alert-warning">
+      ⚠️ Tu sesión ha expirado. Por favor, inicia sesión nuevamente.
+    </div>
+
     <div *ngIf="errorMessage" class="alert alert-danger">
       {{ errorMessage }}
     </div>

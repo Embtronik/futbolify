@@ -149,6 +149,12 @@ body {
   border: 1px solid var(--danger-color);
 }
 
+.alert-warning {
+  background-color: #fff8e1;
+  color: #f57c00;
+  border: 1px solid #ffb74d;
+}
+
 .alert-success {
   background-color: #efe;
   color: var(--secondary-color);

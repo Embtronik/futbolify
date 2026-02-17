@@ -81,9 +81,13 @@ interface SelectedMatch {
                   id="fechaInicio"
                   type="datetime-local" 
                   formControlName="fechaInicio"
+                  [min]="minDateTime"
                   class="form-control">
-                <span class="error" *ngIf="pollDetailsForm.get('fechaInicio')?.invalid && pollDetailsForm.get('fechaInicio')?.touched">
+                <span class="error" *ngIf="pollDetailsForm.get('fechaInicio')?.hasError('required') && pollDetailsForm.get('fechaInicio')?.touched">
                   La fecha es requerida
+                </span>
+                <span class="error" *ngIf="pollDetailsForm.get('fechaInicio')?.hasError('futureDate') && pollDetailsForm.get('fechaInicio')?.touched">
+                  La fecha debe ser posterior a la fecha y hora actual
                 </span>
               </div>
 
@@ -1528,6 +1532,7 @@ export class PollCreateComponent implements OnInit {
 
   // Step 1: Poll Details
   pollDetailsForm: FormGroup;
+  minDateTime: string = '';
 
   // Step 2: Groups and Members
   teams: Team[] = [];
@@ -1551,7 +1556,7 @@ export class PollCreateComponent implements OnInit {
     this.pollDetailsForm = this.fb.group({
       nombre: ['', Validators.required],
       descripcion: [''],
-      fechaInicio: ['', Validators.required],
+      fechaInicio: ['', [Validators.required, this.futureDateValidator]],
       montoEntrada: ['', [Validators.required, Validators.min(1)]]
     });
   }
@@ -1560,9 +1565,10 @@ export class PollCreateComponent implements OnInit {
     this.loadTeams();
     this.loadLeagues();
     
-    // Set default start date to now
+    // Set default start date to now and minimum datetime
     const now = new Date();
     const formattedDate = now.toISOString().slice(0, 16);
+    this.minDateTime = formattedDate;
     this.pollDetailsForm.patchValue({ fechaInicio: formattedDate });
   }
 
@@ -1595,6 +1601,22 @@ export class PollCreateComponent implements OnInit {
       },
       error: (err) => console.error('Error loading leagues:', err)
     });
+  }
+
+  // Custom validator for future dates
+  futureDateValidator(control: any): {[key: string]: any} | null {
+    if (!control.value) {
+      return null;
+    }
+    
+    const selectedDate = new Date(control.value);
+    const now = new Date();
+    
+    if (selectedDate <= now) {
+      return { futureDate: true };
+    }
+    
+    return null;
   }
 
   // Step Navigation
