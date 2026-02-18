@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { BehaviorSubject, Observable, throwError } from 'rxjs';
-import { tap, catchError, map } from 'rxjs/operators';
+import { tap, catchError, map, shareReplay, finalize } from 'rxjs/operators';
 import { Router } from '@angular/router';
 import { AuthResponse, LoginRequest, RegisterRequest, RefreshTokenRequest } from '../models/auth.model';
 import { User, UpdateUserRequest, ChangePasswordRequest } from '../models/user.model';
@@ -22,6 +22,10 @@ export class AuthService {
   
   private isAuthenticatedSubject = new BehaviorSubject<boolean>(this.hasValidToken());
   public isAuthenticated$ = this.isAuthenticatedSubject.asObservable();
+  
+  // Para evitar múltiples refreshes simultáneos
+  private refreshTokenInProgress = false;
+  private refreshTokenSubject: Observable<AuthResponse> | null = null;
 
   constructor() {
     // Verificar si el token ha expirado al iniciar
@@ -77,24 +81,43 @@ export class AuthService {
 
   /**
    * Refrescar el access token usando el refresh token
+   * Implementa patrón compartido para evitar múltiples refreshes simultáneos
    */
   refreshToken(): Observable<AuthResponse> {
+    // Si ya hay un refresh en progreso, retornar el Observable compartido
+    if (this.refreshTokenInProgress && this.refreshTokenSubject) {
+      return this.refreshTokenSubject;
+    }
+
     const refreshToken = this.getRefreshToken();
     
     if (!refreshToken) {
       return throwError(() => new Error('No refresh token available'));
     }
 
+    // Marcar que el refresh está en progreso
+    this.refreshTokenInProgress = true;
+
     const request: RefreshTokenRequest = { refreshToken };
     
-    return this.http.post<AuthResponse>(`${this.API_URL}/auth/refresh-token`, request)
+    // Crear Observable compartido para todos los suscriptores
+    this.refreshTokenSubject = this.http.post<AuthResponse>(`${this.API_URL}/auth/refresh-token`, request)
       .pipe(
         tap(response => this.handleAuthSuccess(response)),
         catchError(error => {
-          this.logout();
+          console.error('❌ Refresh token failed:', error);
+          // No hacer logout aquí, lo maneja el interceptor
           return throwError(() => error);
-        })
+        }),
+        finalize(() => {
+          // Limpiar el estado al finalizar (éxito o error)
+          this.refreshTokenInProgress = false;
+          this.refreshTokenSubject = null;
+        }),
+        shareReplay(1) // Compartir resultado con todas las suscripciones
       );
+
+    return this.refreshTokenSubject;
   }
 
   /**
@@ -149,15 +172,20 @@ export class AuthService {
 
   /**
    * Cerrar sesión
+   * @param navigate - Si debe navegar al login (por defecto true)
    */
-  logout(): void {
+  logout(navigate: boolean = true): void {
+    console.log('🔴 Cerrando sesión...');
     localStorage.removeItem('accessToken');
     localStorage.removeItem('refreshToken');
     localStorage.removeItem('tokenExpiration');
     localStorage.removeItem('currentUser');
     this.currentUserSubject.next(null);
     this.isAuthenticatedSubject.next(false);
-    this.router.navigate(['/login']);
+    
+    if (navigate) {
+      this.router.navigate(['/login']);
+    }
   }
 
   /**

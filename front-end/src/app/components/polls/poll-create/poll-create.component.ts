@@ -76,6 +76,28 @@ interface SelectedMatch {
 
             <div class="form-row">
               <div class="form-group">
+                <label for="tipo">Tipo de Polla *</label>
+                <select 
+                  id="tipo"
+                  formControlName="tipo"
+                  class="form-control"
+                  (change)="onPollTypeChange()">
+                  <option value="PRIVADA">Privada (Solo grupos invitados)</option>
+                  <option value="PUBLICA">Pública (Abierta a todos con pago)</option>
+                </select>
+                <small class="form-text">
+                  <span *ngIf="pollDetailsForm.get('tipo')?.value === 'PRIVADA'">
+                    Solo miembros de los grupos seleccionados pueden participar sin pagar
+                  </span>
+                  <span *ngIf="pollDetailsForm.get('tipo')?.value === 'PUBLICA'">
+                    Cualquier usuario puede participar pagando la cuota de entrada. Los grupos son opcionales y tendrán acceso sin pago.
+                  </span>
+                </small>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
                 <label for="fechaInicio">Fecha de Inicio *</label>
                 <input 
                   id="fechaInicio"
@@ -111,7 +133,17 @@ interface SelectedMatch {
 
         <!-- Paso 2: Seleccionar Grupos y Miembros -->
         <div class="step-content" *ngIf="currentStep === 2">
-          <h3>Seleccionar Participantes</h3>
+          <h3>
+            Seleccionar Participantes 
+            <span *ngIf="pollDetailsForm.get('tipo')?.value === 'PRIVADA'" class="required-badge">Requerido</span>
+            <span *ngIf="pollDetailsForm.get('tipo')?.value === 'PUBLICA'" class="optional-badge">Opcional - Acceso Privilegiado</span>
+          </h3>
+          <p class="step-description" *ngIf="pollDetailsForm.get('tipo')?.value === 'PUBLICA'">
+            Para pollas públicas, los grupos son opcionales. Si seleccionas grupos, sus miembros tendrán acceso sin pagar.
+          </p>
+          <p class="step-description" *ngIf="pollDetailsForm.get('tipo')?.value === 'PRIVADA'">
+            Para pollas privadas, debes seleccionar al menos un grupo. Solo sus miembros podrán participar.
+          </p>
           
           <div class="selection-container">
             <!-- Selección de Grupos -->
@@ -504,6 +536,44 @@ interface SelectedMatch {
       margin: 0 0 1.5rem 0;
       color: #1a1a1a;
       font-size: 1.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+    }
+
+    .required-badge {
+      font-size: 0.75rem;
+      padding: 0.25rem 0.5rem;
+      background: #d63031;
+      color: white;
+      border-radius: 4px;
+      font-weight: 600;
+    }
+
+    .optional-badge {
+      font-size: 0.75rem;
+      padding: 0.25rem 0.5rem;
+      background: #00b894;
+      color: white;
+      border-radius: 4px;
+      font-weight: 600;
+    }
+
+    .step-description {
+      margin: -1rem 0 1.5rem 0;
+      color: #666;
+      font-size: 0.95rem;
+      padding: 0.75rem;
+      background: #f8f9fa;
+      border-radius: 6px;
+      border-left: 3px solid #667eea;
+    }
+
+    .form-text {
+      font-size: 0.85rem;
+      color: #666;
+      margin-top: 0.25rem;
     }
 
     .step-content h4 {
@@ -1556,6 +1626,7 @@ export class PollCreateComponent implements OnInit {
     this.pollDetailsForm = this.fb.group({
       nombre: ['', Validators.required],
       descripcion: [''],
+      tipo: ['PRIVADA', Validators.required], // Tipo de polla (PRIVADA por defecto)
       fechaInicio: ['', [Validators.required, this.futureDateValidator]],
       montoEntrada: ['', [Validators.required, Validators.min(1)]]
     });
@@ -1625,7 +1696,13 @@ export class PollCreateComponent implements OnInit {
       case 1:
         return this.pollDetailsForm.valid;
       case 2:
-        return this.selectedEmails.size > 0;
+        const pollType = this.pollDetailsForm.get('tipo')?.value;
+        // Para pollas privadas, al menos un grupo es requerido
+        if (pollType === 'PRIVADA') {
+          return this.selectedEmails.size > 0;
+        }
+        // Para pollas públicas, los grupos son opcionales
+        return true;
       case 3:
         return this.selectedMatches.length > 0;
       default:
@@ -1703,6 +1780,13 @@ export class PollCreateComponent implements OnInit {
     const first = firstName?.charAt(0) || '';
     const last = lastName?.charAt(0) || '';
     return (first + last).toUpperCase() || '??';
+  }
+
+  // Manejar cambio de tipo de polla
+  onPollTypeChange(): void {
+    const pollType = this.pollDetailsForm.get('tipo')?.value;
+    console.log('🔄 Tipo de polla cambiado a:', pollType);
+    // No limpiamos la selección, solo cambiamos la validación
   }
 
   // Step 3: Matches
@@ -1828,7 +1912,16 @@ export class PollCreateComponent implements OnInit {
   }
 
   createPoll(): void {
-    if (!this.pollDetailsForm.valid || this.selectedEmails.size === 0 || this.selectedMatches.length === 0) {
+    const pollType = this.pollDetailsForm.get('tipo')?.value;
+    
+    // Validación condicional según tipo de polla
+    if (!this.pollDetailsForm.valid || this.selectedMatches.length === 0) {
+      return;
+    }
+    
+    // Para pollas privadas, al menos un grupo es requerido
+    if (pollType === 'PRIVADA' && this.selectedEmails.size === 0) {
+      alert('Debes seleccionar al menos un grupo para crear una polla privada.');
       return;
     }
 
@@ -1843,7 +1936,8 @@ export class PollCreateComponent implements OnInit {
       descripcion: this.pollDetailsForm.value.descripcion || '',
       fechaInicio: formattedDate,
       montoEntrada: Number(this.pollDetailsForm.value.montoEntrada),
-      gruposIds: Array.from(this.selectedTeams),
+      tipo: pollType,
+      gruposIds: this.selectedTeams.size > 0 ? Array.from(this.selectedTeams) : undefined,
       emailsInvitados: Array.from(this.selectedEmails)
     };
 

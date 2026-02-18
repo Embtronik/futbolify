@@ -36,6 +36,14 @@ export const routes: Routes = [
         loadComponent: () => import('./components/polls/poll-create/poll-create.component').then(m => m.PollCreateComponent)
       },
       {
+        path: 'public',
+        loadComponent: () => import('./components/polls/polls-public-list/polls-public-list.component').then(m => m.PollsPublicListComponent)
+      },
+      {
+        path: 'public/:id/participate',
+        loadComponent: () => import('./components/polls/poll-participate/poll-participate.component').then(m => m.PollParticipateComponent)
+      },
+      {
         path: ':id',
         loadComponent: () => import('./components/polls/poll-detail/poll-detail.component').then(m => m.PollDetailComponent)
       },

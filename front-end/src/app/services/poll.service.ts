@@ -12,7 +12,8 @@ import {
   CreatePollRequest,
   AddPollMatchRequest,
   CreatePredictionRequest,
-  PollInvitation
+  PollInvitation,
+  ParticipateInPublicPollRequest
 } from '../models/football.model';
 import { environment } from '../../environments/environment';
 
@@ -55,6 +56,27 @@ export class PollService {
         return of([] as Poll[]);
       })
     );
+  }
+
+  /**
+   * Obtener todas las pollas públicas disponibles
+   * GET /pollas/publicas
+   */
+  getPublicPolls(): Observable<Poll[]> {
+    return this.http.get<Poll[]>(`${this.API_URL}/pollas/publicas`).pipe(
+      catchError((err: any) => {
+        console.error('Error fetching public polls:', err);
+        return of([] as Poll[]);
+      })
+    );
+  }
+
+  /**
+   * Participar en una polla pública con pago
+   * POST /pollas/{id}/participar
+   */
+  participateInPublicPoll(pollId: number, request: ParticipateInPublicPollRequest): Observable<Poll> {
+    return this.http.post<Poll>(`${this.API_URL}/pollas/${pollId}/participar`, request);
   }
 
     /**

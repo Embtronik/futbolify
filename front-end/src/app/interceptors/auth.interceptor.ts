@@ -40,7 +40,21 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
       const router = inject(Router);
       // Si el error es 401 (no autorizado) y no es un endpoint de auth ni API externa
       if (error.status === 401 && !isAuthEndpoint && !isExternalApi) {
-        // Intentar refrescar el token
+        // Verificar si es el endpoint de refresh-token que está fallando
+        const isRefreshEndpoint = req.url.includes('/auth/refresh-token');
+        
+        if (isRefreshEndpoint) {
+          // Si el refresh-token falló, logout inmediato sin reintentar
+          console.error('🔴 Refresh token expirado - redirigiendo a login');
+          authService.logout(false); // No navegar desde el servicio
+          router.navigate(['/login'], { 
+            queryParams: { expired: 'true' },
+            replaceUrl: true 
+          });
+          return throwError(() => error);
+        }
+        
+        // Intentar refrescar el token solo si no es el endpoint de refresh
         return authService.refreshToken().pipe(
           switchMap(() => {
             // Reintentar la petición original con el nuevo token
@@ -55,7 +69,8 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
           }),
           catchError((refreshError) => {
             // Si falla el refresh, cerrar sesión y redirigir al login
-            authService.logout();
+            console.error('🔴 Error al refrescar token - redirigiendo a login');
+            authService.logout(false); // No navegar desde el servicio
             router.navigate(['/login'], { 
               queryParams: { expired: 'true' },
               replaceUrl: true 

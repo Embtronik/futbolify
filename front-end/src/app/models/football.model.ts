@@ -293,6 +293,7 @@ export interface Poll {
   creadorEmail: string;
   fechaInicio: Date | string;
   montoEntrada: number;
+  tipo?: 'PRIVADA' | 'PUBLICA'; // Tipo de polla
   estado: 'CREADA' | 'ABIERTA' | 'CERRADA' | 'FINALIZADA';
   gruposInvitados?: number[]; // IDs de grupos seleccionados
 
@@ -424,7 +425,8 @@ export interface CreatePollRequest {
   descripcion?: string;
   fechaInicio: string; // ISO string
   montoEntrada: number;
-  gruposIds: number[]; // IDs de los grupos
+  tipo: 'PRIVADA' | 'PUBLICA'; // Tipo de polla (obligatorio)
+  gruposIds?: number[]; // Opcional para públicas, obligatorio para privadas
   emailsInvitados: string[]; // Emails de miembros seleccionados
 }
 
@@ -456,6 +458,62 @@ export interface PollInvitation {
   estado: 'INVITADO' | 'ACEPTADO' | 'RECHAZADO';
   fechaRespuesta?: Date | string;
   createdAt?: Date | string;
+}
+
+// Request para participar en polla pública con pago
+export interface ParticipateInPublicPollRequest {
+  paymentReference: string; // Referencia del pago (TXN-XXXXXX)
+}
+
+// Response de validación de pago
+export interface PaymentValidationResponse {
+  valid: boolean;
+  paymentId?: string;
+  paymentReference: string;
+  amount: number;
+  status: string;
+  paymentDate?: string;
+  message: string;
+}
+
+// ==============================
+// PAYMENT SERVICE (Wompi)
+// ==============================
+
+// Request para crear una transacción de pago con Wompi
+export interface CreatePaymentTransactionRequest {
+  reference: string; // Referencia única del pago (ej: POLLA-1-user@example.com-20260217-001)
+  amountInCents: number; // Monto en centavos (ej: 5000000 = $50,000 COP)
+  currency: string; // Moneda (ej: COP)
+  customerEmail: string; // Email del cliente
+  paymentSourceId: string; // ID de la fuente de pago de Wompi (tarjeta, PSE, etc.)
+  installments: number; // Número de cuotas (1 = pago único)
+  acceptanceToken: string; // Token de aceptación de términos de Wompi
+}
+
+// Response de transacción de pago
+export interface PaymentTransactionResponse {
+  id: string; // UUID de la transacción
+  reference: string;
+  amountInCents: number;
+  currency: string;
+  customerEmail: string;
+  status: string; // PENDING, APPROVED, DECLINED, VOIDED, ERROR
+  paymentMethod?: string;
+  paymentMethodType?: string;
+  createdAt: string;
+  finalizedAt?: string;
+  wompiTransactionId?: string;
+  wompiStatus?: string;
+}
+
+// Request para validar pago (usado por teams-service)
+export interface PaymentValidationRequest {
+  userEmail: string;
+  paymentReference: string;
+  expectedAmount: number;
+  concept: string;
+  pollaId: number;
 }
 
 export interface Statistics {

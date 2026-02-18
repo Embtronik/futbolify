@@ -12,10 +12,15 @@ import { Poll, PollParticipant } from '../../../models/football.model';
     <div class="polls-list-container">
       <div class="header">
         <h2>Mis Pollas</h2>
-        <button class="btn-create" (click)="navigateToCreate()">
-          <span class="icon">+</span>
-          Crear Nueva Polla
-        </button>
+        <div class="header-actions">
+          <button class="btn-public" (click)="navigateToPublicPolls()">
+            🌍 Pollas Públicas
+          </button>
+          <button class="btn-create" (click)="navigateToCreate()">
+            <span class="icon">+</span>
+            Crear Nueva Polla
+          </button>
+        </div>
       </div>
 
       <!-- Invitaciones Pendientes -->
@@ -181,6 +186,34 @@ import { Poll, PollParticipant } from '../../../models/football.model';
       font-weight: 700;
       color: #1a1a1a;
       margin: 0;
+    }
+
+    .header-actions {
+      display: flex;
+      gap: 1rem;
+      align-items: center;
+    }
+
+    .btn-public {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.75rem 1.5rem;
+      background: white;
+      color: #667eea;
+      border: 2px solid #667eea;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-public:hover {
+      background: #667eea;
+      color: white;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
     }
 
     .btn-create {
@@ -651,6 +684,10 @@ export class PollsListComponent implements OnInit {
 
   navigateToCreate(): void {
     this.router.navigate(['/polls/create']);
+  }
+
+  navigateToPublicPolls(): void {
+    this.router.navigate(['/polls/public']);
   }
 
   viewPollDetail(pollId: number): void {
