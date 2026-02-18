@@ -53,6 +53,39 @@ public class PollaController {
     }
 
     /**
+     * GET /api/pollas/publicas - Obtener todas las pollas públicas disponibles
+     */
+    @GetMapping("/publicas")
+    public ResponseEntity<List<PollaResponse>> getPublicPollas(
+            @AuthenticationPrincipal UserPrincipal userPrincipal) {
+        
+        log.info("Getting all public pollas for user: {}", userPrincipal.getEmail());
+        
+        List<PollaResponse> pollas = pollaService.getPublicPollas(userPrincipal.getEmail());
+        
+        return ResponseEntity.ok(pollas);
+    }
+
+    /**
+     * POST /api/pollas/{id}/participar - Participar en una polla pública con pago
+     */
+    @PostMapping("/{id}/participar")
+    public ResponseEntity<PollaResponse> participarConPago(
+            @PathVariable Long id,
+            @RequestBody Map<String, String> payload,
+            @AuthenticationPrincipal UserPrincipal userPrincipal) {
+        
+        String paymentReference = payload.get("paymentReference");
+        
+        log.info("User {} attempting to join polla {} with payment reference {}", 
+                userPrincipal.getEmail(), id, paymentReference);
+        
+        PollaResponse response = pollaService.participarConPago(id, paymentReference, userPrincipal.getEmail());
+        
+        return ResponseEntity.ok(response);
+    }
+
+    /**
      * GET /api/pollas/{id} - Obtener detalle completo de una polla
      */
     @GetMapping("/{id}")

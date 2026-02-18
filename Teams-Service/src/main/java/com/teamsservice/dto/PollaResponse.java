@@ -21,6 +21,7 @@ public class PollaResponse {
     private String creadorEmail;
     private LocalDateTime fechaInicio;
     private BigDecimal montoEntrada;
+    private String tipo; // PRIVADA o PUBLICA
     private Integer totalParticipantes;
     private Integer totalPartidos;
     private List<ParticipanteResponse> participantes;

@@ -46,4 +46,14 @@ public interface PollaRepository extends JpaRepository<Polla, Long> {
                  "WHERE g.id IN :teamIds AND p.deletedAt IS NULL " +
                  "ORDER BY p.createdAt DESC")
        List<Polla> findByGruposInvitadosIn(@Param("teamIds") List<Long> teamIds);
+
+       /**
+        * Encuentra todas las pollas públicas que están abiertas
+        */
+       @Query("SELECT p FROM Polla p " +
+              "WHERE p.tipo = 'PUBLICA' " +
+              "AND p.estado IN ('ABIERTA', 'CERRADA', 'FINALIZADA') " +
+              "AND p.deletedAt IS NULL " +
+              "ORDER BY p.createdAt DESC")
+       List<Polla> findPublicPollas();
 }

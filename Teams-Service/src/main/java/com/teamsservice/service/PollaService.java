@@ -29,16 +29,39 @@ public class PollaService {
     private final TeamMemberRepository teamMemberRepository;
     private final AuthServiceClient authServiceClient;
     private final NotificationServiceClient notificationServiceClient;
+    private final PaymentServiceClient paymentServiceClient;
+    
     /**
      * Crea una nueva polla, valida grupos y agrega al creador como participante aceptado.
      */
     @Transactional
     public PollaResponse crearPolla(PollaCreateRequest request, String userEmail) {
-        log.info("Creating polla '{}' by user {} with {} groups", request.getNombre(), userEmail, request.getGruposIds().size());
+        log.info("Creating polla '{}' by user {} with type {}", 
+                request.getNombre(), userEmail, request.getTipo());
         
-        // Validar y obtener los grupos seleccionados
-        // Verifica que el usuario sea miembro aprobado de todos los grupos
-        List<Team> gruposSeleccionados = validateAndGetGrupos(request.getGruposIds(), userEmail);
+        // Validar según el tipo de polla
+        List<Team> gruposSeleccionados = List.of();
+        
+        if (request.getTipo() == Polla.PollaTipo.PRIVADA) {
+            // Para pollas privadas, los grupos son obligatorios
+            if (request.getGruposIds() == null || request.getGruposIds().isEmpty()) {
+                throw new BusinessRuleException(
+                    "Las pollas privadas requieren al menos un grupo invitado");
+            }
+            // Validar y obtener los grupos seleccionados
+            // Verifica que el usuario sea miembro aprobado de todos los grupos
+            gruposSeleccionados = validateAndGetGrupos(request.getGruposIds(), userEmail);
+        } else if (request.getTipo() == Polla.PollaTipo.PUBLICA) {
+            // Para pollas públicas, los grupos son opcionales
+            // Si se especifican grupos, esos miembros tendrán acceso sin pago
+            if (request.getGruposIds() != null && !request.getGruposIds().isEmpty()) {
+                gruposSeleccionados = validateAndGetGrupos(request.getGruposIds(), userEmail);
+                log.info("Public polla with {} privileged groups (no payment required for members)", 
+                        gruposSeleccionados.size());
+            } else {
+                log.info("Public polla without privileged groups (all users require payment)");
+            }
+        }
         
         // Crear la polla con todos los datos
         Polla polla = Polla.builder()
@@ -47,19 +70,16 @@ public class PollaService {
                 .creadorEmail(userEmail)
                 .fechaInicio(request.getFechaInicio())
                 .montoEntrada(request.getMontoEntrada())
+                .tipo(request.getTipo())
                 .estado(Polla.PollaEstado.CREADA)
-                .gruposInvitados(gruposSeleccionados) // Los grupos determinan quién puede acceder
+                .gruposInvitados(gruposSeleccionados)
                 .build();
         
         // Guardar la polla
         Polla saved = pollaRepository.save(polla);
         
-        // NO agregamos participantes explícitos aquí
-        // Los participantes se determinan dinámicamente: cualquier miembro aprobado de los grupos invitados puede acceder
-        // Esto permite que nuevos miembros agregados al grupo después de crear la polla puedan participar automáticamente
-        
-        log.info("Polla {} created successfully with {} groups. All approved members of these groups can participate.", 
-                saved.getId(), gruposSeleccionados.size());
+        log.info("Polla {} created successfully as {} with {} groups.", 
+                saved.getId(), saved.getTipo(), gruposSeleccionados.size());
         
         return mapToResponse(saved, userEmail);
     }
@@ -182,10 +202,30 @@ public class PollaService {
                     .collect(Collectors.toList());
         }
 
+        // Obtener pollas públicas donde el usuario ha pagado
+        // Para esto, obtenemos todas las pollas públicas y filtramos las que tienen pago
+        List<Polla> pollasPublicas = pollaRepository.findPublicPollas();
+        List<Polla> pollasPublicasPagadas = pollasPublicas.stream()
+                .filter(p -> !p.getCreadorEmail().equalsIgnoreCase(userEmail)) // No duplicar las creadas
+                .filter(p -> {
+                    // Verificar si es miembro de grupo privilegiado o tiene pago
+                    boolean esMiembroPrivilegiado = false;
+                    if (p.getGruposInvitados() != null && !p.getGruposInvitados().isEmpty()) {
+                        List<Long> gruposIds = p.getGruposInvitados().stream()
+                            .map(Team::getId)
+                            .toList();
+                        esMiembroPrivilegiado = !userTeamIds.isEmpty() && 
+                            gruposIds.stream().anyMatch(userTeamIds::contains);
+                    }
+                    return esMiembroPrivilegiado || paymentServiceClient.hasApprovedPayment(userEmail, p.getId());
+                })
+                .toList();
+
         // Combinar todas las pollas y eliminar duplicados
         List<Polla> todasLasPollas = new java.util.ArrayList<>(pollasCreadas);
         todasLasPollas.addAll(pollasComoParticipante);
         todasLasPollas.addAll(pollasDeGruposInvitados);
+        todasLasPollas.addAll(pollasPublicasPagadas);
 
         List<Polla> pollas = todasLasPollas.stream()
                 .distinct()
@@ -195,6 +235,96 @@ public class PollaService {
         return pollas.stream()
                 .map(p -> mapToResponse(p, userEmail))
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * Obtiene todas las pollas públicas disponibles que cualquier usuario puede ver
+     */
+    @Transactional(readOnly = true)
+    public List<PollaResponse> getPublicPollas(String userEmail) {
+        log.info("Getting all public pollas for user: {}", userEmail);
+        
+        List<Polla> pollasPublicas = pollaRepository.findPublicPollas();
+        
+        return pollasPublicas.stream()
+                .map(p -> mapToResponse(p, userEmail))
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Permite a un usuario participar en una polla pública mediante pago
+     */
+    @Transactional
+    public PollaResponse participarConPago(Long pollaId, String paymentReference, String userEmail) {
+        log.info("User {} attempting to join public polla {} with payment reference {}", 
+                userEmail, pollaId, paymentReference);
+        
+        // Obtener la polla
+        Polla polla = pollaRepository.findByIdAndDeletedAtIsNull(pollaId)
+                .orElseThrow(() -> new ResourceNotFoundException("Polla not found with id: " + pollaId));
+        
+        // Verificar que sea una polla pública
+        if (polla.getTipo() != Polla.PollaTipo.PUBLICA) {
+            throw new BusinessRuleException("Esta función solo aplica para pollas públicas");
+        }
+        
+        // Verificar que la polla esté abierta
+        if (polla.getEstado() != Polla.PollaEstado.ABIERTA) {
+            throw new BusinessRuleException("Esta polla no está abierta para nuevos participantes");
+        }
+        
+        // Verificar si es miembro de grupo privilegiado (no necesita pago)
+        boolean esMiembroPrivilegiado = false;
+        if (polla.getGruposInvitados() != null && !polla.getGruposInvitados().isEmpty()) {
+            List<Long> gruposIds = polla.getGruposInvitados().stream()
+                .map(Team::getId)
+                .toList();
+            esMiembroPrivilegiado = teamMemberRepository.existsByTeamIdInAndUserEmailAndStatus(
+                gruposIds, userEmail, com.teamsservice.entity.TeamMember.MembershipStatus.APPROVED);
+        }
+        
+        if (esMiembroPrivilegiado) {
+            log.info("User {} is member of privileged group, no payment required", userEmail);
+            // No necesita pago, agregar como participante directamente
+            if (!participanteRepository.existsByPollaIdAndEmailUsuario(pollaId, userEmail)) {
+                PollaParticipante participante = PollaParticipante.builder()
+                        .polla(polla)
+                        .emailUsuario(userEmail)
+                        .build();
+                participanteRepository.save(participante);
+            }
+            return mapToResponse(polla, userEmail);
+        }
+        
+        // Validar el pago con el payment-service
+        PaymentValidationRequest paymentRequest = PaymentValidationRequest.builder()
+                .userEmail(userEmail)
+                .paymentReference(paymentReference)
+                .expectedAmount(polla.getMontoEntrada())
+                .concept("Polla: " + polla.getNombre())
+                .pollaId(pollaId)
+                .build();
+        
+        PaymentValidationResponse paymentResponse = paymentServiceClient.validatePayment(paymentRequest);
+        
+        if (!paymentResponse.isValid() || !"APPROVED".equals(paymentResponse.getStatus())) {
+            throw new BusinessRuleException("El pago no es válido o no está aprobado");
+        }
+        
+        log.info("Payment validated successfully for user {} on polla {}: paymentId={}", 
+                userEmail, pollaId, paymentResponse.getPaymentId());
+        
+        // Agregar como participante
+        if (!participanteRepository.existsByPollaIdAndEmailUsuario(pollaId, userEmail)) {
+            PollaParticipante participante = PollaParticipante.builder()
+                    .polla(polla)
+                    .emailUsuario(userEmail)
+                    .build();
+            participanteRepository.save(participante);
+            log.info("User {} added as participant to polla {} with payment", userEmail, pollaId);
+        }
+        
+        return mapToResponse(polla, userEmail);
     }
 
     /**
@@ -495,20 +625,53 @@ public class PollaService {
     }
 
     private void validateUserAccess(Long pollaId, String userEmail) {
-        // Acceso solo para creador o miembro aprobado de algún grupo
         Polla polla = pollaRepository.findByIdAndDeletedAtIsNull(pollaId)
                 .orElseThrow(() -> new ResourceNotFoundException("Polla not found with id: " + pollaId));
+        
+        // El creador siempre tiene acceso
         boolean esCreador = polla.getCreadorEmail().equalsIgnoreCase(userEmail);
-        boolean esMiembroAprobadoGrupo = false;
-        if (polla.getGruposInvitados() != null && !polla.getGruposInvitados().isEmpty()) {
-            List<Long> gruposIds = polla.getGruposInvitados().stream()
-                .map(Team::getId)
-                .toList();
-            esMiembroAprobadoGrupo = teamMemberRepository.existsByTeamIdInAndUserEmailAndStatus(
-                gruposIds, userEmail, com.teamsservice.entity.TeamMember.MembershipStatus.APPROVED);
+        if (esCreador) {
+            return;
         }
-        if (!esCreador && !esMiembroAprobadoGrupo) {
-            throw new UnauthorizedException("No tienes acceso a esta polla");
+        
+        // Verificar acceso según el tipo de polla
+        if (polla.getTipo() == Polla.PollaTipo.PRIVADA) {
+            // Para pollas privadas: solo miembros aprobados de grupos invitados
+            boolean esMiembroAprobadoGrupo = false;
+            if (polla.getGruposInvitados() != null && !polla.getGruposInvitados().isEmpty()) {
+                List<Long> gruposIds = polla.getGruposInvitados().stream()
+                    .map(Team::getId)
+                    .toList();
+                esMiembroAprobadoGrupo = teamMemberRepository.existsByTeamIdInAndUserEmailAndStatus(
+                    gruposIds, userEmail, com.teamsservice.entity.TeamMember.MembershipStatus.APPROVED);
+            }
+            
+            if (!esMiembroAprobadoGrupo) {
+                throw new UnauthorizedException("No tienes acceso a esta polla privada");
+            }
+            
+        } else if (polla.getTipo() == Polla.PollaTipo.PUBLICA) {
+            // Para pollas públicas: 
+            // 1. Miembros de grupos privilegiados tienen acceso sin pago
+            // 2. Otros usuarios necesitan pago aprobado
+            
+            boolean esMiembroGrupoPrivilegiado = false;
+            if (polla.getGruposInvitados() != null && !polla.getGruposInvitados().isEmpty()) {
+                List<Long> gruposIds = polla.getGruposInvitados().stream()
+                    .map(Team::getId)
+                    .toList();
+                esMiembroGrupoPrivilegiado = teamMemberRepository.existsByTeamIdInAndUserEmailAndStatus(
+                    gruposIds, userEmail, com.teamsservice.entity.TeamMember.MembershipStatus.APPROVED);
+            }
+            
+            if (!esMiembroGrupoPrivilegiado) {
+                // No es miembro privilegiado, verificar pago
+                boolean tienePagoAprobado = paymentServiceClient.hasApprovedPayment(userEmail, pollaId);
+                if (!tienePagoAprobado) {
+                    throw new UnauthorizedException(
+                        "Debes realizar el pago de la cuota de entrada para acceder a esta polla pública");
+                }
+            }
         }
     }
 
@@ -550,6 +713,7 @@ public class PollaService {
                 .creadorEmail(polla.getCreadorEmail())
                 .fechaInicio(polla.getFechaInicio())
                 .montoEntrada(polla.getMontoEntrada())
+                .tipo(polla.getTipo() != null ? polla.getTipo().name() : null)
                 .totalParticipantes((int) totalParticipantesReales)
                 .totalPartidos(polla.getPartidos() != null ? polla.getPartidos().size() : 0)
                 .participantes(participantesResponse)
