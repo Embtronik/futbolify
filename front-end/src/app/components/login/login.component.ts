@@ -15,7 +15,6 @@ import { AuthService } from '../../services/auth.service';
 export class LoginComponent {
   private fb = inject(FormBuilder);
   private authService = inject(AuthService);
-  private termsService = inject(TermsService);
   private router = inject(Router);
   private route = inject(ActivatedRoute);
 

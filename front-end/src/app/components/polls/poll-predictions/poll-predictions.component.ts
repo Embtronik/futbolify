@@ -753,7 +753,11 @@ interface MatchWithPrediction {
     }
 
     /* Remove number input arrows */
-    .score-field::-webkit-inner-spin-button,
+    .score-field::-webkit-inner-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+    
     .score-field::-webkit-outer-spin-button {
       -webkit-appearance: none;
       margin: 0;
