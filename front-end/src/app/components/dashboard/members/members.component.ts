@@ -7,7 +7,6 @@ import { forkJoin, of } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import { TeamService } from '../../../services/team.service';
 import { Team, TeamMember } from '../../../models/football.model';
-import { MemberSearchPipe } from './member-search.pipe';
 import { AuthService } from '../../../services/auth.service';
 import { User } from '../../../models/user.model';
 import { ActivatedRoute } from '@angular/router';
@@ -15,9 +14,13 @@ import { ActivatedRoute } from '@angular/router';
 @Component({
   selector: 'app-members',
   standalone: true,
-  imports: [CommonModule, FormsModule, MemberSearchPipe],
-  templateUrl: './members.component.html',
-  styleUrls: ['./members.component.css'],
+  imports: [CommonModule, FormsModule],
+  template: `<div class="members-container"><h2>Miembros</h2><p>Gestión de miembros del equipo</p></div>`,
+  styles: [`
+    .members-container {
+      padding: 20px;
+    }
+  `],
 })
 export class MembersComponent implements OnInit {
   searchTerm: string = '';

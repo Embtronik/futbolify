@@ -4,7 +4,6 @@ import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
-import { TermsService } from '../../services/terms.service';
 import { CountryService } from '../../services/country.service';
 import { CountryCode } from '../../models/country.model';
 
@@ -18,7 +17,6 @@ import { CountryCode } from '../../models/country.model';
 export class RegisterComponent {
   private fb = inject(FormBuilder);
   private authService = inject(AuthService);
-  private termsService = inject(TermsService);
   private countryService = inject(CountryService);
   private router = inject(Router);
   private route = inject(ActivatedRoute);
@@ -53,10 +51,6 @@ export class RegisterComponent {
     this.termsContent = '';
     this.showTermsModal = false;
     this.acceptTermsChecked = false;
-
-    // Load active terms (non-blocking; UI will still work)
-    this.loadActiveTerms();
-
 
     // Cargar códigos de país
     this.loadCountryCodes();
@@ -176,22 +170,6 @@ export class RegisterComponent {
         this.loading = false;
       }
     });
-  }
-
-  private loadActiveTerms(): void {
-    try {
-      this.termsService.getActiveTerms().subscribe({
-        next: (res) => {
-          this.termsVersion = res.version || '';
-          this.termsContent = res.content || '';
-        },
-        error: () => {
-          // ignore
-        }
-      });
-    } catch (e) {
-      // ignore
-    }
   }
 
   openTermsModal(): void {

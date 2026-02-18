@@ -668,6 +668,7 @@ export class PollsComponent implements OnInit, AfterViewInit, OnDestroy {
       descripcion: formValue.descripcion || '',
       fechaInicio: formValue.fechaInicio ? new Date(formValue.fechaInicio).toISOString().slice(0, 16) : '',
       montoEntrada: Number(formValue.montoEntrada) || 0,
+      tipo: 'PRIVADA', // Tipo de polla (por defecto privada)
       gruposIds: selectedTeamIds,
       emailsInvitados: emailsInvitados
     };

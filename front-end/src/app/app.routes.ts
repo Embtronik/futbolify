@@ -15,11 +15,6 @@ export const routes: Routes = [
     loadComponent: () => import('./components/register/register.component').then(m => m.RegisterComponent)
   },
   {
-    path: 'terms',
-    canActivate: [authGuard],
-    loadComponent: () => import('./components/terms/terms.component').then(m => m.TermsComponent)
-  },
-  {
     path: 'oauth2/redirect',
     loadComponent: () => import('./components/oauth-redirect/oauth-redirect.component').then(m => m.OauthRedirectComponent)
   },
@@ -34,14 +29,6 @@ export const routes: Routes = [
       {
         path: 'create',
         loadComponent: () => import('./components/polls/poll-create/poll-create.component').then(m => m.PollCreateComponent)
-      },
-      {
-        path: 'public',
-        loadComponent: () => import('./components/polls/polls-public-list/polls-public-list.component').then(m => m.PollsPublicListComponent)
-      },
-      {
-        path: 'public/:id/participate',
-        loadComponent: () => import('./components/polls/poll-participate/poll-participate.component').then(m => m.PollParticipateComponent)
       },
       {
         path: ':id',
