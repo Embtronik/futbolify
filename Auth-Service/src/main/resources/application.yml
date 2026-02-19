@@ -1,13 +1,13 @@
 spring:
   application:
     name: auth-service
-  
+
   datasource:
     url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:proyectos_dev}
     username: ${DB_USERNAME:dev_user}
     password: ${DB_PASSWORD:Dev2025!}
     driver-class-name: org.postgresql.Driver
-  
+
   jpa:
     hibernate:
       ddl-auto: update
@@ -16,10 +16,10 @@ spring:
       hibernate:
         format_sql: true
         dialect: org.hibernate.dialect.PostgreSQLDialect
-  
-  # Configuración de OAuth2 con Google
-  
-  # Configuración de OAuth2 con Google
+
+  # =========================
+  # OAuth2 Google
+  # =========================
   security:
     oauth2:
       client:
@@ -30,6 +30,7 @@ spring:
             scope:
               - email
               - profile
+            # IMPORTANTE: baseUrl se calcula con X-Forwarded-* (nginx/ngrok)
             redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
         provider:
           google:
@@ -38,41 +39,44 @@ spring:
             user-info-uri: https://www.googleapis.com/oauth2/v3/userinfo
             user-name-attribute: sub
 
-# Configuración de la aplicación
+# =========================
+# App configuration
+# =========================
 app:
-  # JWT Configuration (must match auth-service - BASE64 encoded secret)
   jwt:
     secret: ${JWT_SECRET:}
     expiration: 86400000 # 24 horas en milisegundos
     refresh-expiration: 604800000 # 7 días en milisegundos
-  
-  # Frontend URL para redirecciones OAuth2
+
+  # Frontend URL para redirecciones OAuth2 (tu front)
   frontend:
     url: ${FRONTEND_URL:http://localhost:4200}
-  
+
   # Servicio de Notificaciones
   notification-service:
     url: ${NOTIFICATION_SERVICE_URL:http://localhost:8081}
-    # El cliente genera automáticamente un JWT efímero de servicio cuando no hay Authorization
-    # Puedes ajustar subject/audience/ttl vía propiedades (opcionales):
-    # app.notification-service.service-token.subject (por defecto: auth-service)
-    # app.notification-service.service-token.aud (por defecto: notification-service)
-    # app.notification-service.service-token.ttl (por defecto: 300000 ms)
-  
+
   # Configuración de verificación de email
   email:
     verification:
       expiration: 86400000 # 24 horas
 
+# =========================
 # Server configuration
+# =========================
 server:
-  forward-headers-strategy: framework
   port: 8080
+
+  # CLAVE para proxys (nginx/ngrok): respeta X-Forwarded-Proto/Host/Port
+  forward-headers-strategy: framework
+
   error:
     include-message: always
     include-binding-errors: always
 
+# =========================
 # Logging
+# =========================
 logging:
   level:
     com.authservice: DEBUG
