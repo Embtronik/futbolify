@@ -87,6 +87,20 @@ public class TeamMatchService {
     }
 
     @Transactional(readOnly = true)
+    public List<TeamMatchResponse> getMyMatches(String currentUserEmail) {
+        if (currentUserEmail == null || currentUserEmail.isBlank()) {
+            throw new UnauthorizedException("No se pudo identificar el usuario autenticado");
+        }
+
+        log.info("Getting matches for authenticated user email={}", currentUserEmail);
+
+        return teamMatchAttendanceRepository.findMatchesByUserEmail(currentUserEmail)
+                .stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
     public PageResponse<TeamMatchResponse> getTeamMatches(Long teamId, Long currentUserId, String currentUserEmail,
                                                           int page, int size) {
         log.info("User {} listing matches for team {} (page={}, size={})", currentUserId, teamId, page, size);
