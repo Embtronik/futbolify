@@ -6,8 +6,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
-import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -18,9 +16,6 @@ public interface TeamMatchRepository extends JpaRepository<TeamMatch, Long> {
     List<TeamMatch> findByTeamIdOrderByMatchDateTimeAsc(Long teamId);
 
     Page<TeamMatch> findByTeamId(Long teamId, Pageable pageable);
-
-    @Query("SELECT m FROM TeamMatch m WHERE m.team.id IN :teamIds")
-    List<TeamMatch> findByTeamIds(@Param("teamIds") List<Long> teamIds);
 
         @Query("""
                         SELECT DISTINCT year(m.matchDateTime)

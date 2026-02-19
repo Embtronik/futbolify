@@ -7,12 +7,11 @@ WORKDIR /app
 
 # Copy pom.xml and download dependencies
 COPY pom.xml .
-RUN ["mvn", "-B", "-ntp", "dependency:go-offline"]
+RUN mvn dependency:go-offline -B
 
 # Copy source code and build
 COPY src ./src
-# Use -DskipTests to skip running tests during package (keeps test compilation)
-RUN ["mvn", "-B", "-ntp", "-DskipTests", "clean", "package"]
+RUN mvn clean package -DskipTests
 
 # Runtime stage
 FROM eclipse-temurin:21-jre

@@ -109,18 +109,12 @@ public class JwtTokenProvider {
         String email = claims.get("email", String.class);
         
         // Si no hay email en claims, usar el subject
-        if (email == null || email.trim().isEmpty()) {
+        if (email == null) {
             email = claims.getSubject();
-            if (email != null && !email.trim().isEmpty()) {
-                log.info("No email claim found in token, using subject: {}", email);
-            } else {
-                log.error("Token has neither email claim nor subject. Available claims: {}", claims.keySet());
-            }
-        } else {
-            log.debug("Email extracted from 'email' claim: {}", email);
+            log.debug("No email claim found, using subject: {}", email);
         }
         
-        return email != null ? email.trim() : null;
+        return email;
     }
 
     public List<GrantedAuthority> getAuthoritiesFromToken(String token) {

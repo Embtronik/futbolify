@@ -6,8 +6,6 @@ import com.teamsservice.entity.Polla;
 import com.teamsservice.entity.PollaPartido;
 import com.teamsservice.entity.PollaPuntajePartido;
 import com.teamsservice.entity.PollaPronostico;
-import com.teamsservice.entity.Team;
-import com.teamsservice.entity.TeamMember;
 import com.teamsservice.exception.ResourceNotFoundException;
 import com.teamsservice.exception.UnauthorizedException;
 import com.teamsservice.repository.PollaPartidoRepository;
@@ -15,14 +13,12 @@ import com.teamsservice.repository.PollaParticipanteRepository;
 import com.teamsservice.repository.PollaPuntajePartidoRepository;
 import com.teamsservice.repository.PollaPronosticoRepository;
 import com.teamsservice.repository.PollaRepository;
-import com.teamsservice.repository.TeamMemberRepository;
 import com.teamsservice.service.apifootball.ApiFootballClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.util.StringUtils;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
@@ -46,7 +42,6 @@ public class PollaMarcadorService {
     private final PollaPuntajePartidoRepository puntajePartidoRepository;
     private final ApiFootballClient apiFootballClient;
     private final PollaScoringProperties scoringProperties;
-    private final TeamMemberRepository teamMemberRepository;
 
     private final JdbcTemplate jdbcTemplate;
     private final DataSource dataSource;
@@ -59,7 +54,6 @@ public class PollaMarcadorService {
             PollaPuntajePartidoRepository puntajePartidoRepository,
             ApiFootballClient apiFootballClient,
             PollaScoringProperties scoringProperties,
-            TeamMemberRepository teamMemberRepository,
             JdbcTemplate jdbcTemplate,
             DataSource dataSource
     ) {
@@ -70,49 +64,22 @@ public class PollaMarcadorService {
         this.puntajePartidoRepository = puntajePartidoRepository;
         this.apiFootballClient = apiFootballClient;
         this.scoringProperties = scoringProperties;
-        this.teamMemberRepository = teamMemberRepository;
         this.jdbcTemplate = jdbcTemplate;
         this.dataSource = dataSource;
     }
 
     @Transactional
-    public PartidoMarcadorResponse getMarcador(Long pollaId, Long partidoId, String userEmail, boolean forceApi) {
-        // Validar que userEmail no sea null o vacío
-        if (!StringUtils.hasText(userEmail)) {
-            log.error("getMarcador called with null or empty userEmail for pollaId: {}, partidoId: {}", pollaId, partidoId);
-            throw new UnauthorizedException("Email de usuario no válido en el contexto de autenticación");
-        }
-
-        log.info("getMarcador - pollaId: {}, partidoId: {}, userEmail: {}, forceApi: {}", 
-            pollaId, partidoId, userEmail, forceApi);
-
+    public PartidoMarcadorResponse getMarcador(Long pollaId, Long partidoId, String userEmail) {
         Polla polla = pollaRepository.findByIdAndDeletedAtIsNull(pollaId)
                 .orElseThrow(() -> new ResourceNotFoundException("Polla not found with id: " + pollaId));
 
-        boolean isCreator = polla.getCreadorEmail().equalsIgnoreCase(userEmail);
-        boolean isParticipant = participanteRepository.existsByPollaIdAndEmailUsuario(pollaId, userEmail);
-        
-        // Verificar si es miembro aprobado de algún grupo invitado
-        boolean isApprovedMemberOfInvitedGroup = false;
-        if (polla.getGruposInvitados() != null && !polla.getGruposInvitados().isEmpty()) {
-            List<Long> gruposIds = polla.getGruposInvitados().stream()
-                .map(Team::getId)
-                .toList();
-            isApprovedMemberOfInvitedGroup = teamMemberRepository.existsByTeamIdInAndUserEmailAndStatus(
-                gruposIds, userEmail, TeamMember.MembershipStatus.APPROVED);
-        }
-        
-        log.info("Access check - creadorEmail: {}, userEmail: {}, isCreator: {}, isParticipant: {}, isApprovedMember: {}",
-            polla.getCreadorEmail(), userEmail, isCreator, isParticipant, isApprovedMemberOfInvitedGroup);
-
-        if (!isCreator && !isParticipant && !isApprovedMemberOfInvitedGroup) {
-            log.error("Access denied for user {} to polla {}", userEmail, pollaId);
+        if (!polla.getCreadorEmail().equalsIgnoreCase(userEmail)
+                && !participanteRepository.existsByPollaIdAndEmailUsuario(pollaId, userEmail)) {
             throw new UnauthorizedException("No tienes acceso a esta polla");
         }
 
         PollaPartido partido = partidoRepository.findByIdAndPollaId(partidoId, pollaId)
                 .orElseThrow(() -> new ResourceNotFoundException("Partido not found with id: " + partidoId));
-
 
         // Regla 1: si ya está finalizado y hay marcador definitivo -> no API
         if ((Boolean.TRUE.equals(partido.getPartidoFinalizado()) || isFinishedStatus(partido.getApiStatusShort()))
@@ -128,9 +95,6 @@ public class PollaMarcadorService {
             log.debug("PollaPartido {} served from DB (finished + definitive score)", partidoId);
             return toResponse(pollaId, partido, "DB", null);
         }
-
-        // NOTE: Do not force API sync based solely on stored DB date, as DB times may be desynchronized.
-        // Rely on TTL/lastApiSyncAt/apiStatusShort and on API-provided fixture date during syncFromApi.
 
         Duration ttl = determineTtl(partido.getApiStatusShort(), partido.getGolesLocal(), partido.getGolesVisitante());
 
@@ -155,7 +119,7 @@ public class PollaMarcadorService {
             }
         }
 
-        boolean shouldCallApi = forceApi || ttl.isZero() || ttl.isNegative() || partido.getLastApiSyncAt() == null;
+        boolean shouldCallApi = ttl.isZero() || ttl.isNegative() || partido.getLastApiSyncAt() == null;
 
         if (!shouldCallApi) {
             // safety net
@@ -253,13 +217,7 @@ public class PollaMarcadorService {
             partido.setGolesLocal(snapshot.getHomeGoals());
             partido.setGolesVisitante(snapshot.getAwayGoals());
         }
-        // Store last API sync as UTC LocalDateTime to keep consistency with frontend (Jackson assumes UTC)
-        partido.setLastApiSyncAt(LocalDateTime.ofInstant(snapshot.getFetchedAt(), java.time.ZoneOffset.UTC));
-
-        // If API provided the fixture date, update the stored match datetime (convert to UTC)
-        if (snapshot.getFixtureDate() != null) {
-            partido.setFechaHoraPartido(LocalDateTime.ofInstant(snapshot.getFixtureDate(), java.time.ZoneOffset.UTC));
-        }
+        partido.setLastApiSyncAt(LocalDateTime.ofInstant(snapshot.getFetchedAt(), ZoneId.systemDefault()));
 
         boolean finished = isFinishedStatus(snapshot.getStatusShort())
                 && snapshot.getHomeGoals() != null

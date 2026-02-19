@@ -47,11 +47,6 @@ public class Polla {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     @Builder.Default
-    private PollaTipo tipo = PollaTipo.PRIVADA;
-
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 20)
-    @Builder.Default
     private PollaEstado estado = PollaEstado.CREADA;
 
     @OneToMany(mappedBy = "polla", cascade = CascadeType.ALL, orphanRemoval = true)
@@ -81,11 +76,6 @@ public class Polla {
 
     @Column(name = "deleted_at")
     private LocalDateTime deletedAt;
-
-    public enum PollaTipo {
-        PRIVADA,    // Solo grupos invitados, sin pago requerido
-        PUBLICA     // Cualquier usuario puede participar con pago
-    }
 
     public enum PollaEstado {
         CREADA,      // Recién creada, aún no visible

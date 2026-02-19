@@ -1,6 +1,5 @@
 package com.teamsservice.dto;
 
-import com.teamsservice.entity.Polla;
 import jakarta.validation.constraints.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -33,14 +32,9 @@ public class PollaCreateRequest {
     @Digits(integer = 8, fraction = 2, message = "Formato de monto inválido")
     private BigDecimal montoEntrada;
 
-    @NotNull(message = "El tipo de polla es requerido")
-    private Polla.PollaTipo tipo;
-
-    // Para pollas privadas: grupos invitados (requerido)
-    // Para pollas públicas: opcional, si se especifican son grupos adicionales con acceso sin pago
+    @NotEmpty(message = "Debe seleccionar al menos un grupo")
     private List<Long> gruposIds;
 
-    // OPCIONAL: Lista de emails para invitaciones individuales (casos especiales)
-    // Los miembros de los grupos seleccionados pueden participar automáticamente sin estar en esta lista
+    @NotEmpty(message = "Debe invitar al menos un participante")
     private List<String> emailsInvitados;
 }

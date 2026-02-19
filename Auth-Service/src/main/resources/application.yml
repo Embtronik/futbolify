@@ -64,11 +64,6 @@ app:
     verification:
       expiration: 86400000 # 24 horas
 
-  # Términos y Condiciones
-  terms:
-    default-version: ${TERMS_DEFAULT_VERSION:v1.0}
-    default-resource: ${TERMS_DEFAULT_RESOURCE:classpath:terms/default.md}
-
 # Server configuration
 server:
   port: 8080

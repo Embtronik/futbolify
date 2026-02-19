@@ -16,10 +16,6 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.util.List;
 
 @Component
@@ -51,29 +47,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 String email = tokenProvider.getEmailFromToken(jwt);
                 List<GrantedAuthority> authorities = tokenProvider.getAuthoritiesFromToken(jwt);
 
-                log.info("Processing JWT - userId: {}, email: {}, authorities: {}", 
-                    userId, email != null ? email : "NULL", 
-                    authorities != null ? authorities.size() : 0);
-
-                // Validar que el email no sea null o vacío - es requerido para autorización
-                if (!StringUtils.hasText(email)) {
-                    log.error("JWT token is missing email claim and subject - authentication rejected. Token starts with: {}...", 
-                        jwt.substring(0, Math.min(30, jwt.length())));
-                    filterChain.doFilter(request, response);
-                    return;
-                }
-
-                // OAuth tokens may not include a numeric userId.
-                // To avoid collisions (many users would become userId=0) we derive a stable per-email id.
-                if (userId == null || userId == 0L) {
-                    Long derived = deriveStableUserIdFromEmail(email);
-                    if (derived != null) {
-                        userId = derived;
-                        log.info("No userId in token; derived stable userId from email. Email: {}, userId: {}", email, derived);
-                    } else {
-                        userId = 0L;
-                        log.warn("No userId in token; using fallback userId=0. Email: {}", email);
-                    }
+                // Si userId es null, usar 0L como placeholder (auth-service no lo incluye para OAuth)
+                if (userId == null) {
+                    userId = 0L;
+                    log.warn("No userId in token, using placeholder. Email: {}", email);
                 }
 
                 UserPrincipal userPrincipal = new UserPrincipal(userId, email, authorities);
@@ -93,27 +70,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         filterChain.doFilter(request, response);
-    }
-
-    private static Long deriveStableUserIdFromEmail(String email) {
-        if (!StringUtils.hasText(email)) {
-            return null;
-        }
-
-        String normalized = email.trim().toLowerCase();
-        try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] hash = digest.digest(normalized.getBytes(StandardCharsets.UTF_8));
-            long value = ByteBuffer.wrap(hash, 0, Long.BYTES).getLong();
-            value = value & Long.MAX_VALUE; // keep positive
-            if (value == 0L) {
-                value = 1L;
-            }
-            return value;
-        } catch (NoSuchAlgorithmException e) {
-            // Should never happen on a standard JRE.
-            return null;
-        }
     }
 
     private String getJwtFromRequest(HttpServletRequest request) {

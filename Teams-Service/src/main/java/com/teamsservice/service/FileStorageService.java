@@ -73,18 +73,7 @@ public class FileStorageService {
         }
 
         try {
-            Path base = Paths.get(teamsDirectory);
-            // logoPath stored as "teams/logos/{teamId}/{filename}"
-            String prefix = "teams/logos/";
-            Path filePath;
-            if (logoPath.startsWith(prefix)) {
-                String rel = logoPath.substring(prefix.length());
-                filePath = base.resolve(rel);
-            } else {
-                // Fallback: treat as direct path
-                filePath = Paths.get(logoPath);
-            }
-
+            Path filePath = Paths.get(teamsDirectory).getParent().resolve(logoPath);
             if (Files.exists(filePath)) {
                 Files.delete(filePath);
                 log.info("Deleted team logo: {}", filePath);

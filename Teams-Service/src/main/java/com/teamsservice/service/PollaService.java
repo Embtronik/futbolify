@@ -13,104 +13,242 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
-@Slf4j
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class PollaService {
     private final PollaRepository pollaRepository;
+    private final PollaParticipanteRepository participanteRepository;
     private final PollaPartidoRepository partidoRepository;
     private final PollaPronosticoRepository pronosticoRepository;
-    private final PollaParticipanteRepository participanteRepository;
     private final TeamRepository teamRepository;
     private final TeamMemberRepository teamMemberRepository;
     private final AuthServiceClient authServiceClient;
-    private final NotificationServiceClient notificationServiceClient;
-    private final PaymentServiceClient paymentServiceClient;
-    
     /**
-     * Crea una nueva polla, valida grupos y agrega al creador como participante aceptado.
+     * Crea una nueva polla, valida grupos e invitados y agrega al creador como participante aceptado.
      */
     @Transactional
     public PollaResponse crearPolla(PollaCreateRequest request, String userEmail) {
-        log.info("Creating polla '{}' by user {} with type {}", 
-                request.getNombre(), userEmail, request.getTipo());
-        
-        // Validar según el tipo de polla
-        List<Team> gruposSeleccionados = List.of();
-        
-        if (request.getTipo() == Polla.PollaTipo.PRIVADA) {
-            // Para pollas privadas, los grupos son obligatorios
-            if (request.getGruposIds() == null || request.getGruposIds().isEmpty()) {
-                throw new BusinessRuleException(
-                    "Las pollas privadas requieren al menos un grupo invitado");
-            }
-            // Validar y obtener los grupos seleccionados
-            // Verifica que el usuario sea miembro aprobado de todos los grupos
-            gruposSeleccionados = validateAndGetGrupos(request.getGruposIds(), userEmail);
-        } else if (request.getTipo() == Polla.PollaTipo.PUBLICA) {
-            // Para pollas públicas, los grupos son opcionales
-            // Si se especifican grupos, esos miembros tendrán acceso sin pago
-            if (request.getGruposIds() != null && !request.getGruposIds().isEmpty()) {
-                gruposSeleccionados = validateAndGetGrupos(request.getGruposIds(), userEmail);
-                log.info("Public polla with {} privileged groups (no payment required for members)", 
-                        gruposSeleccionados.size());
-            } else {
-                log.info("Public polla without privileged groups (all users require payment)");
-            }
-        }
-        
-        // Crear la polla con todos los datos
-        Polla polla = Polla.builder()
-                .nombre(request.getNombre())
-                .descripcion(request.getDescripcion())
-                .creadorEmail(userEmail)
-                .fechaInicio(request.getFechaInicio())
-                .montoEntrada(request.getMontoEntrada())
-                .tipo(request.getTipo())
-                .estado(Polla.PollaEstado.CREADA)
-                .gruposInvitados(gruposSeleccionados)
-                .build();
-        
-        // Guardar la polla
-        Polla saved = pollaRepository.save(polla);
-        
-        log.info("Polla {} created successfully as {} with {} groups.", 
-                saved.getId(), saved.getTipo(), gruposSeleccionados.size());
-        
-        return mapToResponse(saved, userEmail);
+    log.info("Creating polla '{}' by user {}", request.getNombre(), userEmail);
+
+    // Validar grupos y que el usuario sea miembro de todos
+    List<Team> gruposSeleccionados = validateAndGetGrupos(request.getGruposIds(), userEmail);
+
+    // Validar que los invitados pertenezcan al menos a uno de los grupos
+    validateInvitados(request.getEmailsInvitados(), gruposSeleccionados);
+
+    // Construir entidad base
+    Polla polla = Polla.builder()
+        .nombre(request.getNombre())
+        .descripcion(request.getDescripcion())
+        .creadorEmail(userEmail)
+        .fechaInicio(request.getFechaInicio())
+        .montoEntrada(request.getMontoEntrada())
+        .estado(Polla.PollaEstado.CREADA)
+        .build();
+
+    // Asociar grupos invitados
+    polla.setGruposInvitados(gruposSeleccionados);
+
+    // Crear participantes (invitados)
+    List<PollaParticipante> participantes = request.getEmailsInvitados().stream()
+        .distinct()
+        .map(email -> PollaParticipante.builder()
+            .polla(polla)
+            .emailUsuario(email)
+            .estado(email.equalsIgnoreCase(userEmail)
+                ? PollaParticipante.EstadoParticipante.ACEPTADO
+                : PollaParticipante.EstadoParticipante.INVITADO)
+            .build())
+        .collect(Collectors.toList());
+
+    // Asegurar que el creador esté como ACEPTADO incluso si no está en la lista de invitados
+    boolean creadorListado = participantes.stream()
+        .anyMatch(p -> p.getEmailUsuario().equalsIgnoreCase(userEmail));
+    if (!creadorListado) {
+        participantes.add(PollaParticipante.builder()
+            .polla(polla)
+            .emailUsuario(userEmail)
+            .estado(PollaParticipante.EstadoParticipante.ACEPTADO)
+            .build());
+    }
+
+    polla.setParticipantes(participantes);
+
+    // Persistir sin reasignar la variable capturada en lambdas
+    Polla saved = pollaRepository.save(polla);
+    log.info("Polla creada con id {}", saved.getId());
+
+    PollaResponse response = mapToResponse(saved);
+    response.setEmailUsuarioAutenticado(userEmail);
+    return response;
     }
 
     /**
-     * Registra o actualiza un pronóstico individual
+     * Cambia el estado de la polla a ABIERTA si está en estado CREADA y el usuario es el creador
      */
     @Transactional
+    public void activarPolla(Long pollaId, String userEmail) {
+        log.info("Intentando activar polla {} por usuario {}", pollaId, userEmail);
+        Polla polla = pollaRepository.findByIdAndDeletedAtIsNull(pollaId)
+                .orElseThrow(() -> new ResourceNotFoundException("Polla not found with id: " + pollaId));
+
+        if (!polla.getCreadorEmail().equals(userEmail)) {
+            throw new UnauthorizedException("Solo el creador puede activar la polla");
+        }
+        if (polla.getEstado() != Polla.PollaEstado.CREADA) {
+            throw new BusinessRuleException("La polla ya fue activada o no está en estado CREADA");
+        }
+        polla.setEstado(Polla.PollaEstado.ABIERTA);
+        pollaRepository.save(polla);
+        log.info("Polla {} activada correctamente", pollaId);
+    }
+
+
+
+    @Transactional(readOnly = true)
+    public PollaResponse getPolla(Long pollaId, String userEmail) {
+        log.info("Getting polla {} for user {}", pollaId, userEmail);
+
+        Polla polla = pollaRepository.findByIdAndDeletedAtIsNull(pollaId)
+                .orElseThrow(() -> new ResourceNotFoundException("Polla not found with id: " + pollaId));
+
+        // Verificar que el usuario tiene acceso (es creador o participante)
+        if (!polla.getCreadorEmail().equals(userEmail) &&
+            !participanteRepository.existsByPollaIdAndEmailUsuario(pollaId, userEmail)) {
+            throw new UnauthorizedException("No tienes acceso a esta polla");
+        }
+
+        PollaResponse response = mapToResponse(polla);
+        response.setEmailUsuarioAutenticado(userEmail);
+        return response;
+    }
+
+    @Transactional(readOnly = true)
+    public List<PollaResponse> getMisPollas(String userEmail) {
+        log.info("Getting all pollas for user: {}", userEmail);
+
+        // Pollas creadas por el usuario
+        List<Polla> pollasCreadas = pollaRepository.findByCreadorEmailAndDeletedAtIsNull(userEmail);
+
+        // Pollas donde es participante
+        List<Polla> pollasParticipante = pollaRepository.findPollasWhereUserIsParticipant(userEmail);
+
+        // Combinar y eliminar duplicados sin capturar variables mutables en lambdas
+        List<Polla> todasLasPollas = Stream.concat(pollasCreadas.stream(), pollasParticipante.stream())
+            .distinct()
+            .collect(Collectors.toList());
+
+        return todasLasPollas.stream()
+            .map(polla -> {
+                PollaResponse resp = mapToResponse(polla);
+                resp.setEmailUsuarioAutenticado(userEmail);
+                return resp;
+            })
+            .collect(Collectors.toList());
+    }
+
+    @Transactional
+    public void aceptarInvitacion(Long pollaId, String userEmail) {
+        log.info("User {} accepting invitation to polla {}", userEmail, pollaId);
+
+        PollaParticipante participante = participanteRepository
+                .findByPollaIdAndEmailUsuario(pollaId, userEmail)
+                .orElseThrow(() -> new ResourceNotFoundException("Invitación no encontrada"));
+
+        if (participante.getEstado() != PollaParticipante.EstadoParticipante.INVITADO) {
+            throw new BusinessRuleException("La invitación ya fue respondida");
+        }
+
+        participante.setEstado(PollaParticipante.EstadoParticipante.ACEPTADO);
+        participante.setFechaRespuesta(LocalDateTime.now());
+        participanteRepository.save(participante);
+
+        log.info("Invitation accepted successfully");
+    }
+
+    @Transactional
+    public void rechazarInvitacion(Long pollaId, String userEmail) {
+        log.info("User {} rejecting invitation to polla {}", userEmail, pollaId);
+
+        PollaParticipante participante = participanteRepository
+                .findByPollaIdAndEmailUsuario(pollaId, userEmail)
+                .orElseThrow(() -> new ResourceNotFoundException("Invitación no encontrada"));
+
+        if (participante.getEstado() != PollaParticipante.EstadoParticipante.INVITADO) {
+            throw new BusinessRuleException("La invitación ya fue respondida");
+        }
+
+        participante.setEstado(PollaParticipante.EstadoParticipante.RECHAZADO);
+        participante.setFechaRespuesta(LocalDateTime.now());
+        participanteRepository.save(participante);
+
+        log.info("Invitation rejected successfully");
+    }
+
+    @Transactional
+    public PartidoResponse agregarPartido(Long pollaId, PartidoRequest request, String userEmail) {
+        log.info("Adding match {} to polla {}", request.getIdPartidoExterno(), pollaId);
+
+        // Verificar que el usuario es el creador
+        Polla polla = validateCreatorAccess(pollaId, userEmail);
+
+        // Validar que el partido no fue agregado previamente
+        if (partidoRepository.existsByPollaIdAndIdPartidoExterno(pollaId, request.getIdPartidoExterno())) {
+            throw new BusinessRuleException("Este partido ya fue agregado a la polla");
+        }
+
+        // Validar que la fecha del partido es futura
+        if (request.getFechaHoraPartido().isBefore(LocalDateTime.now())) {
+            throw new BusinessRuleException("No se pueden agregar partidos pasados");
+        }
+
+        PollaPartido partido = PollaPartido.builder()
+            .polla(polla)
+            .idPartidoExterno(request.getIdPartidoExterno())
+            .equipoLocal(request.getEquipoLocal())
+            .equipoLocalLogo(request.getEquipoLocalLogo())
+            .equipoVisitante(request.getEquipoVisitante())
+            .equipoVisitanteLogo(request.getEquipoVisitanteLogo())
+            .liga(request.getLiga())
+            .fechaHoraPartido(request.getFechaHoraPartido())
+            .partidoFinalizado(false)
+            .build();
+
+        partido = partidoRepository.save(partido);
+        log.info("Match added successfully with ID: {}", partido.getId());
+
+        return mapPartidoToResponse(partido);
+    }
+
+    @Transactional
     public PronosticoResponse registrarPronostico(Long pollaId, PronosticoRequest request, String userEmail) {
-        log.info("User {} registering forecast for partido {} in polla {}", userEmail, request.getPollaPartidoId(), pollaId);
+        log.info("User {} registering forecast for match {} in polla {}", 
+                 userEmail, request.getPollaPartidoId(), pollaId);
 
-        // Verificar acceso del usuario a la polla
-        validateUserAccess(pollaId, userEmail);
-
-        // Buscar el partido
-        PollaPartido partido = partidoRepository.findById(request.getPollaPartidoId())
-                .orElseThrow(() -> new ResourceNotFoundException("Partido not found with id: " + request.getPollaPartidoId()));
-
-        // Verificar que el partido pertenece a la polla
-        if (!partido.getPolla().getId().equals(pollaId)) {
-            throw new BusinessRuleException("El partido no pertenece a esta polla");
+        // Verificar que el usuario es participante aceptado o es el creador de la polla
+        boolean esCreador = pollaRepository.isUserCreator(pollaId, userEmail);
+        boolean esParticipanteAceptado = participanteRepository.isUserAceptado(pollaId, userEmail);
+        if (!esCreador && !esParticipanteAceptado) {
+            throw new UnauthorizedException("Debes ser participante aceptado para pronosticar");
         }
 
-        // Verificar que aún se puede pronosticar
+        // Obtener el partido
+        PollaPartido partido = partidoRepository.findByIdAndPollaId(request.getPollaPartidoId(), pollaId)
+                .orElseThrow(() -> new ResourceNotFoundException("Partido no encontrado"));
+
+        // Validar que aún está dentro del tiempo límite
         if (!partido.puedePronosticar()) {
-            throw new BusinessRuleException("Ya no se puede pronosticar este partido");
+            throw new BusinessRuleException("Ya no se pueden registrar pronósticos para este partido");
         }
 
-        // Buscar o crear el pronóstico
+        // Buscar pronóstico existente o crear nuevo
         PollaPronostico pronostico = pronosticoRepository
-                .findByPollaPartidoIdAndEmailParticipante(partido.getId(), userEmail)
+                .findByPollaPartidoIdAndEmailParticipante(request.getPollaPartidoId(), userEmail)
                 .orElse(PollaPronostico.builder()
                         .pollaPartido(partido)
                         .emailParticipante(userEmail)
@@ -121,13 +259,6 @@ public class PollaService {
 
         pronostico = pronosticoRepository.save(pronostico);
         log.info("Forecast registered successfully");
-
-        // After saving, check if the user has completed all forecasts for the polla
-        try {
-            checkAndNotifyIfCompleted(pollaId, userEmail);
-        } catch (Exception e) {
-            log.warn("Error while checking/completing notifications for {}: {}", userEmail, e.getMessage());
-        }
 
         return mapPronosticoToResponse(pronostico);
     }
@@ -143,416 +274,10 @@ public class PollaService {
             throw new BusinessRuleException("La lista de pronósticos no puede estar vacía");
         }
 
-        // To avoid sending duplicate notifications, save all pronósticos in batch and
-        // run the completion check only once after all are persisted.
-        List<PollaPronostico> toSave = requests.stream().map(req -> {
-            PollaPronostico p = pronosticoRepository
-                    .findByPollaPartidoIdAndEmailParticipante(req.getPollaPartidoId(), userEmail)
-                    .orElse(PollaPronostico.builder()
-                            .pollaPartido(partidoRepository.findById(req.getPollaPartidoId()).orElseThrow(() -> new ResourceNotFoundException("Partido not found with id: " + req.getPollaPartidoId())))
-                            .emailParticipante(userEmail)
-                            .build());
-
-            p.setGolesLocalPronosticado(req.getGolesLocalPronosticado());
-            p.setGolesVisitante(req.getGolesVisitantePronosticado());
-            return p;
-        }).collect(Collectors.toList());
-
-        List<PollaPronostico> saved = pronosticoRepository.saveAll(toSave);
-
-        // After saving all, run completion check once
-        try {
-            checkAndNotifyIfCompleted(pollaId, userEmail);
-        } catch (Exception e) {
-            log.warn("Error while checking/completing notifications for {}: {}", userEmail, e.getMessage());
-        }
-
-        return saved.stream().map(this::mapPronosticoToResponse).collect(Collectors.toList());
-    }
-
-    /**
-     * Obtiene todas las pollas del usuario (creadas o donde es miembro de algún grupo invitado)
-     */
-    @Transactional(readOnly = true)
-    public List<PollaResponse> getMisPollas(String userEmail) {
-        log.info("Getting all pollas for user: {}", userEmail);
-
-        // Obtener pollas creadas por el usuario (todas, sin importar el estado)
-        List<Polla> pollasCreadas = pollaRepository.findByCreadorEmailAndDeletedAtIsNull(userEmail);
-
-        // Obtener pollas donde el usuario es participante
-        List<Polla> pollasComoParticipante = pollaRepository.findPollasWhereUserIsParticipant(userEmail);
-
-        // Obtener equipos del usuario para encontrar pollas donde sus grupos fueron invitados
-        List<Long> userTeamIds = teamMemberRepository
-                .findApprovedTeamsByUserEmail(userEmail)
-                .stream()
-                .map(tm -> tm.getTeam().getId())
-                .toList();
-
-        List<Polla> pollasDeGruposInvitados = List.of();
-        if (!userTeamIds.isEmpty()) {
-            pollasDeGruposInvitados = pollaRepository.findByGruposInvitadosIn(userTeamIds);
-            // Filtrar: solo mostrar pollas ABIERTA, CERRADA o FINALIZADA
-            // Las pollas en estado CREADA solo las ve el creador
-            pollasDeGruposInvitados = pollasDeGruposInvitados.stream()
-                    .filter(p -> !p.getCreadorEmail().equalsIgnoreCase(userEmail) // No es creador
-                            ? p.getEstado() != Polla.PollaEstado.CREADA // Solo ver pollas activadas
-                            : true) // Si es creador, ver todas
-                    .collect(Collectors.toList());
-        }
-
-        // Obtener pollas públicas donde el usuario ha pagado
-        // Para esto, obtenemos todas las pollas públicas y filtramos las que tienen pago
-        List<Polla> pollasPublicas = pollaRepository.findPublicPollas();
-        List<Polla> pollasPublicasPagadas = pollasPublicas.stream()
-                .filter(p -> !p.getCreadorEmail().equalsIgnoreCase(userEmail)) // No duplicar las creadas
-                .filter(p -> {
-                    // Verificar si es miembro de grupo privilegiado o tiene pago
-                    boolean esMiembroPrivilegiado = false;
-                    if (p.getGruposInvitados() != null && !p.getGruposInvitados().isEmpty()) {
-                        List<Long> gruposIds = p.getGruposInvitados().stream()
-                            .map(Team::getId)
-                            .toList();
-                        esMiembroPrivilegiado = !userTeamIds.isEmpty() && 
-                            gruposIds.stream().anyMatch(userTeamIds::contains);
-                    }
-                    return esMiembroPrivilegiado || paymentServiceClient.hasApprovedPayment(userEmail, p.getId());
-                })
-                .toList();
-
-        // Combinar todas las pollas y eliminar duplicados
-        List<Polla> todasLasPollas = new java.util.ArrayList<>(pollasCreadas);
-        todasLasPollas.addAll(pollasComoParticipante);
-        todasLasPollas.addAll(pollasDeGruposInvitados);
-        todasLasPollas.addAll(pollasPublicasPagadas);
-
-        List<Polla> pollas = todasLasPollas.stream()
-                .distinct()
-                .sorted((p1, p2) -> p2.getCreatedAt().compareTo(p1.getCreatedAt()))
-                .toList();
-
-        return pollas.stream()
-                .map(p -> mapToResponse(p, userEmail))
+        // Reutilizar la lógica existente para cada pronóstico
+        return requests.stream()
+                .map(req -> registrarPronostico(pollaId, req, userEmail))
                 .collect(Collectors.toList());
-    }
-
-    /**
-     * Obtiene todas las pollas públicas disponibles que cualquier usuario puede ver
-     */
-    @Transactional(readOnly = true)
-    public List<PollaResponse> getPublicPollas(String userEmail) {
-        log.info("Getting all public pollas for user: {}", userEmail);
-        
-        List<Polla> pollasPublicas = pollaRepository.findPublicPollas();
-        
-        return pollasPublicas.stream()
-                .map(p -> mapToResponse(p, userEmail))
-                .collect(Collectors.toList());
-    }
-
-    /**
-     * Permite a un usuario participar en una polla pública mediante pago
-     */
-    @Transactional
-    public PollaResponse participarConPago(Long pollaId, String paymentReference, String userEmail) {
-        log.info("User {} attempting to join public polla {} with payment reference {}", 
-                userEmail, pollaId, paymentReference);
-        
-        // Obtener la polla
-        Polla polla = pollaRepository.findByIdAndDeletedAtIsNull(pollaId)
-                .orElseThrow(() -> new ResourceNotFoundException("Polla not found with id: " + pollaId));
-        
-        // Verificar que sea una polla pública
-        if (polla.getTipo() != Polla.PollaTipo.PUBLICA) {
-            throw new BusinessRuleException("Esta función solo aplica para pollas públicas");
-        }
-        
-        // Verificar que la polla esté abierta
-        if (polla.getEstado() != Polla.PollaEstado.ABIERTA) {
-            throw new BusinessRuleException("Esta polla no está abierta para nuevos participantes");
-        }
-        
-        // Verificar si es miembro de grupo privilegiado (no necesita pago)
-        boolean esMiembroPrivilegiado = false;
-        if (polla.getGruposInvitados() != null && !polla.getGruposInvitados().isEmpty()) {
-            List<Long> gruposIds = polla.getGruposInvitados().stream()
-                .map(Team::getId)
-                .toList();
-            esMiembroPrivilegiado = teamMemberRepository.existsByTeamIdInAndUserEmailAndStatus(
-                gruposIds, userEmail, com.teamsservice.entity.TeamMember.MembershipStatus.APPROVED);
-        }
-        
-        if (esMiembroPrivilegiado) {
-            log.info("User {} is member of privileged group, no payment required", userEmail);
-            // No necesita pago, agregar como participante directamente
-            if (!participanteRepository.existsByPollaIdAndEmailUsuario(pollaId, userEmail)) {
-                PollaParticipante participante = PollaParticipante.builder()
-                        .polla(polla)
-                        .emailUsuario(userEmail)
-                        .build();
-                participanteRepository.save(participante);
-            }
-            return mapToResponse(polla, userEmail);
-        }
-        
-        // Validar el pago con el payment-service
-        PaymentValidationRequest paymentRequest = PaymentValidationRequest.builder()
-                .userEmail(userEmail)
-                .paymentReference(paymentReference)
-                .expectedAmount(polla.getMontoEntrada())
-                .concept("Polla: " + polla.getNombre())
-                .pollaId(pollaId)
-                .build();
-        
-        PaymentValidationResponse paymentResponse = paymentServiceClient.validatePayment(paymentRequest);
-        
-        if (!paymentResponse.isValid() || !"APPROVED".equals(paymentResponse.getStatus())) {
-            throw new BusinessRuleException("El pago no es válido o no está aprobado");
-        }
-        
-        log.info("Payment validated successfully for user {} on polla {}: paymentId={}", 
-                userEmail, pollaId, paymentResponse.getPaymentId());
-        
-        // Agregar como participante
-        if (!participanteRepository.existsByPollaIdAndEmailUsuario(pollaId, userEmail)) {
-            PollaParticipante participante = PollaParticipante.builder()
-                    .polla(polla)
-                    .emailUsuario(userEmail)
-                    .build();
-            participanteRepository.save(participante);
-            log.info("User {} added as participant to polla {} with payment", userEmail, pollaId);
-        }
-        
-        return mapToResponse(polla, userEmail);
-    }
-
-    /**
-     * Obtiene el detalle completo de una polla
-     */
-    @Transactional(readOnly = true)
-    public PollaResponse getPolla(Long pollaId, String userEmail) {
-        log.info("Getting polla {} for user {}", pollaId, userEmail);
-
-        validateUserAccess(pollaId, userEmail);
-
-        Polla polla = pollaRepository.findByIdAndDeletedAtIsNull(pollaId)
-                .orElseThrow(() -> new ResourceNotFoundException("Polla not found with id: " + pollaId));
-
-        return mapToResponse(polla, userEmail);
-    }
-
-    /**
-     * Acepta invitación a una polla (agrega al usuario como participante explícito)
-     * 
-     * NOTA: Este método es OPCIONAL y solo para casos especiales:
-     * - Confirmación explícita de participación
-     * - Invitaciones individuales fuera de grupos
-     * 
-     * Para el flujo normal, NO es necesario llamar este método.
-     * Los miembros aprobados de los grupos invitados pueden acceder automáticamente.
-     */
-    @Transactional
-    public void aceptarInvitacion(Long pollaId, String userEmail) {
-        log.info("User {} accepting invitation to polla {} (explicit confirmation)", userEmail, pollaId);
-
-        validateUserAccess(pollaId, userEmail);
-
-        Polla polla = pollaRepository.findByIdAndDeletedAtIsNull(pollaId)
-                .orElseThrow(() -> new ResourceNotFoundException("Polla not found with id: " + pollaId));
-
-        // Verificar si ya es participante explícito
-        if (participanteRepository.existsByPollaIdAndEmailUsuario(pollaId, userEmail)) {
-            log.info("User {} is already an explicit participant in polla {}", userEmail, pollaId);
-            return;
-        }
-
-        // Agregar como participante explícito (opcional)
-        PollaParticipante participante = PollaParticipante.builder()
-                .polla(polla)
-                .emailUsuario(userEmail)
-                .build();
-
-        participanteRepository.save(participante);
-        log.info("User {} added as explicit participant to polla {}", userEmail, pollaId);
-    }
-
-    /**
-     * Rechaza invitación o sale de una polla
-     * 
-     * NOTA: Este método permite al usuario hacer "opt-out" de una polla,
-     * incluso si es miembro de un grupo invitado.
-     * Si está en la tabla de participantes explícitos, lo elimina.
-     */
-    @Transactional
-    public void rechazarInvitacion(Long pollaId, String userEmail) {
-        log.info("User {} rejecting invitation / opting out of polla {}", userEmail, pollaId);
-
-        // No validar acceso porque el usuario podría querer salir de la polla
-
-        participanteRepository.findByPollaIdAndEmailUsuario(pollaId, userEmail)
-                .ifPresent(participante -> {
-                    participanteRepository.delete(participante);
-                    log.info("User {} removed from polla {}", userEmail, pollaId);
-                });
-    }
-
-    /**
-     * Agrega un partido a la polla
-     */
-    @Transactional
-    public PartidoResponse agregarPartido(Long pollaId, PartidoRequest request, String userEmail) {
-        log.info("Adding match to polla {} by user {}", pollaId, userEmail);
-
-        // Solo el creador puede agregar partidos
-        Polla polla = validateCreatorAccess(pollaId, userEmail);
-
-        // Verificar que la polla esté en estado CREADA
-        if (polla.getEstado() != Polla.PollaEstado.CREADA) {
-            throw new BusinessRuleException("Solo se pueden agregar partidos cuando la polla está en estado CREADA");
-        }
-
-        // Verificar que no exista ya un partido con el mismo idPartidoExterno
-        if (partidoRepository.existsByPollaIdAndIdPartidoExterno(pollaId, request.getIdPartidoExterno())) {
-            throw new BusinessRuleException("Ya existe un partido con el ID externo: " + request.getIdPartidoExterno());
-        }
-
-        PollaPartido partido = PollaPartido.builder()
-                .polla(polla)
-                .idPartidoExterno(request.getIdPartidoExterno())
-                .equipoLocal(request.getEquipoLocal())
-                .equipoLocalLogo(request.getEquipoLocalLogo())
-                .equipoVisitante(request.getEquipoVisitante())
-                .equipoVisitanteLogo(request.getEquipoVisitanteLogo())
-                .liga(request.getLiga())
-                .fechaHoraPartido(request.getFechaHoraPartido())
-                .build();
-
-        partido = partidoRepository.save(partido);
-        log.info("Match {} added to polla {}", partido.getId(), pollaId);
-
-        return mapPartidoToResponse(partido);
-    }
-
-    /**
-     * Activa una polla (cambia el estado a ABIERTA)
-     */
-    @Transactional
-    public void activarPolla(Long pollaId, String userEmail) {
-        log.info("Activating polla {} by user {}", pollaId, userEmail);
-
-        Polla polla = validateCreatorAccess(pollaId, userEmail);
-
-        if (polla.getEstado() != Polla.PollaEstado.CREADA) {
-            throw new BusinessRuleException("Solo se puede activar una polla en estado CREADA");
-        }
-
-        // Verificar que tenga al menos un partido
-        long partidosCount = partidoRepository.countTotalByPollaId(pollaId);
-        if (partidosCount == 0) {
-            throw new BusinessRuleException("No se puede activar una polla sin partidos");
-        }
-
-        polla.setEstado(Polla.PollaEstado.ABIERTA);
-        pollaRepository.save(polla);
-        log.info("Polla {} activated successfully", pollaId);
-    }
-
-    /**
-     * Si el participante tiene pronósticos para todos los partidos de la polla, envía notificaciones
-     * al participante y al creador con el resumen de los marcadores que puso.
-     */
-    private void checkAndNotifyIfCompleted(Long pollaId, String userEmail) {
-        long totalMatches = partidoRepository.countTotalByPollaId(pollaId);
-        long userForecasts = pronosticoRepository.findByPollaIdAndEmail(pollaId, userEmail).size();
-
-        if (totalMatches > 0 && userForecasts == totalMatches) {
-            // obtener creador de la polla
-            Polla polla = pollaRepository.findByIdAndDeletedAtIsNull(pollaId)
-                    .orElseThrow(() -> new ResourceNotFoundException("Polla not found with id: " + pollaId));
-
-            String creadorEmail = polla.getCreadorEmail();
-
-            // construir resumen de marcadores del participante
-            List<PollaPronostico> pronosticos = pronosticoRepository.findByPollaIdAndEmail(pollaId, userEmail);
-
-            String participantName = null;
-            String creatorName = null;
-            try {
-                if (userEmail != null) participantName = authServiceClient.getUserByEmail(userEmail).getFullName();
-            } catch (Exception e) {
-                log.warn("Could not fetch user info for {}: {}", userEmail, e.getMessage());
-            }
-            try {
-                if (creadorEmail != null) creatorName = authServiceClient.getUserByEmail(creadorEmail).getFullName();
-            } catch (Exception e) {
-                log.warn("Could not fetch creator info for {}: {}", creadorEmail, e.getMessage());
-            }
-
-
-            // Build concise notifications (no detalles de marcadores) and notify via EMAIL, SMS, WHATSAPP
-            String body = "Has registrado tus pronósticos para la polla '" + polla.getNombre() + "'. Gracias por participar.";
-            String creatorBody = "El participante " + (participantName != null ? participantName : userEmail)
-                    + " ha registrado sus pronósticos en la polla '" + polla.getNombre() + "'.";
-
-            List<String> channels = List.of("EMAIL", "SMS", "WHATSAPP");
-
-            String participantPhone = null;
-            String creatorPhone = null;
-            try {
-                if (userEmail != null) {
-                    var u = authServiceClient.getUserByEmail(userEmail);
-                    if (u != null && u.getPhoneNumber() != null) {
-                        participantPhone = (u.getCountryCode() != null ? u.getCountryCode() : "") + u.getPhoneNumber();
-                    }
-                }
-            } catch (Exception e) {
-                log.warn("Could not fetch participant phone for {}: {}", userEmail, e.getMessage());
-            }
-
-            try {
-                if (creadorEmail != null) {
-                    var c = authServiceClient.getUserByEmail(creadorEmail);
-                    if (c != null && c.getPhoneNumber() != null) {
-                        creatorPhone = (c.getCountryCode() != null ? c.getCountryCode() : "") + c.getPhoneNumber();
-                    }
-                }
-            } catch (Exception e) {
-                log.warn("Could not fetch creator phone for {}: {}", creadorEmail, e.getMessage());
-            }
-
-                NotificationSendRequest toParticipant = NotificationSendRequest.builder()
-                    .channels(channels)
-                    .recipient(userEmail)
-                    .recipientPhone(participantPhone)
-                    .subject("Has completado tus pronósticos en " + polla.getNombre())
-                    .body(body)
-                    .serviceOrigin("teams-service")
-                    .build();
-
-                NotificationSendRequest toCreator = NotificationSendRequest.builder()
-                    .channels(channels)
-                    .recipient(creadorEmail)
-                    .recipientPhone(creatorPhone)
-                    .subject("Participante completó pronósticos en " + polla.getNombre())
-                    .body(creatorBody)
-                    .serviceOrigin("teams-service")
-                    .build();
-
-            try {
-                notificationServiceClient.sendNotification(toParticipant);
-            } catch (Exception e) {
-                log.error("Error sending notification to participant {}: {}", userEmail, e.getMessage());
-            }
-
-            try {
-                if (creadorEmail != null && !creadorEmail.isBlank()) {
-                    notificationServiceClient.sendNotification(toCreator);
-                }
-            } catch (Exception e) {
-                log.error("Error sending notification to creator {}: {}", creadorEmail, e.getMessage());
-            }
-        }
     }
 
     @Transactional(readOnly = true)
@@ -611,7 +336,18 @@ public class PollaService {
         return grupos;
     }
 
+    private void validateInvitados(List<String> emails, List<Team> grupos) {
+        for (String email : emails) {
+            boolean esMiembroDeAlgunGrupo = grupos.stream()
+                    .anyMatch(grupo -> teamMemberRepository.existsByTeamIdAndUserEmailAndStatus(
+                            grupo.getId(), email, TeamMember.MembershipStatus.APPROVED));
 
+            if (!esMiembroDeAlgunGrupo) {
+                throw new BusinessRuleException(
+                    "El usuario " + email + " no es miembro de ninguno de los grupos seleccionados");
+            }
+        }
+    }
 
     private Polla validateCreatorAccess(Long pollaId, String userEmail) {
         Polla polla = pollaRepository.findByIdAndDeletedAtIsNull(pollaId)
@@ -625,86 +361,30 @@ public class PollaService {
     }
 
     private void validateUserAccess(Long pollaId, String userEmail) {
-        Polla polla = pollaRepository.findByIdAndDeletedAtIsNull(pollaId)
-                .orElseThrow(() -> new ResourceNotFoundException("Polla not found with id: " + pollaId));
-        
-        // El creador siempre tiene acceso
-        boolean esCreador = polla.getCreadorEmail().equalsIgnoreCase(userEmail);
-        if (esCreador) {
-            return;
-        }
-        
-        // Verificar acceso según el tipo de polla
-        if (polla.getTipo() == Polla.PollaTipo.PRIVADA) {
-            // Para pollas privadas: solo miembros aprobados de grupos invitados
-            boolean esMiembroAprobadoGrupo = false;
-            if (polla.getGruposInvitados() != null && !polla.getGruposInvitados().isEmpty()) {
-                List<Long> gruposIds = polla.getGruposInvitados().stream()
-                    .map(Team::getId)
-                    .toList();
-                esMiembroAprobadoGrupo = teamMemberRepository.existsByTeamIdInAndUserEmailAndStatus(
-                    gruposIds, userEmail, com.teamsservice.entity.TeamMember.MembershipStatus.APPROVED);
-            }
-            
-            if (!esMiembroAprobadoGrupo) {
-                throw new UnauthorizedException("No tienes acceso a esta polla privada");
-            }
-            
-        } else if (polla.getTipo() == Polla.PollaTipo.PUBLICA) {
-            // Para pollas públicas: 
-            // 1. Miembros de grupos privilegiados tienen acceso sin pago
-            // 2. Otros usuarios necesitan pago aprobado
-            
-            boolean esMiembroGrupoPrivilegiado = false;
-            if (polla.getGruposInvitados() != null && !polla.getGruposInvitados().isEmpty()) {
-                List<Long> gruposIds = polla.getGruposInvitados().stream()
-                    .map(Team::getId)
-                    .toList();
-                esMiembroGrupoPrivilegiado = teamMemberRepository.existsByTeamIdInAndUserEmailAndStatus(
-                    gruposIds, userEmail, com.teamsservice.entity.TeamMember.MembershipStatus.APPROVED);
-            }
-            
-            if (!esMiembroGrupoPrivilegiado) {
-                // No es miembro privilegiado, verificar pago
-                boolean tienePagoAprobado = paymentServiceClient.hasApprovedPayment(userEmail, pollaId);
-                if (!tienePagoAprobado) {
-                    throw new UnauthorizedException(
-                        "Debes realizar el pago de la cuota de entrada para acceder a esta polla pública");
-                }
-            }
+        if (!pollaRepository.isUserCreator(pollaId, userEmail) &&
+            !participanteRepository.existsByPollaIdAndEmailUsuario(pollaId, userEmail)) {
+            throw new UnauthorizedException("No tienes acceso a esta polla");
         }
     }
 
     // Métodos de mapeo
 
-    private PollaResponse mapToResponse(Polla polla, String emailUsuarioAutenticado) {
-        // Mapear participantes
-        List<ParticipanteResponse> participantesResponse = polla.getParticipantes() != null
-                ? polla.getParticipantes().stream()
-                        .map(this::mapParticipanteToResponse)
-                        .collect(Collectors.toList())
-                : List.of();
+    private PollaResponse mapToResponse(Polla polla) {
+        List<ParticipanteResponse> participantes = polla.getParticipantes().stream()
+                .map(this::mapParticipanteToResponse)
+                .collect(Collectors.toList());
 
-        // Mapear partidos (solo IDs básicos, no detalles completos)
-        List<PartidoResponse> partidosResponse = polla.getPartidos() != null
-                ? polla.getPartidos().stream()
-                        .map(this::mapPartidoToResponse)
-                        .collect(Collectors.toList())
-                : List.of();
+        List<PartidoResponse> partidos = polla.getPartidos().stream()
+                .map(this::mapPartidoToResponse)
+                .collect(Collectors.toList());
 
-        // Mapear grupos invitados
-        List<GrupoSimpleResponse> gruposResponse = polla.getGruposInvitados() != null && !polla.getGruposInvitados().isEmpty()
-                ? polla.getGruposInvitados().stream()
-                        .map(g -> GrupoSimpleResponse.builder()
-                                .id(g.getId())
-                                .name(g.getName())
-                                .logoUrl(g.getLogoPath())
-                                .build())
-                        .collect(Collectors.toList())
-                : java.util.Collections.emptyList();
-
-        // Contar participantes reales: solo aquellos que han agregado al menos un pronóstico
-        long totalParticipantesReales = pronosticoRepository.countUniqueParticipantsByPollaId(polla.getId());
+        List<GrupoSimpleResponse> grupos = polla.getGruposInvitados().stream()
+                .map(g -> GrupoSimpleResponse.builder()
+                        .id(g.getId())
+                        .name(g.getName())
+                        .logoUrl(g.getLogoPath())
+                        .build())
+                .collect(Collectors.toList());
 
         return PollaResponse.builder()
                 .id(polla.getId())
@@ -713,42 +393,43 @@ public class PollaService {
                 .creadorEmail(polla.getCreadorEmail())
                 .fechaInicio(polla.getFechaInicio())
                 .montoEntrada(polla.getMontoEntrada())
-                .tipo(polla.getTipo() != null ? polla.getTipo().name() : null)
-                .totalParticipantes((int) totalParticipantesReales)
-                .totalPartidos(polla.getPartidos() != null ? polla.getPartidos().size() : 0)
-                .participantes(participantesResponse)
-                .partidos(partidosResponse)
-                .gruposInvitados(gruposResponse)
+                .estado(polla.getEstado().name())
+                .totalParticipantes(participantes.size())
+                .totalPartidos(partidos.size())
+                .participantes(participantes)
+                .partidos(partidos)
+                .gruposInvitados(grupos)
                 .createdAt(polla.getCreatedAt())
                 .updatedAt(polla.getUpdatedAt())
-                .emailUsuarioAutenticado(emailUsuarioAutenticado)
-                .estado(polla.getEstado() != null ? polla.getEstado().name() : null)
                 .build();
     }
 
     private ParticipanteResponse mapParticipanteToResponse(PollaParticipante participante) {
-        if (participante == null) {
-            return null;
-        }
-
-        UserInfoDto userInfo = null;
-        try {
-            userInfo = authServiceClient.getUserByEmail(participante.getEmailUsuario());
-        } catch (Exception e) {
-            log.warn("Could not fetch user info for {}: {}", participante.getEmailUsuario(), e.getMessage());
-        }
-
-        return ParticipanteResponse.builder()
+        ParticipanteResponse response = ParticipanteResponse.builder()
                 .id(participante.getId())
                 .emailUsuario(participante.getEmailUsuario())
-                .userInfo(userInfo)
+                .estado(participante.getEstado().name())
+                .fechaInvitacion(participante.getFechaInvitacion())
+                .fechaRespuesta(participante.getFechaRespuesta())
                 .build();
+
+        // Enriquecer con datos del usuario
+        try {
+            UserInfoDto userInfo = authServiceClient.getUserByEmail(participante.getEmailUsuario());
+            response.setUserInfo(userInfo);
+        } catch (Exception e) {
+            log.warn("Could not fetch user info for email {}: {}", 
+                     participante.getEmailUsuario(), e.getMessage());
+        }
+
+        return response;
     }
 
     private PartidoResponse mapPartidoToResponse(PollaPartido partido) {
-        List<PronosticoResponse> pronosticos = partido.getPronosticos() != null && !partido.getPronosticos().isEmpty()
-            ? partido.getPronosticos().stream().map(this::mapPronosticoToResponse).collect(Collectors.toList())
-            : List.of();
+        List<PronosticoResponse> pronosticos = partido.getPronosticos().stream()
+                .map(this::mapPronosticoToResponse)
+                .collect(Collectors.toList());
+
         return PartidoResponse.builder()
             .id(partido.getId())
             .idPartidoExterno(partido.getIdPartidoExterno())
@@ -769,11 +450,7 @@ public class PollaService {
     }
 
     private PronosticoResponse mapPronosticoToResponse(PollaPronostico pronostico) {
-        UserInfoDto userInfo = null;
-        try {
-            userInfo = authServiceClient.getUserByEmail(pronostico.getEmailParticipante());
-        } catch (Exception ignored) {}
-        return PronosticoResponse.builder()
+        PronosticoResponse response = PronosticoResponse.builder()
                 .id(pronostico.getId())
                 .emailParticipante(pronostico.getEmailParticipante())
                 .golesLocalPronosticado(pronostico.getGolesLocalPronosticado())
@@ -781,8 +458,18 @@ public class PollaService {
                 .fechaRegistro(pronostico.getFechaRegistro())
                 .fechaActualizacion(pronostico.getFechaActualizacion())
                 .puntosObtenidos(pronostico.getPuntosObtenidos())
-                .userInfo(userInfo)
                 .build();
+
+        // Enriquecer con datos del usuario
+        try {
+            UserInfoDto userInfo = authServiceClient.getUserByEmail(pronostico.getEmailParticipante());
+            response.setUserInfo(userInfo);
+        } catch (Exception e) {
+            log.warn("Could not fetch user info for email {}: {}", 
+                     pronostico.getEmailParticipante(), e.getMessage());
+        }
+
+        return response;
     }
 
     /**
@@ -803,154 +490,6 @@ public class PollaService {
         polla.setEstado(Polla.PollaEstado.CREADA);
         pollaRepository.save(polla);
         log.info("Polla {} cambiada a estado CREADA correctamente", pollaId);
-    }
-
-    @Transactional
-    public void eliminarPolla(Long pollaId, String userEmail) {
-        log.info("Attempting to soft delete polla {} by user {}", pollaId, userEmail);
-
-        Polla polla = pollaRepository.findByIdAndDeletedAtIsNull(pollaId)
-                .orElseThrow(() -> new ResourceNotFoundException("Polla not found with id: " + pollaId));
-
-        if (!polla.getCreadorEmail().equals(userEmail)) {
-            throw new UnauthorizedException("Only the creator can delete the polla");
-        }
-
-        polla.setDeletedAt(LocalDateTime.now());
-        pollaRepository.save(polla);
-        log.info("Polla {} soft deleted", pollaId);
-    }
-
-    /**
-     * Eliminar un partido de una polla. Solo el creador puede hacerlo y solo cuando la polla está en estado CREADA.
-     * Elimina también los pronósticos asociados al partido.
-     */
-    @Transactional
-    public void eliminarPartido(Long pollaId, Long partidoId, String userEmail) {
-        log.info("Attempting to delete partido {} from polla {} by user {}", partidoId, pollaId, userEmail);
-
-        // Verificar que el usuario sea el creador
-        Polla polla = validateCreatorAccess(pollaId, userEmail);
-
-        // Solo se permiten cambios en estado CREADA
-        if (polla.getEstado() != Polla.PollaEstado.CREADA) {
-            throw new BusinessRuleException("Solo se pueden eliminar partidos cuando la polla está en estado CREADA");
-        }
-
-        // Buscar partido dentro de la polla
-        PollaPartido partido = partidoRepository.findByIdAndPollaId(partidoId, pollaId)
-                .orElseThrow(() -> new ResourceNotFoundException("Partido not found with id: " + partidoId + " in polla " + pollaId));
-
-        // No permitir eliminar partidos ya finalizados
-        if (Boolean.TRUE.equals(partido.getPartidoFinalizado())) {
-            throw new BusinessRuleException("No se puede eliminar un partido ya finalizado");
-        }
-
-        // Eliminar pronósticos relacionados
-        var pronosticos = pronosticoRepository.findByPollaPartidoId(partido.getId());
-        if (pronosticos != null && !pronosticos.isEmpty()) {
-            pronosticoRepository.deleteAll(pronosticos);
-            log.info("Deleted {} pronosticos for partido {}", pronosticos.size(), partido.getId());
-        }
-
-        // Eliminar el partido
-        partidoRepository.delete(partido);
-        log.info("Partido {} deleted from polla {}", partidoId, pollaId);
-    }
-
-    /**
-     * Obtiene los resultados detallados de una polla.
-     * Incluye SOLO los participantes que hicieron al menos un pronóstico,
-     * con sus pronósticos, marcadores reales y puntos por partido.
-     */
-    @Transactional(readOnly = true)
-    public PollaResultadoDetalladoResponse getResultadosDetallados(Long pollaId, String userEmail) {
-        log.info("Getting detailed results for polla {} by user {}", pollaId, userEmail);
-
-        // Verificar acceso
-        validateUserAccess(pollaId, userEmail);
-
-        Polla polla = pollaRepository.findByIdAndDeletedAtIsNull(pollaId)
-                .orElseThrow(() -> new ResourceNotFoundException("Polla not found with id: " + pollaId));
-
-        // Obtener todos los partidos de la polla
-        List<PollaPartido> partidos = partidoRepository.findByPollaIdOrderByFechaHoraPartidoAsc(pollaId);
-
-        // Obtener todos los pronósticos de la polla agrupados por participante
-        List<PollaPronostico> todosPronosticos = pronosticoRepository.findByPollaPartidoPollaId(pollaId);
-
-        // Agrupar pronósticos por participante
-        Map<String, List<PollaPronostico>> pronosticosPorParticipante = todosPronosticos.stream()
-                .collect(Collectors.groupingBy(PollaPronostico::getEmailParticipante));
-
-        // Crear resultado detallado SOLO para participantes que hicieron pronósticos
-        List<ParticipanteResultadoDetallado> participantesResultados = pronosticosPorParticipante.entrySet().stream()
-                .map(entry -> {
-                    String email = entry.getKey();
-                    List<PollaPronostico> pronosticosParticipante = entry.getValue();
-
-                    // Obtener info del usuario
-                    UserInfoDto userInfo = null;
-                    String nombreParticipante = email;
-                    try {
-                        userInfo = authServiceClient.getUserByEmail(email);
-                        if (userInfo != null && userInfo.getFullName() != null) {
-                            nombreParticipante = userInfo.getFullName();
-                        }
-                    } catch (Exception e) {
-                        log.warn("Could not fetch user info for {}: {}", email, e.getMessage());
-                    }
-
-                    // Calcular puntaje total
-                    int puntajeTotal = pronosticosParticipante.stream()
-                            .mapToInt(p -> p.getPuntosObtenidos() != null ? p.getPuntosObtenidos() : 0)
-                            .sum();
-
-                    // Crear detalle de cada partido
-                    List<PartidoResultado> partidosResultado = partidos.stream()
-                            .map(partido -> {
-                                // Buscar el pronóstico del participante para este partido
-                                PollaPronostico pronostico = pronosticosParticipante.stream()
-                                        .filter(p -> p.getPollaPartido().getId().equals(partido.getId()))
-                                        .findFirst()
-                                        .orElse(null);
-
-                                return PartidoResultado.builder()
-                                        .partidoId(partido.getId())
-                                        .idPartidoExterno(partido.getIdPartidoExterno())
-                                        .equipoLocal(partido.getEquipoLocal())
-                                        .equipoLocalLogo(partido.getEquipoLocalLogo())
-                                        .equipoVisitante(partido.getEquipoVisitante())
-                                        .equipoVisitanteLogo(partido.getEquipoVisitanteLogo())
-                                        .liga(partido.getLiga())
-                                        .fechaHoraPartido(partido.getFechaHoraPartido())
-                                        .golesLocalReal(partido.getGolesLocal())
-                                        .golesVisitanteReal(partido.getGolesVisitante())
-                                        .golesLocalPronosticado(pronostico != null ? pronostico.getGolesLocalPronosticado() : null)
-                                        .golesVisitantePronosticado(pronostico != null ? pronostico.getGolesVisitante() : null)
-                                        .puntosObtenidos(pronostico != null ? pronostico.getPuntosObtenidos() : 0)
-                                        .build();
-                            })
-                            .collect(Collectors.toList());
-
-                    return ParticipanteResultadoDetallado.builder()
-                            .emailParticipante(email)
-                            .nombreParticipante(nombreParticipante)
-                            .userInfo(userInfo)
-                            .puntajeTotal(puntajeTotal)
-                            .partidos(partidosResultado)
-                            .build();
-                })
-                .sorted((p1, p2) -> Integer.compare(p2.getPuntajeTotal(), p1.getPuntajeTotal())) // Ordenar por puntaje desc
-                .collect(Collectors.toList());
-
-        return PollaResultadoDetalladoResponse.builder()
-                .pollaId(pollaId)
-                .nombrePolla(polla.getNombre())
-                .estadoPolla(polla.getEstado().name())
-                .finalizada(polla.getEstado() == Polla.PollaEstado.FINALIZADA)
-                .participantes(participantesResultados)
-                .build();
     }
 
 }

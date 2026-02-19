@@ -1,0 +1,13 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://postgres:5432/${DB_NAME:proyectos_dev}
+  rabbitmq:
+    host: rabbitmq
+
+services:
+  auth-service-url: ${AUTH_SERVICE_URL:http://auth-service:8080}
+  notification-service-url: ${NOTIFICATION_SERVICE_URL:http://notification-service:8081}
+  teams-service-url: ${TEAMS_SERVICE_URL:http://teams-service:8082}
+
+wompi:
+  base-url: ${WOMPI_BASE_URL:https://api-sandbox.co.uat.wompi.dev}

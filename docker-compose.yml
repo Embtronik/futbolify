@@ -107,12 +107,12 @@ services:
 
       SPRING_FLYWAY_BASELINE_ON_MIGRATE: "true"
 
-      RABBITMQ_HOST: rabbitmq-dev
+      RABBITMQ_HOST: rabbitmq
       RABBITMQ_PORT: 5672
       RABBITMQ_USERNAME: ${RABBITMQ_USERNAME}
       RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
       RABBITMQ_QUEUE_NAME: ${RABBITMQ_QUEUE_NAME}
-      RABBITMQ_EXCHANGE: ${RABBITMQ_QUEUE_NAME}
+      RABBITMQ_EXCHANGE: ${RABBITMQ_EXCHANGE}
 
       TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID}
       TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN}
@@ -121,6 +121,8 @@ services:
       
       AUTH_SERVICE_URL: http://auth-service:8080
       AUTH_SERVICE_ENABLED: "false"   # o "false" si quieres desactivar validación en pruebas
+      TEAMS_SERVICE_URL: http://teams-service:8082
+      PAYMENT_SERVICE_URL: http://payment-service:8083
     ports:
       - "8081:8081"
     depends_on:
@@ -130,7 +132,60 @@ services:
         condition: service_healthy
     networks:
       - micro_net
+  
+  # =====================================
+  # PAYMENT SERVICE
+  # =====================================
+  payment-service:
+    build:
+      context: ./Payment-Service
+      dockerfile: Dockerfile
+    container_name: payment-service
+    restart: unless-stopped
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SERVER_PORT: 8083
 
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${POSTGRES_DB}
+      DB_USERNAME: ${POSTGRES_USER}
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+
+      JWT_SECRET: ${JWT_SECRET}
+
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USERNAME: ${RABBITMQ_USERNAME}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
+      RABBITMQ_EXCHANGE: ${RABBITMQ_EXCHANGE:-teams.exchange}
+
+      AUTH_SERVICE_URL: http://auth-service:8080
+      NOTIFICATION_SERVICE_URL: http://notificacion-service:8081
+      TEAMS_SERVICE_URL: http://teams-service:8082
+
+      WOMPI_USE_PROD: "false"
+      WOMPI_BASE_URL: ${WOMPI_BASE_URL:-https://api-sandbox.co.uat.wompi.dev}
+      WOMPI_PRIVATE_KEY_TEST: ${WOMPI_PRIVATE_KEY_TEST}
+      WOMPI_PUBLIC_KEY_TEST: ${WOMPI_PUBLIC_KEY_TEST}
+      WOMPI_INTEGRITY_TEST: ${WOMPI_INTEGRITY_TEST}
+      WOMPI_EVENTOS_TEST: ${WOMPI_EVENTOS_TEST}
+      WOMPI_PRIVATE_KEY_PROD: ${WOMPI_PRIVATE_KEY_PROD}
+      WOMPI_PUBLIC_KEY_PROD: ${WOMPI_PUBLIC_KEY_PROD}
+      WOMPI_INTEGRITY_PROD: ${WOMPI_INTEGRITY_PROD}
+      WOMPI_EVENTOS_PROD: ${WOMPI_EVENTOS_PROD}
+    ports:
+      - "8083:8083"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      auth-service:
+        condition: service_started
+    networks:
+      - micro_net
+      
   # =====================================
   # TEAMS SERVICE
   # =====================================
@@ -150,6 +205,7 @@ services:
       
       AUTH_SERVICE_URL: http://auth-service:8080
       NOTIFICATION_SERVICE_URL: http://notificacion-service:8081
+      PAYMENT_SERVICE_URL: http://payment-service:8083
       FRONTEND_URL: ${FRONTEND_URL}
       FOOTBALLAPIKEY: ${FOOTBALLAPIKEY}
       FOOTBALL_API_BASE_URL: ${FOOTBALL_API_BASE_URL}
@@ -161,6 +217,21 @@ services:
     networks:
       - micro_net
 
+  nginx:
+    image: nginx:1.25-alpine
+    container_name: gateway-nginx
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - front-end
+      - auth-service
+      - teams-service
+      - notificacion-service
+      - payment-service
+    networks:
+      - micro_net
   # =====================================
   # FRONT-END (Angular + NGINX)
   # =====================================
@@ -170,8 +241,6 @@ services:
       dockerfile: Dockerfile
     container_name: front-end
     restart: unless-stopped
-    ports:
-      - "4200:80"   # EXTERNO:4200 → INTERNO:80
     depends_on:
       auth-service:
         condition: service_started

@@ -27,4 +27,21 @@ public interface PollaParticipanteRepository extends JpaRepository<PollaParticip
      */
     boolean existsByPollaIdAndEmailUsuario(Long pollaId, String email);
 
+    /**
+     * Cuenta participantes aceptados
+     */
+    @Query("SELECT COUNT(pp) FROM PollaParticipante pp " +
+           "WHERE pp.polla.id = :pollaId " +
+           "AND pp.estado = 'ACEPTADO'")
+    long countAceptadosByPollaId(@Param("pollaId") Long pollaId);
+
+    /**
+     * Verifica si el usuario es participante aceptado
+     */
+    @Query("SELECT CASE WHEN COUNT(pp) > 0 THEN true ELSE false END " +
+           "FROM PollaParticipante pp " +
+           "WHERE pp.polla.id = :pollaId " +
+           "AND pp.emailUsuario = :email " +
+           "AND pp.estado = 'ACEPTADO'")
+    boolean isUserAceptado(@Param("pollaId") Long pollaId, @Param("email") String email);
 }

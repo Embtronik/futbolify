@@ -59,7 +59,7 @@ public class TeamController {
         
         log.info("Getting team: {} for user: {}", teamId, userPrincipal.getUserId());
         
-        TeamResponse response = teamService.getTeam(teamId, userPrincipal.getUserId(), userPrincipal.getEmail());
+        TeamResponse response = teamService.getTeam(teamId, userPrincipal.getUserId());
         return ResponseEntity.ok(response);
     }
 
@@ -69,11 +69,10 @@ public class TeamController {
             @RequestParam(name = "page", defaultValue = "0") int page,
             @RequestParam(name = "size", defaultValue = "10") int size) {
 
-        log.info("Getting teams for user: {} (email: {}) page={} size={}",
-                userPrincipal.getUserId(), userPrincipal.getEmail(), page, size);
+        log.info("Getting teams for user: {} page={} size={}",
+                userPrincipal.getUserId(), page, size);
 
-        PageResponse<TeamResponse> response = teamService.getUserTeams(
-                userPrincipal.getUserId(), userPrincipal.getEmail(), page, size);
+        PageResponse<TeamResponse> response = teamService.getUserTeams(userPrincipal.getUserId(), page, size);
         return ResponseEntity.ok(response);
     }
 
@@ -86,8 +85,7 @@ public class TeamController {
         
         log.info("Updating team: {} for user: {}", teamId, userPrincipal.getUserId());
         
-        TeamResponse response = teamService.updateTeam(teamId, request, logo, 
-                userPrincipal.getUserId(), userPrincipal.getEmail());
+        TeamResponse response = teamService.updateTeam(teamId, request, logo, userPrincipal.getUserId());
         return ResponseEntity.ok(response);
     }
 
@@ -98,7 +96,7 @@ public class TeamController {
         
         log.info("Deleting team: {} for user: {}", teamId, userPrincipal.getUserId());
         
-        teamService.deleteTeam(teamId, userPrincipal.getUserId(), userPrincipal.getEmail());
+        teamService.deleteTeam(teamId, userPrincipal.getUserId());
         return ResponseEntity.noContent().build();
     }
 }

@@ -1,7 +1,6 @@
 package com.authservice.dto;
 
 import jakarta.validation.constraints.Email;
-import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
@@ -35,15 +34,4 @@ public class RegisterRequest {
     
     @Pattern(regexp = "^[0-9]{6,15}$", message = "Phone number must be between 6 and 15 digits")
     private String phoneNumber;
-
-    @AssertTrue(message = "Debe aceptar los términos y condiciones")
-    private boolean acceptTerms;
-
-    @AssertTrue(message = "Debe aceptar el tratamiento de datos")
-    private boolean dataProcessingAccepted;
-
-    /**
-     * Optional. If null/blank, active terms version will be used.
-     */
-    private String termsVersion;
 }

@@ -1,4 +1,5 @@
 package com.teamsservice.service;
+
 import com.teamsservice.dto.MatchAttendanceSummaryResponse;
 import com.teamsservice.dto.NotificationSendRequest;
 import com.teamsservice.dto.PageResponse;
@@ -27,6 +28,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -47,7 +49,6 @@ public class TeamMatchService {
     private final TeamMatchAttendanceRepository teamMatchAttendanceRepository;
     private final AuthServiceClient authServiceClient;
     private final NotificationServiceClient notificationServiceClient;
-    private final RabbitMQService rabbitMQService;
 
     @Value("${app.frontend.url:http://localhost:4200}")
     private String frontendUrl;
@@ -60,9 +61,7 @@ public class TeamMatchService {
         Team team = teamRepository.findByIdAndStatus(teamId, TeamStatus.ACTIVE)
                 .orElseThrow(() -> new ResourceNotFoundException("Team not found with id: " + teamId));
 
-        boolean isOwner = (currentUserId != null && currentUserId != 0L && team.getOwnerUserId() != null && team.getOwnerUserId().equals(currentUserId)) ||
-                          (currentUserEmail != null && team.getOwnerEmail() != null && team.getOwnerEmail().equalsIgnoreCase(currentUserEmail));
-        if (!isOwner) {
+        if (!team.getOwnerUserId().equals(currentUserId)) {
             throw new UnauthorizedException("Only team owner can create matches");
         }
 
@@ -92,27 +91,11 @@ public class TeamMatchService {
                                                           int page, int size) {
         log.info("User {} listing matches for team {} (page={}, size={})", currentUserId, teamId, page, size);
 
-	Team team = teamRepository.findByIdAndStatus(teamId, TeamStatus.ACTIVE)
+        Team team = teamRepository.findByIdAndStatus(teamId, TeamStatus.ACTIVE)
                 .orElseThrow(() -> new ResourceNotFoundException("Team not found with id: " + teamId));
 
-        boolean isOwner = (currentUserId != null && currentUserId != 0L && team.getOwnerUserId() != null && team.getOwnerUserId().equals(currentUserId)) ||
-                          (currentUserEmail != null && team.getOwnerEmail() != null && team.getOwnerEmail().equalsIgnoreCase(currentUserEmail));
-        boolean isApprovedMember = false;
-        if (!isOwner) {
-            // Buscar primero por email (más confiable para OAuth2)
-            if (currentUserEmail != null && !currentUserEmail.isEmpty()) {
-                isApprovedMember = teamMemberRepository.existsByTeamIdAndUserEmailAndStatus(
-                        teamId, currentUserEmail, TeamMember.MembershipStatus.APPROVED);
-            }
-            // Si no se encontró por email y hay userId válido, buscar por userId
-            if (!isApprovedMember && currentUserId != null && currentUserId != 0L) {
-                isApprovedMember = teamMemberRepository.findByTeamIdAndUserId(teamId, currentUserId)
-                        .map(m -> m.getStatus() == TeamMember.MembershipStatus.APPROVED)
-                        .orElse(false);
-            }
-            if (!isApprovedMember) {
-                throw new UnauthorizedException("You are not a member of this team");
-            }
+        if (!team.getOwnerUserId().equals(currentUserId)) {
+            throw new UnauthorizedException("Only team owner can view team matches");
         }
 
         if (size <= 0) {
@@ -156,24 +139,13 @@ public class TeamMatchService {
 
         // Permitir ver la asistencia al owner o a cualquier miembro aprobado
         Team team = match.getTeam();
-        boolean isOwner = (currentUserId != null && currentUserId != 0L && team.getOwnerUserId() != null && team.getOwnerUserId().equals(currentUserId)) ||
-                          (currentUserEmail != null && team.getOwnerEmail() != null && team.getOwnerEmail().equalsIgnoreCase(currentUserEmail));
-        boolean isApprovedMember = false;
-        if (!isOwner) {
-            // Buscar primero por email (más confiable para OAuth2)
-            if (currentUserEmail != null && !currentUserEmail.isEmpty()) {
-                isApprovedMember = teamMemberRepository.existsByTeamIdAndUserEmailAndStatus(
-                        teamId, currentUserEmail, TeamMember.MembershipStatus.APPROVED);
-            }
-            // Si no se encontró por email y hay userId válido, buscar por userId
-            if (!isApprovedMember && currentUserId != null && currentUserId != 0L) {
-                isApprovedMember = teamMemberRepository.findByTeamIdAndUserId(teamId, currentUserId)
-                        .map(m -> m.getStatus() == TeamMember.MembershipStatus.APPROVED)
-                        .orElse(false);
-            }
-            if (!isApprovedMember) {
-                throw new UnauthorizedException("You are not a member of this team");
-            }
+        boolean isOwner = team.getOwnerUserId().equals(currentUserId);
+        boolean isApprovedMember = teamMemberRepository.findByTeamIdAndUserId(teamId, currentUserId)
+                .map(m -> m.getStatus() == TeamMember.MembershipStatus.APPROVED)
+                .orElse(false);
+
+        if (!isOwner && !isApprovedMember) {
+            throw new UnauthorizedException("You are not allowed to view attendance for this match");
         }
 
         List<TeamMember> members = teamMemberRepository.findApprovedMembersByTeamId(teamId);
@@ -209,8 +181,7 @@ public class TeamMatchService {
         public MatchAttendanceSummaryResponse getMatchAttendanceSummary(Long teamId,
                                         Long matchId,
                                         Long currentUserId,
-                                        String currentUserEmail) 
-                                        {
+                                        String currentUserEmail) {
         List<TeamMatchAttendanceResponse> all = getMatchAttendance(teamId, matchId, currentUserId, currentUserEmail);
 
         Map<String, List<TeamMatchAttendanceResponse>> byStatus = all.stream()
@@ -236,7 +207,7 @@ public class TeamMatchService {
             .notAttending(notAttending)
             .pending(pending)
             .build();
-    }
+        }
 
     @Transactional
     public void confirmAttendance(Long teamId,
@@ -291,9 +262,7 @@ public class TeamMatchService {
         }
 
         Team team = match.getTeam();
-        boolean isOwner = (currentUserId != null && currentUserId != 0L && team.getOwnerUserId() != null && team.getOwnerUserId().equals(currentUserId)) ||
-                          (currentUserEmail != null && team.getOwnerEmail() != null && team.getOwnerEmail().equalsIgnoreCase(currentUserEmail));
-        if (!isOwner) {
+        if (!team.getOwnerUserId().equals(currentUserId)) {
             throw new UnauthorizedException("Only team owner can manage attendance");
         }
 
@@ -423,45 +392,4 @@ public class TeamMatchService {
                 .createdAt(match.getCreatedAt())
                 .build();
     }
-
-    /**
-     * Devuelve todos los partidos de los equipos donde el usuario es miembro aprobado.
-     * Publica un evento en RabbitMQ al consultar.
-     */
-    @Transactional(readOnly = true)
-    public List<TeamMatchResponse> getUserMatches(Long userId, String userEmail) {
-        // Buscar equipos donde el usuario es miembro aprobado
-        List<TeamMember> memberships;
-        if (userId != null && userId != 0L) {
-            memberships = teamMemberRepository.findApprovedTeamsByUserId(userId);
-        } else if (userEmail != null) {
-            memberships = teamMemberRepository.findApprovedTeamsByUserEmail(userEmail);
-        } else {
-            return List.of();
-        }
-
-        List<Long> teamIds = memberships.stream()
-                .map(m -> m.getTeam().getId())
-                .distinct()
-                .toList();
-        if (teamIds.isEmpty()) {
-            return List.of();
-        }
-
-        // Buscar partidos de esos equipos
-        List<TeamMatch> matches = teamMatchRepository.findByTeamIds(teamIds);
-        List<TeamMatchResponse> responses = matches.stream()
-                .map(this::mapToResponse)
-                .toList();
-
-        // Publicar evento en RabbitMQ
-        try {
-            rabbitMQService.publishTeamCreated(null); // Puedes personalizar el evento según tu DTO
-        } catch (Exception e) {
-            log.warn("No se pudo publicar evento en RabbitMQ: {}", e.getMessage());
-        }
-
-        return responses;
-    }
-    // FIN DE LA CLASE
 }

@@ -1,0 +1,47 @@
+spring:
+  application:
+    name: payment-service
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:proyectos_dev}
+    username: ${DB_USERNAME:dev_user}
+    password: ${DB_PASSWORD:dev_password}
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:guest}
+    password: ${RABBITMQ_PASSWORD:guest}
+
+server:
+  port: ${SERVER_PORT:8083}
+
+jwt:
+  secret: ${JWT_SECRET:}
+
+rabbitmq:
+  exchange: ${RABBITMQ_EXCHANGE:teams.exchange}
+
+services:
+  auth-service-url: ${AUTH_SERVICE_URL:http://localhost:8080}
+  notification-service-url: ${NOTIFICATION_SERVICE_URL:http://localhost:8081}
+  teams-service-url: ${TEAMS_SERVICE_URL:http://localhost:8082}
+
+wompi:
+  base-url: ${WOMPI_BASE_URL:https://api-sandbox.co.uat.wompi.dev}
+  use-prod: ${WOMPI_USE_PROD:false}
+  private-key-test: ${WOMPI_PRIVATE_KEY_TEST:}
+  integrity-test: ${WOMPI_INTEGRITY_TEST:}
+  private-key-prod: ${WOMPI_PRIVATE_KEY_PROD:}
+  integrity-prod: ${WOMPI_INTEGRITY_PROD:}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info

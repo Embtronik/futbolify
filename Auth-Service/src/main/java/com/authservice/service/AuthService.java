@@ -3,7 +3,6 @@ package com.authservice.service;
 import com.authservice.dto.AuthResponse;
 import com.authservice.dto.LoginRequest;
 import com.authservice.dto.RegisterRequest;
-import com.authservice.dto.terms.AcceptTermsRequest;
 import com.authservice.exception.BadRequestException;
 import com.authservice.exception.ResourceNotFoundException;
 import com.authservice.model.*;
@@ -32,7 +31,6 @@ public class AuthService {
     private final JwtService jwtService;
     private final EmailService emailService;
     private final AuthenticationManager authenticationManager;
-    private final TermsService termsService;
     
     @Value("${app.email.verification.expiration}")
     private long verificationExpiration;
@@ -59,12 +57,6 @@ public class AuthService {
                 .build();
         
         userRepository.save(user);
-
-        // Persist initial terms acceptance (required for application access)
-        termsService.acceptTerms(user, AcceptTermsRequest.builder()
-            .termsVersion(request.getTermsVersion())
-            .dataProcessingAccepted(request.isDataProcessingAccepted())
-            .build());
         
         // Create verification token
         String verificationToken = UUID.randomUUID().toString();
@@ -151,23 +143,12 @@ public class AuthService {
     
     @Transactional
     public AuthResponse processOAuth2User(User user) {
-        // Auto-accept active terms for OAuth2 users
-        if (!termsService.hasAcceptedActiveTerms(user.getId())) {
-            var activeTerms = termsService.getActiveTermsEntity();
-            var acceptRequest = new com.authservice.dto.terms.AcceptTermsRequest();
-            acceptRequest.setTermsVersion(activeTerms.getVersion());
-            acceptRequest.setDataProcessingAccepted(true);
-            termsService.acceptTerms(user, acceptRequest);
-        }
-        
         return buildAuthResponse(user);
     }
     
     private AuthResponse buildAuthResponse(User user) {
         String accessToken = jwtService.generateToken(user);
         String refreshToken = createRefreshToken(user);
-
-        var termsStatus = termsService.getStatus(user.getId());
         
         return AuthResponse.builder()
                 .accessToken(accessToken)
@@ -181,17 +162,12 @@ public class AuthService {
                         .lastName(user.getLastName())
                         .emailVerified(user.isEmailVerified())
                         .provider(user.getProvider().name())
-                    .termsAccepted(termsStatus.isAccepted())
-                    .requiredTermsVersion(termsStatus.getRequiredTermsVersion())
-                    .acceptedTermsVersion(termsStatus.getAcceptedTermsVersion())
                         .build())
                 .build();
     }
 
         private AuthResponse buildAuthResponse(User user, String accessToken) {
         String refreshToken = createRefreshToken(user);
-
-        var termsStatus = termsService.getStatus(user.getId());
 
         return AuthResponse.builder()
             .accessToken(accessToken)
@@ -205,9 +181,6 @@ public class AuthService {
                 .lastName(user.getLastName())
                 .emailVerified(user.isEmailVerified())
                 .provider(user.getProvider().name())
-                .termsAccepted(termsStatus.isAccepted())
-                .requiredTermsVersion(termsStatus.getRequiredTermsVersion())
-                .acceptedTermsVersion(termsStatus.getAcceptedTermsVersion())
                 .build())
             .build();
         }

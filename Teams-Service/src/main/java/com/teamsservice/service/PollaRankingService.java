@@ -6,8 +6,6 @@ import com.teamsservice.dto.PollaRankingResponse;
 import com.teamsservice.entity.Polla;
 import com.teamsservice.entity.PollaPartido;
 import com.teamsservice.entity.PollaPronostico;
-import com.teamsservice.entity.Team;
-import com.teamsservice.entity.TeamMember;
 import com.teamsservice.exception.ResourceNotFoundException;
 import com.teamsservice.exception.UnauthorizedException;
 import com.teamsservice.repository.PollaPartidoRepository;
@@ -15,12 +13,10 @@ import com.teamsservice.repository.PollaParticipanteRepository;
 import com.teamsservice.repository.PollaPronosticoRepository;
 import com.teamsservice.repository.PollaPuntajePartidoRepository;
 import com.teamsservice.repository.PollaRepository;
-import com.teamsservice.repository.TeamMemberRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.util.StringUtils;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -41,7 +37,6 @@ public class PollaRankingService {
     private final AuthServiceClient authServiceClient;
     private final PollaMarcadorService marcadorService;
     private final PollaScoringProperties scoringProperties;
-    private final TeamMemberRepository teamMemberRepository;
 
     public PollaRankingService(
             PollaRepository pollaRepository,
@@ -51,8 +46,7 @@ public class PollaRankingService {
             PollaPuntajePartidoRepository puntajePartidoRepository,
             AuthServiceClient authServiceClient,
             PollaMarcadorService marcadorService,
-            PollaScoringProperties scoringProperties,
-            TeamMemberRepository teamMemberRepository
+            PollaScoringProperties scoringProperties
     ) {
         this.pollaRepository = pollaRepository;
         this.participanteRepository = participanteRepository;
@@ -62,7 +56,6 @@ public class PollaRankingService {
         this.authServiceClient = authServiceClient;
         this.marcadorService = marcadorService;
         this.scoringProperties = scoringProperties;
-        this.teamMemberRepository = teamMemberRepository;
     }
 
     /**
@@ -70,35 +63,11 @@ public class PollaRankingService {
      */
     @Transactional
     public PollaRankingResponse getRanking(Long pollaId, String userEmail) {
-        // Validar que userEmail no sea null o vacío
-        if (!StringUtils.hasText(userEmail)) {
-            log.error("getRanking called with null or empty userEmail for pollaId: {}", pollaId);
-            throw new UnauthorizedException("Email de usuario no válido en el contexto de autenticación");
-        }
-
-        log.info("getRanking - pollaId: {}, userEmail: {}", pollaId, userEmail);
-
         Polla polla = pollaRepository.findByIdAndDeletedAtIsNull(pollaId)
                 .orElseThrow(() -> new ResourceNotFoundException("Polla not found with id: " + pollaId));
 
-        boolean isCreator = polla.getCreadorEmail().equalsIgnoreCase(userEmail);
-        boolean isParticipant = participanteRepository.existsByPollaIdAndEmailUsuario(pollaId, userEmail);
-        
-        // Verificar si es miembro aprobado de algún grupo invitado
-        boolean isApprovedMemberOfInvitedGroup = false;
-        if (polla.getGruposInvitados() != null && !polla.getGruposInvitados().isEmpty()) {
-            List<Long> gruposIds = polla.getGruposInvitados().stream()
-                .map(Team::getId)
-                .toList();
-            isApprovedMemberOfInvitedGroup = teamMemberRepository.existsByTeamIdInAndUserEmailAndStatus(
-                gruposIds, userEmail, TeamMember.MembershipStatus.APPROVED);
-        }
-        
-        log.info("Access check - creadorEmail: {}, userEmail: {}, isCreator: {}, isParticipant: {}, isApprovedMember: {}",
-            polla.getCreadorEmail(), userEmail, isCreator, isParticipant, isApprovedMemberOfInvitedGroup);
-
-        if (!isCreator && !isParticipant && !isApprovedMemberOfInvitedGroup) {
-            log.error("Access denied for user {} to polla {}", userEmail, pollaId);
+        if (!polla.getCreadorEmail().equalsIgnoreCase(userEmail)
+                && !participanteRepository.existsByPollaIdAndEmailUsuario(pollaId, userEmail)) {
             throw new UnauthorizedException("No tienes acceso a esta polla");
         }
 
@@ -137,7 +106,7 @@ public class PollaRankingService {
 
                 // Si no hay marcador en BD, pedir snapshot (TTL+lock) para LIVE/SCHEDULED.
                 if (partido.getGolesLocal() == null || partido.getGolesVisitante() == null) {
-                    var marcador = marcadorService.getMarcador(pollaId, partido.getId(), userEmail, false);
+                    var marcador = marcadorService.getMarcador(pollaId, partido.getId(), userEmail);
                     actualHome = marcador.getGolesLocal();
                     actualAway = marcador.getGolesVisitante();
                     statusShort = marcador.getApiStatusShort();

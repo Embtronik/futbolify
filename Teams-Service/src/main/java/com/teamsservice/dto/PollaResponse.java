@@ -21,7 +21,7 @@ public class PollaResponse {
     private String creadorEmail;
     private LocalDateTime fechaInicio;
     private BigDecimal montoEntrada;
-    private String tipo; // PRIVADA o PUBLICA
+    private String estado;
     private Integer totalParticipantes;
     private Integer totalPartidos;
     private List<ParticipanteResponse> participantes;
@@ -31,6 +31,4 @@ public class PollaResponse {
     private LocalDateTime updatedAt;
         // Email del usuario autenticado que hace la consulta
     private String emailUsuarioAutenticado;
-    private String estado;
-        // Removed duplicate fields
 }
