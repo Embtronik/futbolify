@@ -988,6 +988,12 @@ export class TeamsComponent implements AfterViewInit {
             if (!acc.some(t => t.id === curr.id)) acc.push(curr as Team);
             return acc;
           }, [] as Team[]);
+          // Si no hay equipos, terminar loading y salir
+          if (allTeams.length === 0) {
+            this.teams = [];
+            this.loading = false;
+            return;
+          }
           // Consultar miembros reales para cada equipo
           const memberRequests = allTeams.map(team =>
             this.teamService.getMembers(team.id).pipe(
