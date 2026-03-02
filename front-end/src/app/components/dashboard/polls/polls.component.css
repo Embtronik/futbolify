@@ -1,4 +1,207 @@
-/* Prediction Table Styles */
+/* ============================================================
+   TARJETAS DE PRONÓSTICO — diseño móvil-first (reemplaza tabla)
+   ============================================================ */
+.prediction-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.prediction-card {
+  background: #fff;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 14px 16px;
+  box-shadow: 0 2px 8px rgba(56,189,248,0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transition: border-color 0.18s;
+}
+.prediction-card.pred-locked {
+  opacity: 0.75;
+  background: #f8fafc;
+  border-color: #cbd5e1;
+}
+
+/* Fila de equipos */
+.pred-teams {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.pred-team {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+}
+.pred-team--away {
+  justify-content: flex-end;
+}
+.pred-logo {
+  width: 30px;
+  height: 30px;
+  object-fit: contain;
+  border-radius: 6px;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  flex-shrink: 0;
+}
+.pred-team-name {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #0f172a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.pred-team-name--right {
+  text-align: right;
+}
+.pred-vs {
+  font-weight: 800;
+  font-size: 0.78rem;
+  color: #94a3b8;
+  letter-spacing: 0.05em;
+  flex-shrink: 0;
+  padding: 0 4px;
+}
+
+/* Fecha */
+.pred-date {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.8rem;
+  color: #2563eb;
+  font-weight: 500;
+  background: #eff6ff;
+  border-radius: 8px;
+  padding: 5px 10px;
+}
+.pred-locked-badge {
+  font-size: 0.75rem;
+  color: #b45309;
+  font-weight: 600;
+  background: #fef3c7;
+  border-radius: 6px;
+  padding: 2px 7px;
+}
+
+/* Marcador real */
+.pred-real-score {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 0.82rem;
+  background: #f1f5f9;
+  border-radius: 8px;
+  padding: 6px 10px;
+}
+.pred-real-label {
+  color: #64748b;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+.real-score-meta-inline {
+  font-size: 0.75rem;
+  color: #64748b;
+}
+
+/* Fila de inputs de pronóstico */
+.pred-inputs-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #f0f9ff;
+  border: 1.5px solid #bae6fd;
+  border-radius: 12px;
+  padding: 10px 12px;
+}
+.prediction-card.pred-locked .pred-inputs-row {
+  background: #f8fafc;
+  border-color: #e2e8f0;
+}
+.pred-input-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+}
+.pred-input-group--right {
+  justify-content: flex-end;
+}
+.pred-input-logo {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+  border-radius: 4px;
+  border: 1px solid #e2e8f0;
+  flex-shrink: 0;
+}
+.pred-input-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #475569;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 70px;
+  flex-shrink: 1;
+}
+.pred-input-label--right {
+  text-align: right;
+}
+.pred-input {
+  width: 52px;
+  height: 44px;
+  padding: 4px 4px;
+  border-radius: 10px;
+  border: 2px solid #7dd3fc;
+  text-align: center;
+  font-size: 1.2rem;
+  font-weight: 800;
+  background: #fff;
+  color: #0f172a;
+  transition: border 0.18s;
+  flex-shrink: 0;
+  /* Evita zoom en iOS */
+  font-size: max(16px, 1.2rem);
+}
+.pred-input:focus {
+  border-color: #0ea5e9;
+  outline: none;
+  box-shadow: 0 0 0 3px #bae6fd;
+}
+.pred-input:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  border-color: #e2e8f0;
+  background: #f8fafc;
+}
+.pred-input-separator {
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: #64748b;
+  flex-shrink: 0;
+  padding: 0 2px;
+}
+
+/* Mensaje de fila */
+.pred-row-msg {
+  font-size: 0.8rem;
+  color: #b45309;
+  background: #fef9c3;
+  border-radius: 8px;
+  padding: 5px 10px;
+}
+
+/* Prediction Table Styles (legacy — mantenido por si se usa en otro lado) */
 .prediction-table {
   width: 100%;
   border-collapse: separate;

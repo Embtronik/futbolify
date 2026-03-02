@@ -395,87 +395,92 @@
         </div>
         <div class="matches-list" *ngIf="participarModalTab === 'participar' && pollMatches.length > 0">
           <form *ngIf="selectedPoll?.estado === 'ABIERTA'" (ngSubmit)="saveAllPredictions()">
-            <table class="prediction-table">
-              <thead>
-                <tr>
-                  <th>Local</th>
-                  <th></th>
-                  <th>Visitante</th>
-                  <th>Fecha/Hora</th>
-                  <th>Marcador real</th>
-                  <th>Goles Local</th>
-                  <th>Goles Visitante</th>
-                </tr>
-              </thead>
-              <tbody>
-                <ng-container *ngFor="let match of pollMatches">
-                  <tr
-                    #participarMatchRow
-                    [attr.data-match-id]="match.id"
-                    [class.locked-row]="isPredictionLocked(match)">
-                    <td class="team-cell">
-                      <img [src]="match.equipoLocalLogo || 'assets/team-placeholder.png'" [alt]="match.equipoLocal" class="team-logo">
-                      <span>{{ match.equipoLocal }}</span>
-                    </td>
-                    <td class="vs-cell">VS</td>
-                    <td class="team-cell">
-                      <img [src]="match.equipoVisitanteLogo || 'assets/team-placeholder.png'" [alt]="match.equipoVisitante" class="team-logo">
-                      <span>{{ match.equipoVisitante }}</span>
-                    </td>
-                    <td class="date-cell">{{ formatDateTime(match.fechaHoraPartido) }}</td>
-                    <td class="real-score-cell">
-                      <div class="real-score">
-                        <div class="real-score-main">
-                          <ng-container *ngIf="realScoreLoadingByMatchId[match.id]; else realScoreContent">
-                            <span class="real-score-loading">Cargando…</span>
-                          </ng-container>
+            <div class="prediction-cards">
+              <ng-container *ngFor="let match of pollMatches">
+                <div class="prediction-card"
+                     #participarMatchRow
+                     [attr.data-match-id]="match.id"
+                     [class.pred-locked]="isPredictionLocked(match)">
 
-                          <ng-template #realScoreContent>
-                            <ng-container *ngIf="realScoreByMatchId[match.id] as rs; else realScoreEmpty">
-                              <div class="real-score-line">
-                                <span class="real-score-value">{{ rs.golesLocal ?? '—' }} - {{ rs.golesVisitante ?? '—' }}</span>
-                                <span class="real-score-chip" [class.final]="rs.partidoFinalizado">
-                                  {{ rs.partidoFinalizado ? 'FT' : (rs.apiStatusShort || '—') }}
-                                </span>
-                              </div>
-                              <div class="real-score-meta">
-                                <span class="real-score-status">{{ rs.apiStatusLong }}</span>
-                              </div>
-                            </ng-container>
-                            <ng-template #realScoreEmpty>
-                              <span class="real-score-empty">—</span>
-                            </ng-template>
-                          </ng-template>
-                        </div>
+                  <!-- Cabecera: equipos -->
+                  <div class="pred-teams">
+                    <div class="pred-team pred-team--home">
+                      <img [src]="match.equipoLocalLogo || 'assets/team-placeholder.png'" [alt]="match.equipoLocal" class="pred-logo">
+                      <span class="pred-team-name">{{ match.equipoLocal }}</span>
+                    </div>
+                    <div class="pred-vs">VS</div>
+                    <div class="pred-team pred-team--away">
+                      <span class="pred-team-name pred-team-name--right">{{ match.equipoVisitante }}</span>
+                      <img [src]="match.equipoVisitanteLogo || 'assets/team-placeholder.png'" [alt]="match.equipoVisitante" class="pred-logo">
+                    </div>
+                  </div>
 
-                        <button
-                          type="button"
-                          class="btn-icon btn-refresh-score"
-                          title="Actualizar marcador real"
-                          [disabled]="realScoreLoadingByMatchId[match.id]"
-                          (click)="refreshRealScore(match.id)">
-                          ⟳
-                        </button>
-                      </div>
-                      <div class="real-score-error" *ngIf="realScoreErrorByMatchId[match.id]">
-                        {{ realScoreErrorByMatchId[match.id] }}
-                      </div>
-                    </td>
-                    <td>
-                      <input type="number" min="0" [(ngModel)]="match.golesLocalPronosticado" name="golesLocal_{{match.id}}" placeholder="-" required style="width: 50px;" [disabled]="isPredictionLocked(match)">
-                    </td>
-                    <td>
-                      <input type="number" min="0" [(ngModel)]="match.golesVisitantePronosticado" name="golesVisitante_{{match.id}}" placeholder="-" required style="width: 50px;" [disabled]="isPredictionLocked(match)">
-                    </td>
-                  </tr>
-                  <tr *ngIf="getPredictionRowMessage(match) as msg" class="prediction-row-message">
-                    <td colspan="7">
-                      <div class="error">{{ msg }}</div>
-                    </td>
-                  </tr>
-                </ng-container>
-              </tbody>
-            </table>
+                  <!-- Fecha -->
+                  <div class="pred-date">
+                    <span>📅 {{ formatDateTime(match.fechaHoraPartido) }}</span>
+                    <span class="pred-locked-badge" *ngIf="isPredictionLocked(match)">🔒 Bloqueado</span>
+                  </div>
+
+                  <!-- Marcador real -->
+                  <div class="pred-real-score">
+                    <span class="pred-real-label">Marcador real:</span>
+                    <ng-container *ngIf="realScoreLoadingByMatchId[match.id]; else predRealContent">
+                      <span class="real-score-loading">Cargando…</span>
+                    </ng-container>
+                    <ng-template #predRealContent>
+                      <ng-container *ngIf="realScoreByMatchId[match.id] as rs; else predRealEmpty">
+                        <span class="real-score-value">{{ rs.golesLocal ?? '—' }} - {{ rs.golesVisitante ?? '—' }}</span>
+                        <span class="real-score-chip" [class.final]="rs.partidoFinalizado">
+                          {{ rs.partidoFinalizado ? 'FT' : (rs.apiStatusShort || '—') }}
+                        </span>
+                        <span class="real-score-meta-inline">{{ rs.apiStatusLong }}</span>
+                      </ng-container>
+                      <ng-template #predRealEmpty>
+                        <span class="real-score-empty">—</span>
+                      </ng-template>
+                    </ng-template>
+                    <button type="button" class="btn-icon btn-refresh-score"
+                            title="Actualizar marcador"
+                            [disabled]="realScoreLoadingByMatchId[match.id]"
+                            (click)="refreshRealScore(match.id)">⟳</button>
+                  </div>
+                  <div class="real-score-error" *ngIf="realScoreErrorByMatchId[match.id]">
+                    {{ realScoreErrorByMatchId[match.id] }}
+                  </div>
+
+                  <!-- Fila de pronóstico -->
+                  <div class="pred-inputs-row">
+                    <div class="pred-input-group">
+                      <img [src]="match.equipoLocalLogo || 'assets/team-placeholder.png'" class="pred-input-logo">
+                      <label class="pred-input-label">{{ match.equipoLocal }}</label>
+                      <input type="number" min="0"
+                             [(ngModel)]="match.golesLocalPronosticado"
+                             name="golesLocal_{{match.id}}"
+                             placeholder="-" required
+                             [disabled]="isPredictionLocked(match)"
+                             class="pred-input">
+                    </div>
+                    <div class="pred-input-separator">-</div>
+                    <div class="pred-input-group pred-input-group--right">
+                      <input type="number" min="0"
+                             [(ngModel)]="match.golesVisitantePronosticado"
+                             name="golesVisitante_{{match.id}}"
+                             placeholder="-" required
+                             [disabled]="isPredictionLocked(match)"
+                             class="pred-input">
+                      <label class="pred-input-label pred-input-label--right">{{ match.equipoVisitante }}</label>
+                      <img [src]="match.equipoVisitanteLogo || 'assets/team-placeholder.png'" class="pred-input-logo">
+                    </div>
+                  </div>
+
+                  <!-- Mensaje de fila (bloqueo / ya guardado) -->
+                  <div class="pred-row-msg" *ngIf="getPredictionRowMessage(match) as msg">
+                    {{ msg }}
+                  </div>
+
+                </div>
+              </ng-container>
+            </div>
             <div class="prediction-table-footer"></div>
           </form>
         </div>
