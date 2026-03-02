@@ -40,7 +40,22 @@ public class PollaController {
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
-    /* ...resto de endpoints y lógica existente...
+    /**
+     * GET /api/pollas/disponibles - Pollas ABIERTAS donde el usuario es miembro aprobado
+     * de alguno de los grupos asociados (pestaña "Participar en pollas").
+     */
+    @GetMapping("/disponibles")
+    public ResponseEntity<List<PollaResponse>> getPollasDisponibles(
+            @AuthenticationPrincipal UserPrincipal userPrincipal) {
+
+        log.info("Getting pollas disponibles for user: {}", userPrincipal.getEmail());
+
+        List<PollaResponse> response = pollaService.getPollasDisponibles(userPrincipal.getEmail());
+
+        return ResponseEntity.ok(response);
+    }
+
+    /**
      * GET /api/pollas/mis-pollas - Obtener todas las pollas del usuario (creadas o como participante)
      */
     @GetMapping("/mis-pollas")

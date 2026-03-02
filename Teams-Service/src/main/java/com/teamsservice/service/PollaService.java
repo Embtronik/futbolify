@@ -132,18 +132,37 @@ public class PollaService {
     public List<PollaResponse> getMisPollas(String userEmail) {
         log.info("Getting all pollas for user: {}", userEmail);
 
-        // Pollas creadas por el usuario
+        // 1. Pollas creadas por el usuario
         List<Polla> pollasCreadas = pollaRepository.findByCreadorEmailAndDeletedAtIsNull(userEmail);
 
-        // Pollas donde es participante
-        List<Polla> pollasParticipante = pollaRepository.findPollasWhereUserIsParticipant(userEmail);
+        // 2. Pollas donde es miembro aprobado de algún grupo asociado
+        List<Polla> pollasPorGrupo = pollaRepository.findPollasWhereUserIsMemberOfAnyGroup(userEmail);
 
-        // Combinar y eliminar duplicados sin capturar variables mutables en lambdas
-        List<Polla> todasLasPollas = Stream.concat(pollasCreadas.stream(), pollasParticipante.stream())
+        // Combinar las 2 fuentes eliminando duplicados
+        List<Polla> todasLasPollas = Stream.concat(pollasCreadas.stream(), pollasPorGrupo.stream())
             .distinct()
             .collect(Collectors.toList());
 
         return todasLasPollas.stream()
+            .map(polla -> {
+                PollaResponse resp = mapToResponse(polla);
+                resp.setEmailUsuarioAutenticado(userEmail);
+                return resp;
+            })
+            .collect(Collectors.toList());
+    }
+
+    /**
+     * Pollas ABIERTAS donde el usuario es miembro aprobado de algún grupo,
+     * pensadas para la pestaña "Participar en pollas".
+     */
+    @Transactional(readOnly = true)
+    public List<PollaResponse> getPollasDisponibles(String userEmail) {
+        log.info("Getting pollas disponibles for user: {}", userEmail);
+
+        List<Polla> pollas = pollaRepository.findPollasAbiertasParaMiembro(userEmail);
+
+        return pollas.stream()
             .map(polla -> {
                 PollaResponse resp = mapToResponse(polla);
                 resp.setEmailUsuarioAutenticado(userEmail);
