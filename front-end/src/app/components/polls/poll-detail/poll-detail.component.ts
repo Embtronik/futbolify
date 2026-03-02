@@ -1,7 +1,10 @@
 import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
+import { forkJoin, of } from 'rxjs';
+import { catchError, map } from 'rxjs/operators';
 import { PollService } from '../../../services/poll.service';
+import { AuthService } from '../../../services/auth.service';
 import { Poll, PollMatch, PollParticipant, PollPrediction } from '../../../models/football.model';
 
 interface RankingEntry {
@@ -896,6 +899,7 @@ interface MatchDetail {
 })
 export class PollDetailComponent implements OnInit {
   private pollService = inject(PollService);
+  private authService = inject(AuthService);
   private route = inject(ActivatedRoute);
   private router = inject(Router);
 
@@ -933,57 +937,79 @@ export class PollDetailComponent implements OnInit {
   }
 
   loadRanking(): void {
-    this.pollService.getRanking(this.pollId).subscribe({
-      next: (ranking) => {
-        this.ranking = ranking.map((entry, index) => ({
-          ...entry,
-          position: index + 1
-        }));
-      },
-      error: (err) => {
-        console.error('Error loading ranking:', err);
-      }
+    this.pollService.getRanking(this.pollId).pipe(
+      catchError(err => { console.error('Error loading ranking:', err); return of([]); })
+    ).subscribe(ranking => {
+      this.ranking = (ranking as any[]).map((entry, index) => ({ ...entry, position: index + 1 }));
     });
   }
 
   loadParticipants(): void {
-    this.pollService.getParticipants(this.pollId).subscribe({
-      next: (participants) => {
-        this.participants = participants;
-      },
-      error: (err) => {
-        console.error('Error loading participants:', err);
-      }
+    this.pollService.getParticipants(this.pollId).pipe(
+      catchError(err => { console.error('Error loading participants:', err); return of([]); })
+    ).subscribe(participants => {
+      this.participants = participants as PollParticipant[];
     });
   }
 
   loadMatches(): void {
+    const isClosed = this.poll?.estado === 'FINALIZADA' || this.poll?.estado === 'CERRADA';
+
     this.pollService.getMatches(this.pollId).subscribe({
       next: (matches) => {
-        // Load predictions for each match
-        matches.forEach(match => {
-          this.pollService.getMatchPredictions(this.pollId, match.id).subscribe({
-            next: (predictions) => {
+        if (matches.length === 0) {
+          this.loading = false;
+          return;
+        }
+
+        const requests = matches.map(match => {
+          const predictions$ = this.pollService.getMatchPredictions(this.pollId, match.id)
+            .pipe(catchError(() => of([] as PollPrediction[])));
+
+          // Para pollas finalizadas o cerradas obtenemos el marcador real
+          const score$ = isClosed
+            ? this.pollService.getMatchRealScore(this.pollId, match.id)
+                .pipe(catchError(() => of(null)))
+            : of(null);
+
+          return forkJoin({ predictions: predictions$, score: score$ }).pipe(
+            map(({ predictions, score }) => {
+              const enriched: PollMatch = { ...match };
+              if (score) {
+                if (score.golesLocal !== null && score.golesLocal !== undefined) {
+                  enriched.golesLocal = score.golesLocal;
+                }
+                if (score.golesVisitante !== null && score.golesVisitante !== undefined) {
+                  enriched.golesVisitante = score.golesVisitante;
+                }
+              }
+              const hasResult =
+                enriched.golesLocal !== undefined && enriched.golesLocal !== null &&
+                enriched.golesVisitante !== undefined && enriched.golesVisitante !== null;
+
               const userEmail = this.getUserEmail();
-              const userPrediction = predictions.find(p => p.emailParticipante === userEmail);
-              const hasResult = match.golesLocal !== undefined && match.golesVisitante !== undefined;
-
-              this.matchesWithDetails.push({
-                match,
-                userPrediction,
-                allPredictions: predictions,
+              return {
+                match: enriched,
+                userPrediction: (predictions as PollPrediction[]).find(p => p.emailParticipante === userEmail),
+                allPredictions: predictions as PollPrediction[],
                 hasResult
-              });
-
-              // Sort by date
-              this.matchesWithDetails.sort((a, b) => 
-                new Date(a.match.fechaHoraPartido).getTime() - new Date(b.match.fechaHoraPartido).getTime()
-              );
-            }
-          });
+              } as MatchDetail;
+            })
+          );
         });
 
-        this.loading = false;
+        forkJoin(requests).subscribe({
+          next: (details) => {
+            this.matchesWithDetails = details.sort((a, b) =>
+              new Date(a.match.fechaHoraPartido).getTime() - new Date(b.match.fechaHoraPartido).getTime()
+            );
+            this.loading = false;
+          },
+          error: (err) => {
+            console.error('Error loading match details:', err);
+            this.loading = false;
+          }
+        });
       },
       error: (err) => {
         console.error('Error loading matches:', err);
@@ -1058,7 +1084,6 @@ export class PollDetailComponent implements OnInit {
   }
 
   private getUserEmail(): string {
-    // TODO: Get from auth service
-    return localStorage.getItem('userEmail') || '';
+    return this.authService.getCurrentUserValue()?.email || '';
   }
 }
