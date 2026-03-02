@@ -59,7 +59,9 @@ public class SecurityConfig {
             "http://localhost:4200",
             "http://localhost:5173",
             "https://*.ngrok-free.dev",
-            "https://*.ngrok.io"
+            "https://*.ngrok.io",
+            "https://futbolify.co",
+            "https://www.futbolify.co"
         ));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
         configuration.setAllowedHeaders(Arrays.asList("*"));
