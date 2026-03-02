@@ -57,6 +57,20 @@ public interface PollaPronosticoRepository extends JpaRepository<PollaPronostico
      * Carga todos los pronósticos de una polla de una sola vez (para resultados-detallados)
      */
     @Query("SELECT pr FROM PollaPronostico pr " +
-           "WHERE pr.pollaPartido.polla.id = :pollaId")
+           "JOIN pr.pollaPartido pp " +
+           "JOIN pp.polla p " +
+           "WHERE p.id = :pollaId")
     List<PollaPronostico> findAllByPollaId(@Param("pollaId") Long pollaId);
+
+    /**
+     * Verifica si un usuario ha enviado al menos un pronóstico en cualquier partido de la polla
+     */
+    @Query("SELECT CASE WHEN COUNT(pr) > 0 THEN true ELSE false END FROM PollaPronostico pr " +
+           "JOIN pr.pollaPartido pp " +
+           "JOIN pp.polla p " +
+           "WHERE p.id = :pollaId AND pr.emailParticipante = :email")
+    boolean existsByPollaIdAndEmailParticipante(
+        @Param("pollaId") Long pollaId,
+        @Param("email") String email
+    );
 }

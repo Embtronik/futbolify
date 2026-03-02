@@ -29,6 +29,10 @@ public interface TeamMemberRepository extends JpaRepository<TeamMember, Long> {
     // Obtener todos los equipos a los que pertenece un usuario (aprobados)
     @Query("SELECT tm FROM TeamMember tm WHERE tm.userId = :userId AND tm.status = 'APPROVED'")
     List<TeamMember> findApprovedTeamsByUserId(@Param("userId") Long userId);
+
+    // Obtener todos los equipos a los que pertenece un usuario por email (aprobados)
+    @Query("SELECT tm FROM TeamMember tm WHERE tm.userEmail = :email AND tm.status = 'APPROVED'")
+    List<TeamMember> findApprovedTeamsByUserEmail(@Param("email") String email);
     
     // Contar miembros aprobados de un equipo
     long countByTeamIdAndStatus(Long teamId, MembershipStatus status);

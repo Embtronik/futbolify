@@ -55,10 +55,10 @@ public class TeamMemberController {
             @AuthenticationPrincipal UserPrincipal userPrincipal) {
         
         log.info("Getting pending requests for team {} by user {}", 
-                teamId, userPrincipal.getUserId());
+                teamId, userPrincipal.getEmail());
         
         List<TeamMemberResponse> response = teamMemberService.getPendingRequests(
-                teamId, userPrincipal.getUserId());
+                teamId, userPrincipal.getEmail());
         
         return ResponseEntity.ok(response);
     }
@@ -74,12 +74,12 @@ public class TeamMemberController {
             @AuthenticationPrincipal UserPrincipal userPrincipal) {
         
         log.info("User {} {} membership {} for team {}", 
-                userPrincipal.getUserId(), 
+                userPrincipal.getEmail(), 
                 request.getApproved() ? "approving" : "rejecting",
                 memberId, teamId);
         
         TeamMemberResponse response = teamMemberService.approveMembershipRequest(
-                teamId, memberId, request, userPrincipal.getUserId());
+                teamId, memberId, request, userPrincipal.getEmail());
         
         return ResponseEntity.ok(response);
     }
@@ -92,10 +92,10 @@ public class TeamMemberController {
             @PathVariable Long teamId,
             @AuthenticationPrincipal UserPrincipal userPrincipal) {
         
-        log.info("Getting members for team {} by user {}", teamId, userPrincipal.getUserId());
+        log.info("Getting members for team {} by user {}", teamId, userPrincipal.getEmail());
         
         List<TeamMemberResponse> response = teamMemberService.getTeamMembers(
-                teamId, userPrincipal.getUserId());
+                teamId, userPrincipal.getEmail());
         
         return ResponseEntity.ok(response);
     }
@@ -107,10 +107,10 @@ public class TeamMemberController {
     public ResponseEntity<List<TeamMemberResponse>> getMyMemberships(
             @AuthenticationPrincipal UserPrincipal userPrincipal) {
         
-        log.info("Getting memberships for user {}", userPrincipal.getUserId());
+        log.info("Getting memberships for user {}", userPrincipal.getEmail());
         
         List<TeamMemberResponse> response = teamMemberService.getUserMemberships(
-                userPrincipal.getUserId());
+                userPrincipal.getEmail());
         
         return ResponseEntity.ok(response);
     }

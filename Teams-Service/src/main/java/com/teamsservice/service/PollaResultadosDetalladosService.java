@@ -51,10 +51,12 @@ public class PollaResultadosDetalladosService {
         Polla polla = pollaRepository.findByIdAndDeletedAtIsNull(pollaId)
                 .orElseThrow(() -> new ResourceNotFoundException("Polla no encontrada: " + pollaId));
 
-        // 2. Control de acceso: creador O miembro aprobado de algún grupo de la polla
-        boolean isCreator = polla.getCreadorEmail().equalsIgnoreCase(userEmail);
-        boolean isMember  = teamMemberRepository.isApprovedMemberOfPollaGroup(pollaId, userEmail);
-        if (!isCreator && !isMember) {
+        // 2. Control de acceso: creador, miembro aprobado de algún grupo de la polla,
+        //    O cualquier participante que haya enviado al menos un pronóstico.
+        boolean isCreator       = polla.getCreadorEmail().equalsIgnoreCase(userEmail);
+        boolean isMember        = teamMemberRepository.isApprovedMemberOfPollaGroup(pollaId, userEmail);
+        boolean isParticipant   = pronosticoRepository.existsByPollaIdAndEmailParticipante(pollaId, userEmail);
+        if (!isCreator && !isMember && !isParticipant) {
             throw new UnauthorizedException("No tienes acceso a esta polla");
         }
 
