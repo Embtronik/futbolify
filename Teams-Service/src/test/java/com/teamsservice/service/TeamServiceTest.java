@@ -59,16 +59,19 @@ class TeamServiceTest {
     private TeamCreateRequest createRequest;
     private TeamResponse teamResponse;
     private Long userId;
+    private String userEmail;
 
     @BeforeEach
     void setUp() {
         userId = 1L;
+        userEmail = "owner@test.com";
         
         testTeam = Team.builder()
                 .id(1L)
                 .name("Barcelona FC")
                 .description("Professional soccer team")
                 .ownerUserId(userId)
+                .ownerEmail(userEmail)
                 .build();
 
         createRequest = TeamCreateRequest.builder()
@@ -143,21 +146,21 @@ class TeamServiceTest {
     void getUserTeams_Success() {
         // Arrange
         List<Team> teams = Arrays.asList(testTeam);
-        when(teamRepository.findByOwnerUserIdAndStatus(eq(userId), eq(TeamStatus.ACTIVE), any(Pageable.class)))
+        when(teamRepository.findAllAccessibleByEmailAndStatus(eq(userEmail), eq(TeamStatus.ACTIVE), any(Pageable.class)))
             .thenReturn(new PageImpl<>(teams));
         when(teamMapper.toResponse(any(Team.class))).thenReturn(teamResponse);
         when(teamMemberRepository.countByTeamIdAndStatus(eq(testTeam.getId()), eq(TeamMember.MembershipStatus.APPROVED)))
             .thenReturn(1L);
 
         // Act
-        PageResponse<TeamResponse> result = teamService.getUserTeams(userId, 0, 10);
+        PageResponse<TeamResponse> result = teamService.getUserTeams(userEmail, 0, 10);
 
         // Assert
         assertNotNull(result);
         assertEquals(1, result.getContent().size());
         assertEquals(1, result.getTotalElements());
         assertEquals(1, result.getContent().get(0).getMemberCount());
-        verify(teamRepository).findByOwnerUserIdAndStatus(eq(userId), eq(TeamStatus.ACTIVE), any(Pageable.class));
+        verify(teamRepository).findAllAccessibleByEmailAndStatus(eq(userEmail), eq(TeamStatus.ACTIVE), any(Pageable.class));
     }
 
     @Test
