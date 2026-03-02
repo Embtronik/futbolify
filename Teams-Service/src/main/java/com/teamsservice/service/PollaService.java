@@ -117,9 +117,12 @@ public class PollaService {
         Polla polla = pollaRepository.findByIdAndDeletedAtIsNull(pollaId)
                 .orElseThrow(() -> new ResourceNotFoundException("Polla not found with id: " + pollaId));
 
-        // Verificar que el usuario tiene acceso (es creador o participante)
-        if (!polla.getCreadorEmail().equals(userEmail) &&
-            !participanteRepository.existsByPollaIdAndEmailUsuario(pollaId, userEmail)) {
+        // Verificar que el usuario tiene acceso: creador, miembro aprobado de grupo, o participante con pronóstico
+        boolean canAccess = polla.getCreadorEmail().equals(userEmail)
+                || teamMemberRepository.isApprovedMemberOfPollaGroup(pollaId, userEmail)
+                || pronosticoRepository.existsByPollaIdAndEmailParticipante(pollaId, userEmail)
+                || participanteRepository.existsByPollaIdAndEmailUsuario(pollaId, userEmail);
+        if (!canAccess) {
             throw new UnauthorizedException("No tienes acceso a esta polla");
         }
 
@@ -380,8 +383,11 @@ public class PollaService {
     }
 
     private void validateUserAccess(Long pollaId, String userEmail) {
-        if (!pollaRepository.isUserCreator(pollaId, userEmail) &&
-            !participanteRepository.existsByPollaIdAndEmailUsuario(pollaId, userEmail)) {
+        boolean canAccess = pollaRepository.isUserCreator(pollaId, userEmail)
+                || teamMemberRepository.isApprovedMemberOfPollaGroup(pollaId, userEmail)
+                || pronosticoRepository.existsByPollaIdAndEmailParticipante(pollaId, userEmail)
+                || participanteRepository.existsByPollaIdAndEmailUsuario(pollaId, userEmail);
+        if (!canAccess) {
             throw new UnauthorizedException("No tienes acceso a esta polla");
         }
     }
