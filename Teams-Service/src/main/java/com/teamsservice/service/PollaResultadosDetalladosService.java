@@ -62,20 +62,27 @@ public class PollaResultadosDetalladosService {
 
         // 3. Partidos ordenados cronológicamente
         List<PollaPartido> partidos = partidoRepository.findByPollaIdOrderByFechaHoraPartidoAsc(pollaId);
+        log.info("Polla {} tiene {} partidos", pollaId, partidos.size());
 
-        // 4. Cargar TODOS los pronósticos de la polla en una sola query
-        //    y agrupar: emailParticipante → (pollaPartidoId → PollaPronostico)
+        // 4. Cargar TODOS los pronósticos de la polla en una sola query usando JOIN FETCH
+        //    (JOIN FETCH garantiza que pollaPartido quede cargado sin recurrir al caché L1)
         List<PollaPronostico> todosLosPronosticos = pronosticoRepository.findAllByPollaId(pollaId);
+        log.info("Polla {} tiene {} pronóstico(s) en total", pollaId, todosLosPronosticos.size());
+
         Map<String, Map<Long, PollaPronostico>> pronosticosPorEmailYPartido = new HashMap<>();
         for (PollaPronostico pr : todosLosPronosticos) {
+            String emailPart = pr.getEmailParticipante();
+            Long partidoId   = pr.getPollaPartido().getId();
             pronosticosPorEmailYPartido
-                    .computeIfAbsent(pr.getEmailParticipante(), k -> new HashMap<>())
-                    .put(pr.getPollaPartido().getId(), pr);
+                    .computeIfAbsent(emailPart, k -> new HashMap<>())
+                    .put(partidoId, pr);
         }
+        log.info("Polla {} tiene {} participante(s) únicos con pronóstico(s): {}",
+                pollaId, pronosticosPorEmailYPartido.size(), pronosticosPorEmailYPartido.keySet());
 
         // 5. Los participantes son exactamente quienes ingresaron al menos un pronóstico.
-        //    Se ordenan al final por puntaje, así que usamos el keySet directo.
         List<String> emailsParticipantes = new ArrayList<>(pronosticosPorEmailYPartido.keySet());
+        log.info("Construyendo respuesta para {} participante(s)", emailsParticipantes.size());
 
         // 6. Construir respuesta por participante
         List<ParticipanteResultadoResponse> participantesResponse = new ArrayList<>();

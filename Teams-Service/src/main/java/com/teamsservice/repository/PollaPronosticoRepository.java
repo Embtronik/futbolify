@@ -13,6 +13,13 @@ import java.util.Optional;
 public interface PollaPronosticoRepository extends JpaRepository<PollaPronostico, Long> {
 
     /**
+     * Cuenta participantes únicos (distinct) que ingresaron al menos un pronóstico en la polla
+     */
+    @Query("SELECT COUNT(DISTINCT pr.emailParticipante) FROM PollaPronostico pr " +
+           "JOIN pr.pollaPartido pp WHERE pp.polla.id = :pollaId")
+    int countDistinctParticipantsByPollaId(@Param("pollaId") Long pollaId);
+
+    /**
      * Encuentra todos los pronósticos de un partido
      */
     List<PollaPronostico> findByPollaPartidoId(Long pollaPartidoId);
@@ -54,12 +61,12 @@ public interface PollaPronosticoRepository extends JpaRepository<PollaPronostico
     boolean existsByPollaPartidoIdAndEmailParticipante(Long pollaPartidoId, String email);
 
     /**
-     * Carga todos los pronósticos de una polla de una sola vez (para resultados-detallados)
+     * Carga todos los pronósticos de una polla de una sola vez (para resultados-detallados).
+     * JOIN FETCH asegura que pollaPartido quede completamente cargado en la misma query.
      */
     @Query("SELECT pr FROM PollaPronostico pr " +
-           "JOIN pr.pollaPartido pp " +
-           "JOIN pp.polla p " +
-           "WHERE p.id = :pollaId")
+           "JOIN FETCH pr.pollaPartido pp " +
+           "WHERE pp.polla.id = :pollaId")
     List<PollaPronostico> findAllByPollaId(@Param("pollaId") Long pollaId);
 
     /**

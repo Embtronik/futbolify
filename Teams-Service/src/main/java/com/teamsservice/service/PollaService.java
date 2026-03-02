@@ -422,7 +422,7 @@ public class PollaService {
                 .fechaInicio(polla.getFechaInicio())
                 .montoEntrada(polla.getMontoEntrada())
                 .estado(polla.getEstado().name())
-                .totalParticipantes(participantes.size())
+                .totalParticipantes(pronosticoRepository.countDistinctParticipantsByPollaId(polla.getId()))
                 .totalPartidos(partidos.size())
                 .participantes(participantes)
                 .partidos(partidos)
