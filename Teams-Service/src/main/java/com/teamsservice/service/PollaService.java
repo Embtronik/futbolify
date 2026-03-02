@@ -252,10 +252,13 @@ public class PollaService {
         log.info("User {} registering forecast for match {} in polla {}", 
                  userEmail, request.getPollaPartidoId(), pollaId);
 
-        // Verificar que el usuario es participante aceptado o es el creador de la polla
-        boolean esCreador = pollaRepository.isUserCreator(pollaId, userEmail);
-        boolean esParticipanteAceptado = participanteRepository.isUserAceptado(pollaId, userEmail);
-        if (!esCreador && !esParticipanteAceptado) {
+        // Verificar que el usuario puede pronosticar: creador, miembro aprobado de grupo,
+        // participante con pronóstico previo, o participante aceptado en la tabla legacy
+        boolean puedePronosticar = pollaRepository.isUserCreator(pollaId, userEmail)
+                || teamMemberRepository.isApprovedMemberOfPollaGroup(pollaId, userEmail)
+                || pronosticoRepository.existsByPollaIdAndEmailParticipante(pollaId, userEmail)
+                || participanteRepository.isUserAceptado(pollaId, userEmail);
+        if (!puedePronosticar) {
             throw new UnauthorizedException("Debes ser participante aceptado para pronosticar");
         }
 

@@ -13,6 +13,7 @@ import com.teamsservice.repository.PollaParticipanteRepository;
 import com.teamsservice.repository.PollaPronosticoRepository;
 import com.teamsservice.repository.PollaPuntajePartidoRepository;
 import com.teamsservice.repository.PollaRepository;
+import com.teamsservice.repository.TeamMemberRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -34,6 +35,7 @@ public class PollaRankingService {
     private final PollaPartidoRepository partidoRepository;
     private final PollaPronosticoRepository pronosticoRepository;
     private final PollaPuntajePartidoRepository puntajePartidoRepository;
+    private final TeamMemberRepository teamMemberRepository;
     private final AuthServiceClient authServiceClient;
     private final PollaMarcadorService marcadorService;
     private final PollaScoringProperties scoringProperties;
@@ -44,6 +46,7 @@ public class PollaRankingService {
             PollaPartidoRepository partidoRepository,
             PollaPronosticoRepository pronosticoRepository,
             PollaPuntajePartidoRepository puntajePartidoRepository,
+            TeamMemberRepository teamMemberRepository,
             AuthServiceClient authServiceClient,
             PollaMarcadorService marcadorService,
             PollaScoringProperties scoringProperties
@@ -53,6 +56,7 @@ public class PollaRankingService {
         this.partidoRepository = partidoRepository;
         this.pronosticoRepository = pronosticoRepository;
         this.puntajePartidoRepository = puntajePartidoRepository;
+        this.teamMemberRepository = teamMemberRepository;
         this.authServiceClient = authServiceClient;
         this.marcadorService = marcadorService;
         this.scoringProperties = scoringProperties;
@@ -66,8 +70,11 @@ public class PollaRankingService {
         Polla polla = pollaRepository.findByIdAndDeletedAtIsNull(pollaId)
                 .orElseThrow(() -> new ResourceNotFoundException("Polla not found with id: " + pollaId));
 
-        if (!polla.getCreadorEmail().equalsIgnoreCase(userEmail)
-                && !participanteRepository.existsByPollaIdAndEmailUsuario(pollaId, userEmail)) {
+        boolean canAccess = polla.getCreadorEmail().equalsIgnoreCase(userEmail)
+                || teamMemberRepository.isApprovedMemberOfPollaGroup(pollaId, userEmail)
+                || pronosticoRepository.existsByPollaIdAndEmailParticipante(pollaId, userEmail)
+                || participanteRepository.existsByPollaIdAndEmailUsuario(pollaId, userEmail);
+        if (!canAccess) {
             throw new UnauthorizedException("No tienes acceso a esta polla");
         }
 
