@@ -52,4 +52,11 @@ public interface PollaPronosticoRepository extends JpaRepository<PollaPronostico
      * Verifica si el participante ya pronosticó el partido
      */
     boolean existsByPollaPartidoIdAndEmailParticipante(Long pollaPartidoId, String email);
+
+    /**
+     * Carga todos los pronósticos de una polla de una sola vez (para resultados-detallados)
+     */
+    @Query("SELECT pr FROM PollaPronostico pr " +
+           "WHERE pr.pollaPartido.polla.id = :pollaId")
+    List<PollaPronostico> findAllByPollaId(@Param("pollaId") Long pollaId);
 }

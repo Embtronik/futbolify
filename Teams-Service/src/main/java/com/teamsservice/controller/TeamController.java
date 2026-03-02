@@ -71,7 +71,7 @@ public class TeamController {
         log.info("Getting teams for user: {} page={} size={}",
                 userPrincipal.getUserId(), page, size);
 
-        PageResponse<TeamResponse> response = teamService.getUserTeams(userPrincipal.getUserId(), page, size);
+        PageResponse<TeamResponse> response = teamService.getUserTeams(userPrincipal.getEmail(), page, size);
         return ResponseEntity.ok(response);
     }
 

@@ -4,6 +4,7 @@ import com.teamsservice.dto.*;
 import com.teamsservice.security.UserPrincipal;
 import com.teamsservice.service.PollaMarcadorService;
 import com.teamsservice.service.PollaRankingService;
+import com.teamsservice.service.PollaResultadosDetalladosService;
 import com.teamsservice.service.PollaService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -25,6 +26,7 @@ public class PollaController {
     private final PollaService pollaService;
     private final PollaMarcadorService pollaMarcadorService;
     private final PollaRankingService pollaRankingService;
+    private final PollaResultadosDetalladosService pollaResultadosDetalladosService;
 
     /**
      * POST /api/pollas - Crear una nueva polla
@@ -208,6 +210,23 @@ public class PollaController {
     }
 
         /**
+     * GET /api/pollas/{id}/resultados-detallados - Dashboard de resultados: todos los participantes
+     * con su pronóstico, resultado real y puntaje por partido, ordenados de mayor a menor puntaje.
+     */
+    @GetMapping("/{id}/resultados-detallados")
+    public ResponseEntity<ResultadosDetalladosResponse> getResultadosDetallados(
+            @PathVariable Long id,
+            @AuthenticationPrincipal UserPrincipal userPrincipal) {
+
+        log.info("Getting resultados-detallados for polla {} by user {}", id, userPrincipal.getEmail());
+
+        ResultadosDetalladosResponse response =
+                pollaResultadosDetalladosService.getResultadosDetallados(id, userPrincipal.getEmail());
+
+        return ResponseEntity.ok(response);
+    }
+
+    /**
      * PUT /api/pollas/{id}/activar - Activar una polla (cambiar estado a ABIERTA)
      */
     @PutMapping("/{id}/activar")

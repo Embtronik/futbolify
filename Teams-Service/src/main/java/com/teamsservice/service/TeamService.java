@@ -114,8 +114,8 @@ public class TeamService {
     }
 
     @Transactional(readOnly = true)
-    public PageResponse<TeamResponse> getUserTeams(Long userId, int page, int size) {
-        log.info("Getting teams (page={}, size={}) for user {}", page, size, userId);
+    public PageResponse<TeamResponse> getUserTeams(String userEmail, int page, int size) {
+        log.info("Getting teams (page={}, size={}) for user {}", page, size, userEmail);
 
         if (size <= 0) {
             size = 10;
@@ -126,7 +126,7 @@ public class TeamService {
 
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
 
-        Page<Team> teamsPage = teamRepository.findByOwnerUserIdAndStatus(userId, TeamStatus.ACTIVE, pageable);
+        Page<Team> teamsPage = teamRepository.findAllAccessibleByEmailAndStatus(userEmail, TeamStatus.ACTIVE, pageable);
 
         List<TeamResponse> content = teamsPage.getContent().stream()
                 .map(team -> {
