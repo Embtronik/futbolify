@@ -38,19 +38,18 @@ export class TeamService {
 
   getAll(page = 0, size = 50): Observable<Team[]> {
     return this.http
-      .get<import('../models/football.model').Page<Team>>(`${this.API_URL}/teams`, {
+      .get<any>(`${this.API_URL}/teams`, {
         params: { page, size },
       })
-      .pipe(map((res) => res?.content ?? []));
+      .pipe(map((res) => Array.isArray(res) ? res : (res?.content ?? [])));
   }
 
   getMyTeams(page = 0, size = 50): Observable<Team[]> {
-    // Si el backend no tiene /my-teams aún, ajustar aquí sin romper el tipado.
     return this.http
-      .get<import('../models/football.model').Page<Team>>(`${this.API_URL}/teams`, {
+      .get<any>(`${this.API_URL}/teams`, {
         params: { page, size },
       })
-      .pipe(map((res) => res?.content ?? []));
+      .pipe(map((res) => Array.isArray(res) ? res : (res?.content ?? [])));
   }
 
   getById(id: number): Observable<Team> {
