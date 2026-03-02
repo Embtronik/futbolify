@@ -52,14 +52,16 @@ export class PollsComponent implements OnInit, AfterViewInit, OnDestroy {
       };
       this.pollService.createPoll(payload).subscribe({
         next: () => {
-          this.successMessage = 'Polla creada correctamente';
+          this.successMessage = '¡Polla creada exitosamente!';
           this.loading = false;
           this.showCreateModal = false;
+          this.activeTab = 'my-polls';
           this.loadData();
         },
-        error: () => {
-          this.errorMessage = 'Error al crear la polla';
+        error: (err: any) => {
+          this.errorMessage = err?.error?.message || 'Error al crear la polla';
           this.loading = false;
+          console.error('❌ Error al crear polla:', err);
         }
       });
     }
@@ -253,6 +255,10 @@ export class PollsComponent implements OnInit, AfterViewInit, OnDestroy {
 
   removeSelectedFixture(fixture: FootballFixture): void {
     this.selectedFixtures = this.selectedFixtures.filter(f => f.fixture.id !== fixture.fixture.id);
+  }
+
+  isFixtureSelected(fixture: FootballFixture): boolean {
+    return this.selectedFixtures.some(f => f.fixture.id === fixture.fixture.id);
   }
 
   revertPollToCreated(poll: Poll | null | undefined, event?: Event): void {
@@ -662,47 +668,6 @@ export class PollsComponent implements OnInit, AfterViewInit, OnDestroy {
           this.loading = false;
         }
       });
-    });
-    
-    // Construir el objeto con el formato correcto
-    const pollData: CreatePollRequest = {
-      nombre: formValue.nombre,
-      descripcion: formValue.descripcion || '',
-      fechaInicio: new Date(Date.now() + 5 * 60 * 1000).toISOString().slice(0, 19),
-      montoEntrada: Number(formValue.montoEntrada) || 0,
-      tipo: 'PRIVADA', // Tipo de polla (por defecto privada)
-      gruposIds: selectedTeamIds,
-      emailsInvitados: emailsInvitados
-    };
-
-    (this.teamService as any).createPoll(pollData).subscribe({
-      next: (newPoll: Poll | null) => {
-        this.loading = false;
-        this.successMessage = '¡Polla creada exitosamente!';
-
-        // Some backends return an empty body on 201/200. Avoid injecting null into the UI.
-        if (!this.isPoll(newPoll)) {
-          this.loadData();
-          setTimeout(() => {
-            this.closeCreateModal();
-          }, 1500);
-          return;
-        }
-
-        this.myPolls = [newPoll, ...(this.myPolls || []).filter(this.isPoll)];
-        this.participantPolls = [newPoll, ...(this.participantPolls || []).filter(this.isPoll)];
-        this.polls = (this.activeTab === 'my-polls' ? this.myPolls : this.participantPolls).filter(this.isPoll);
-
-        setTimeout(() => {
-          this.closeCreateModal();
-          this.openPollDetail(newPoll);
-        }, 1500);
-      },
-      error: (error: any) => {
-        this.loading = false;
-        this.errorMessage = error.error?.message || 'Error al crear la polla';
-        console.error('❌ Error al crear polla:', error);
-      }
     });
   }
 

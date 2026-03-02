@@ -619,13 +619,28 @@
               ← Cambiar liga
             </button>
           </div>
+          <!-- Contador siempre visible mientras seleccionas partidos -->
+          <div class="fixtures-counter-bar" [class.empty]="selectedFixtures.length === 0">
+            <div class="fixtures-counter-left">
+              <span class="fixtures-counter-badge">{{ selectedFixtures.length }}</span>
+              <span class="fixtures-counter-label">
+                {{ selectedFixtures.length === 0 ? 'Toca un partido para seleccionarlo' : (selectedFixtures.length === 1 ? '1 partido seleccionado' : selectedFixtures.length + ' partidos seleccionados') }}
+              </span>
+            </div>
+            <span class="fixtures-counter-hint" *ngIf="selectedFixtures.length > 0">Toca de nuevo para quitar ✕</span>
+          </div>
+
           <h4>Próximos Partidos</h4>
           <div class="loading" *ngIf="loadingFixtures">
             <p>⚽ Cargando partidos...</p>
           </div>
           <div class="fixtures-list upcoming-fixtures" *ngIf="!loadingFixtures && upcomingFixtures.length > 0">
             <div class="fixtures-list-modern">
-              <div class="fixture-card" *ngFor="let fixture of upcomingFixtures" (click)="selectFixture(fixture)">
+              <div class="fixture-card"
+                   *ngFor="let fixture of upcomingFixtures"
+                   (click)="selectFixture(fixture)"
+                   [class.fixture-selected]="isFixtureSelected(fixture)">
+                <span class="fixture-selected-check" *ngIf="isFixtureSelected(fixture)">✓</span>
                 <div class="fixture-card__row">
                   <div class="fixture-col fixture-col--home">
                     <img class="fixture-logo" [src]="fixture.teams.home.logo" [alt]="fixture.teams.home.name">
@@ -649,29 +664,20 @@
           <div class="empty-state" *ngIf="!loadingFixtures && upcomingFixtures.length === 0">
             <p>No hay partidos próximos para esta liga</p>
           </div>
-          <!-- Partidos Seleccionados -->
-          <div class="fixtures-list" *ngIf="selectedFixtures.length > 0">
-            <h4>Partidos Seleccionados ({{ selectedFixtures.length }})</h4>
-            <div class="fixtures-list-modern">
-              <div class="fixture-card" *ngFor="let fixture of selectedFixtures" (click)="removeSelectedFixture(fixture)" title="Quitar partido de la selección">
-                <div class="fixture-card__row">
-                  <div class="fixture-col fixture-col--home">
-                    <img class="fixture-logo" [src]="fixture.teams.home.logo" [alt]="fixture.teams.home.name">
-                    <span class="fixture-team-name">{{ fixture.teams.home.name }}</span>
-                  </div>
-                  <div class="fixture-col fixture-col--center">
-                    <span class="fixture-date-pill">
-                      {{ fixture.fixture.date | date:'dd MMM' }}<br>
-                      <span class="fixture-date-time">{{ fixture.fixture.date | date:'HH:mm' }}</span>
-                    </span>
-                    <span class="fixture-venue-inline" *ngIf="fixture.fixture.venue">🏟 {{ fixture.fixture.venue.name }}</span>
-                  </div>
-                  <div class="fixture-col fixture-col--away">
-                    <span class="fixture-team-name fixture-team-name--right">{{ fixture.teams.away.name }}</span>
-                    <img class="fixture-logo" [src]="fixture.teams.away.logo" [alt]="fixture.teams.away.name">
-                  </div>
-                </div>
-              </div>
+          <!-- Partidos seleccionados: chips compactos, siempre visibles -->
+          <div class="selected-fixtures-compact" *ngIf="selectedFixtures.length > 0">
+            <h4>✅ Seleccionados — toca para quitar</h4>
+            <div class="selected-fixture-chips">
+              <span class="selected-fixture-chip"
+                    *ngFor="let f of selectedFixtures"
+                    (click)="removeSelectedFixture(f)">
+                <img [src]="f.teams.home.logo" [alt]="f.teams.home.name" class="chip-logo">
+                {{ f.teams.home.name }}
+                <span class="chip-vs">vs</span>
+                {{ f.teams.away.name }}
+                <img [src]="f.teams.away.logo" [alt]="f.teams.away.name" class="chip-logo">
+                <span class="chip-remove">✕</span>
+              </span>
             </div>
           </div>
 
@@ -713,7 +719,7 @@
           type="submit" 
           class="btn btn-primary" 
           [disabled]="selectedFixtures.length === 0 || loading">
-          {{ loading ? 'Agregando...' : 'Agregar Partido' }}
+          {{ loading ? 'Agregando...' : (selectedFixtures.length > 1 ? 'Agregar ' + selectedFixtures.length + ' Partidos' : 'Agregar Partido') }}
         </button>
       </div>
     </form>
