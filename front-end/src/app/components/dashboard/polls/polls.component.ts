@@ -47,6 +47,7 @@ export class PollsComponent implements OnInit, AfterViewInit, OnDestroy {
     finalizeCreatePoll(formValue: any, emailsInvitados: string[]) {
       const payload = {
         ...formValue,
+        fechaInicio: new Date().toISOString().slice(0, 19),
         emailsInvitados
       };
       this.pollService.createPoll(payload).subscribe({
@@ -372,7 +373,7 @@ export class PollsComponent implements OnInit, AfterViewInit, OnDestroy {
       nombre: ['', [Validators.required, Validators.minLength(3)]],
       descripcion: [''],
       gruposIds: [[], Validators.required],
-      fechaInicio: ['', Validators.required],
+      fechaInicio: [''],
       montoEntrada: [0, [Validators.min(1)]],
       emailsInvitados: [[]]
     });
@@ -613,6 +614,7 @@ export class PollsComponent implements OnInit, AfterViewInit, OnDestroy {
   openCreateModal(): void {
     this.showCreateModal = true;
     this.createPollForm.reset({ teamIds: [], entryFee: 0 });
+    this.createPollForm.patchValue({ fechaInicio: new Date().toISOString().slice(0, 16) });
     this.successMessage = '';
     this.errorMessage = '';
   }
@@ -666,7 +668,7 @@ export class PollsComponent implements OnInit, AfterViewInit, OnDestroy {
     const pollData: CreatePollRequest = {
       nombre: formValue.nombre,
       descripcion: formValue.descripcion || '',
-      fechaInicio: formValue.fechaInicio ? new Date(formValue.fechaInicio).toISOString().slice(0, 16) : '',
+      fechaInicio: new Date().toISOString().slice(0, 19),
       montoEntrada: Number(formValue.montoEntrada) || 0,
       tipo: 'PRIVADA', // Tipo de polla (por defecto privada)
       gruposIds: selectedTeamIds,
