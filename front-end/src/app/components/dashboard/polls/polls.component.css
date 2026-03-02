@@ -1891,6 +1891,16 @@
    SELECCIÓN DE PARTIDOS — barra de contador, estado seleccionado, chips
    ============================================================ */
 
+/* Título separador antes de la lista scrollable */
+.fixtures-list-heading {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #64748b;
+  margin: 4px 0 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
 /* Barra de contador sticky */
 .fixtures-counter-bar {
   position: sticky;
@@ -1982,11 +1992,11 @@
 
 /* Chips compactos para partidos seleccionados */
 .selected-fixtures-compact {
-  background: #f8fafc;
-  border: 1.5px solid #e2e8f0;
+  background: #f0fdf4;
+  border: 1.5px solid #86efac;
   border-radius: 12px;
-  padding: 10px 12px 12px;
-  margin-top: 18px;
+  padding: 8px 12px 10px;
+  margin-bottom: 12px;
 }
 .selected-fixtures-compact h4 {
   font-size: 0.85rem;
@@ -2027,12 +2037,18 @@
   border-radius: 3px;
   flex-shrink: 0;
 }
+.chip-names {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .chip-vs {
   color: #9ca3af;
   font-size: 0.7rem;
   font-weight: 700;
   margin: 0 2px;
-  flex-shrink: 0;
 }
 .chip-remove {
   font-size: 0.85rem;

@@ -619,7 +619,7 @@
               ← Cambiar liga
             </button>
           </div>
-          <!-- Contador siempre visible mientras seleccionas partidos -->
+          <!-- Barra de contador siempre visible -->
           <div class="fixtures-counter-bar" [class.empty]="selectedFixtures.length === 0">
             <div class="fixtures-counter-left">
               <span class="fixtures-counter-badge">{{ selectedFixtures.length }}</span>
@@ -630,7 +630,21 @@
             <span class="fixtures-counter-hint" *ngIf="selectedFixtures.length > 0">Toca de nuevo para quitar ✕</span>
           </div>
 
-          <h4>Próximos Partidos</h4>
+          <!-- Chips de seleccionados: aparecen justo bajo el contador, antes de la lista -->
+          <div class="selected-fixtures-compact" *ngIf="selectedFixtures.length > 0">
+            <div class="selected-fixture-chips">
+              <span class="selected-fixture-chip"
+                    *ngFor="let f of selectedFixtures"
+                    (click)="removeSelectedFixture(f)">
+                <img [src]="f.teams.home.logo" [alt]="f.teams.home.name" class="chip-logo">
+                <span class="chip-names">{{ f.teams.home.name }} <span class="chip-vs">vs</span> {{ f.teams.away.name }}</span>
+                <img [src]="f.teams.away.logo" [alt]="f.teams.away.name" class="chip-logo">
+                <span class="chip-remove">✕</span>
+              </span>
+            </div>
+          </div>
+
+          <h4 class="fixtures-list-heading">Próximos Partidos</h4>
           <div class="loading" *ngIf="loadingFixtures">
             <p>⚽ Cargando partidos...</p>
           </div>
@@ -663,29 +677,6 @@
           </div>
           <div class="empty-state" *ngIf="!loadingFixtures && upcomingFixtures.length === 0">
             <p>No hay partidos próximos para esta liga</p>
-          </div>
-          <!-- Partidos seleccionados: chips compactos, siempre visibles -->
-          <div class="selected-fixtures-compact" *ngIf="selectedFixtures.length > 0">
-            <h4>✅ Seleccionados — toca para quitar</h4>
-            <div class="selected-fixture-chips">
-              <span class="selected-fixture-chip"
-                    *ngFor="let f of selectedFixtures"
-                    (click)="removeSelectedFixture(f)">
-                <img [src]="f.teams.home.logo" [alt]="f.teams.home.name" class="chip-logo">
-                {{ f.teams.home.name }}
-                <span class="chip-vs">vs</span>
-                {{ f.teams.away.name }}
-                <img [src]="f.teams.away.logo" [alt]="f.teams.away.name" class="chip-logo">
-                <span class="chip-remove">✕</span>
-              </span>
-            </div>
-          </div>
-
-          <div class="empty-state" *ngIf="!loadingFixtures && upcomingFixtures.length === 0">
-            <p>No hay partidos próximos para esta liga</p>
-            <button type="button" class="btn-secondary" (click)="backToLeagueSelection()">
-              Seleccionar otra liga
-            </button>
           </div>
         </div>
 
