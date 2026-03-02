@@ -27,9 +27,18 @@ export class AuthService {
   private refreshTokenInProgress = false;
   private refreshTokenSubject: Observable<AuthResponse> | null = null;
 
+  // Timer para expiración proactiva del token
+  private tokenExpirationTimer: ReturnType<typeof setTimeout> | null = null;
+  // Intervalo de verificación periódica (fallback cada 60 segundos)
+  private tokenCheckInterval: ReturnType<typeof setInterval> | null = null;
+
   constructor() {
     // Verificar si el token ha expirado al iniciar
     this.checkTokenExpiration();
+    // Programar expiración si ya hay un token válido almacenado
+    this.scheduleTokenExpiration();
+    // Iniciar verificación periódica como respaldo
+    this.startPeriodicCheck();
   }
 
   /**
@@ -176,6 +185,15 @@ export class AuthService {
    */
   logout(navigate: boolean = true): void {
     console.log('🔴 Cerrando sesión...');
+    // Cancelar temporizadores de expiración
+    if (this.tokenExpirationTimer) {
+      clearTimeout(this.tokenExpirationTimer);
+      this.tokenExpirationTimer = null;
+    }
+    if (this.tokenCheckInterval) {
+      clearInterval(this.tokenCheckInterval);
+      this.tokenCheckInterval = null;
+    }
     localStorage.removeItem('accessToken');
     localStorage.removeItem('refreshToken');
     localStorage.removeItem('tokenExpiration');
@@ -184,7 +202,7 @@ export class AuthService {
     this.isAuthenticatedSubject.next(false);
     
     if (navigate) {
-      this.router.navigate(['/login']);
+      this.router.navigate(['/auth/login']);
     }
   }
 
@@ -223,6 +241,8 @@ export class AuthService {
     this.saveUser(response.user);
     this.currentUserSubject.next(response.user);
     this.isAuthenticatedSubject.next(true);
+    // Reprogramar temporizador de expiración con el nuevo token
+    this.scheduleTokenExpiration();
   }
 
   private saveTokens(accessToken: string, refreshToken: string, expiresIn?: number): void {
@@ -230,7 +250,8 @@ export class AuthService {
     localStorage.setItem('refreshToken', refreshToken);
     
     if (expiresIn) {
-      const expirationTime = new Date().getTime() + expiresIn;
+      // expiresIn viene en segundos desde el backend → convertir a milliseconds
+      const expirationTime = new Date().getTime() + expiresIn * 1000;
       localStorage.setItem('tokenExpiration', expirationTime.toString());
     }
   }
@@ -260,9 +281,64 @@ export class AuthService {
       this.refreshToken().subscribe({
         error: () => this.logout()
       });
-    } else if (!this.hasValidToken()) {
+    } else if (!this.hasValidToken() && this.getAccessToken()) {
+      // Token expirado y sin refresh token → redirigir al login
+      console.warn('⚠️ Token expirado sin refresh token - cerrando sesión');
       this.logout();
     }
+  }
+
+  /**
+   * Programa un temporizador para refrescar el token 60 segundos antes de que expire,
+   * o para cerrar sesión si no hay refresh token disponible.
+   */
+  private scheduleTokenExpiration(): void {
+    // Cancelar el temporizador anterior si existe
+    if (this.tokenExpirationTimer) {
+      clearTimeout(this.tokenExpirationTimer);
+      this.tokenExpirationTimer = null;
+    }
+
+    const expiration = localStorage.getItem('tokenExpiration');
+    if (!expiration) return;
+
+    const expiresAt = parseInt(expiration);
+    const now = new Date().getTime();
+    // Refrescar 60 segundos antes de que expire (o en 1 segundo si ya está por expirar)
+    const msUntilRefresh = Math.max(expiresAt - now - 60_000, 1_000);
+
+    console.log(`🕐 Token se refrescará en ${Math.round(msUntilRefresh / 1000)}s`);
+
+    this.tokenExpirationTimer = setTimeout(() => {
+      if (this.getRefreshToken()) {
+        console.log('🔄 Refrescando token proactivamente...');
+        this.refreshToken().subscribe({
+          error: () => {
+            console.error('🔴 Refresh proactivo fallido - cerrando sesión');
+            this.logout();
+          }
+        });
+      } else {
+        console.warn('⚠️ Token por expirar sin refresh token - cerrando sesión');
+        this.logout();
+      }
+    }, msUntilRefresh);
+  }
+
+  /**
+   * Verificación periódica cada 60 segundos como fallback,
+   * por si el temporizador principal falla o la pestaña estuvo inactiva.
+   */
+  private startPeriodicCheck(): void {
+    if (this.tokenCheckInterval) {
+      clearInterval(this.tokenCheckInterval);
+    }
+    this.tokenCheckInterval = setInterval(() => {
+      if (this.getAccessToken() && !this.hasValidToken()) {
+        console.warn('⚠️ Verificación periódica: token expirado');
+        this.checkTokenExpiration();
+      }
+    }, 60_000);
   }
 
   private handleError(error: any): Observable<never> {

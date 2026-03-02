@@ -47,7 +47,7 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
           // Si el refresh-token falló, logout inmediato sin reintentar
           console.error('🔴 Refresh token expirado - redirigiendo a login');
           authService.logout(false); // No navegar desde el servicio
-          router.navigate(['/login'], { 
+          router.navigate(['/auth/login'], { 
             queryParams: { expired: 'true' },
             replaceUrl: true 
           });
@@ -71,7 +71,7 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
             // Si falla el refresh, cerrar sesión y redirigir al login
             console.error('🔴 Error al refrescar token - redirigiendo a login');
             authService.logout(false); // No navegar desde el servicio
-            router.navigate(['/login'], { 
+            router.navigate(['/auth/login'], { 
               queryParams: { expired: 'true' },
               replaceUrl: true 
             });

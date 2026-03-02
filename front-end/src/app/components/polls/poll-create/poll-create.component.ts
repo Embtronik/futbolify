@@ -98,19 +98,14 @@ interface SelectedMatch {
 
             <div class="form-row">
               <div class="form-group">
-                <label for="fechaInicio">Fecha de Inicio *</label>
+                <label for="fechaInicio">Fecha de Creación</label>
                 <input 
                   id="fechaInicio"
-                  type="datetime-local" 
-                  formControlName="fechaInicio"
-                  [min]="minDateTime"
-                  class="form-control">
-                <span class="error" *ngIf="pollDetailsForm.get('fechaInicio')?.hasError('required') && pollDetailsForm.get('fechaInicio')?.touched">
-                  La fecha es requerida
-                </span>
-                <span class="error" *ngIf="pollDetailsForm.get('fechaInicio')?.hasError('futureDate') && pollDetailsForm.get('fechaInicio')?.touched">
-                  La fecha debe ser posterior a la fecha y hora actual
-                </span>
+                  type="text"
+                  [value]="formatDate(pollDetailsForm.get('fechaInicio')?.value)"
+                  class="form-control form-control-readonly"
+                  readonly>
+                <small class="form-text">La fecha se establece automáticamente al crear la polla</small>
               </div>
 
               <div class="form-group">
@@ -215,145 +210,245 @@ interface SelectedMatch {
         </div>
 
         <!-- Paso 3: Agregar Partidos -->
-        <div class="step-content" *ngIf="currentStep === 3">
-          <h3>Agregar Partidos</h3>
+        <div class="step-content step3" *ngIf="currentStep === 3">
+          <div class="step3-header">
+            <h3>⚽ Arma los partidos</h3>
+            <p class="step3-subtitle">Busca equipos, sélecciona local y visitante, agrega la fecha y toca el botón. Repite para cada partido.</p>
+          </div>
 
-          <!-- Partidos Seleccionados - En la parte superior -->
-          <div class="selected-matches-showcase" *ngIf="selectedMatches.length > 0">
-            <div class="showcase-header">
-              <h4>⚽ Partidos Agregados ({{ selectedMatches.length }})</h4>
-              <p class="showcase-subtitle">Estos son los partidos que formarán parte de tu polla</p>
+          <!-- Guía de pasos (paso a paso visible) -->
+          <div class="builder-guide">
+            <div class="guide-step" [class.guide-done]="selectedHomeTeam" [class.guide-active]="!selectedHomeTeam">
+              <span class="guide-num">1</span>
+              <span class="guide-label">Local</span>
+              <span class="guide-check" *ngIf="selectedHomeTeam">✓</span>
             </div>
-            <div class="selected-matches-grid">
-              <div *ngFor="let match of selectedMatches; let i = index" class="selected-match-card">
-                <div class="match-number">#{{ i + 1 }}</div>
-                <div class="match-content">
-                  <div class="match-teams-display">
-                    <div class="team-display">
-                      <img [src]="match.logoLocal" [alt]="match.equipoLocal" *ngIf="match.logoLocal" class="team-logo">
-                      <span class="team-name">{{ match.equipoLocal }}</span>
-                    </div>
-                    <span class="vs-badge">VS</span>
-                    <div class="team-display">
-                      <img [src]="match.logoVisitante" [alt]="match.equipoVisitante" *ngIf="match.logoVisitante" class="team-logo">
-                      <span class="team-name">{{ match.equipoVisitante }}</span>
-                    </div>
-                  </div>
-                  <div class="match-datetime">
-                    📅 {{ formatMatchDate(match.fechaHoraPartido) }}
-                  </div>
-                </div>
-                <button type="button" class="btn-remove-match" (click)="removeMatch(i)" title="Eliminar partido">
-                  🗑️
-                </button>
-              </div>
+            <div class="guide-arrow">›</div>
+            <div class="guide-step" [class.guide-done]="selectedAwayTeam" [class.guide-active]="selectedHomeTeam && !selectedAwayTeam">
+              <span class="guide-num">2</span>
+              <span class="guide-label">Visitante</span>
+              <span class="guide-check" *ngIf="selectedAwayTeam">✓</span>
+            </div>
+            <div class="guide-arrow">›</div>
+            <div class="guide-step" [class.guide-done]="matchDateTime" [class.guide-active]="selectedHomeTeam && selectedAwayTeam && !matchDateTime">
+              <span class="guide-num">3</span>
+              <span class="guide-label">Fecha</span>
+              <span class="guide-check" *ngIf="matchDateTime">✓</span>
+            </div>
+            <div class="guide-arrow">›</div>
+            <div class="guide-step" [class.guide-active]="canAddMatch()">
+              <span class="guide-num">✚</span>
+              <span class="guide-label">Agregar</span>
             </div>
           </div>
 
-          <!-- Mensaje cuando no hay partidos -->
-          <div class="no-matches-alert" *ngIf="selectedMatches.length === 0">
-            <div class="alert-icon">⚽</div>
-            <div class="alert-content">
-              <h4>Aún no has agregado partidos</h4>
-              <p>Usa el formulario de abajo para agregar los partidos que deseas incluir en tu polla</p>
-            </div>
-          </div>
-          
-          <!-- Búsqueda de Equipos -->
-          <div class="match-search-section">
-            <h4>Buscar Equipos</h4>
-            
-            <div class="search-options">
-              <div class="form-group">
-                <label>Liga</label>
-                <select [(ngModel)]="selectedLeague" class="form-control" (change)="onLeagueChange()">
-                  <option [value]="null">Todas las ligas</option>
-                  <option *ngFor="let league of leagues" [value]="league.id">
-                    {{ league.name }} - {{ league.country }}
-                  </option>
-                </select>
-              </div>
+          <div class="step3-layout">
 
-              <div class="form-group">
-                <label>Buscar Equipo</label>
-                <input 
-                  type="text" 
-                  [(ngModel)]="teamSearchTerm"
-                  placeholder="Nombre del equipo..."
-                  class="form-control"
-                  (input)="searchTeams()">
-              </div>
-            </div>
+            <!-- Constructor (ocupa todo el ancho en móvil) -->
+            <div class="builder-panel">
 
-            <div class="teams-results" *ngIf="searchResults.length > 0">
-              <h5>Resultados</h5>
-              <div class="teams-grid">
-                <div 
-                  *ngFor="let team of searchResults" 
-                  class="team-card"
-                  [class.selected]="selectedHomeTeam?.id === team.id || selectedAwayTeam?.id === team.id"
-                  (click)="selectTeam(team)">
-                  <img [src]="team.logo" [alt]="team.name" class="team-logo">
-                  <span class="team-name">{{ team.name }}</span>
-                </div>
-              </div>
-            </div>
-
-            <!-- Selector de Partido -->
-            <div class="match-builder">
-              <h4>Crear Partido</h4>
-              <div class="match-form">
-                <div class="team-selector">
-                  <label>Equipo Local</label>
-                  <div class="selected-team" *ngIf="selectedHomeTeam">
-                    <img [src]="selectedHomeTeam.logo" [alt]="selectedHomeTeam.name">
-                    <span>{{ selectedHomeTeam.name }}</span>
-                    <button type="button" (click)="clearHomeTeam()" class="btn-clear">×</button>
+              <!-- Búsqueda -->
+              <div class="builder-search">
+                <div class="search-options">
+                  <div class="form-group">
+                    <label>Liga</label>
+                    <select [(ngModel)]="selectedLeague" class="form-control" (change)="onLeagueChange()">
+                      <option [value]="null">Todas las ligas</option>
+                      <option *ngFor="let league of leagues" [value]="league.id">
+                        {{ league.name }} - {{ league.country }}
+                      </option>
+                    </select>
                   </div>
-                  <div class="empty-team" *ngIf="!selectedHomeTeam">
-                    Selecciona equipo local
+                  <div class="form-group">
+                    <label>Buscar Equipo</label>
+                    <input
+                      type="text"
+                      [(ngModel)]="teamSearchTerm"
+                      placeholder="Ej: Real Madrid, Barcelona..."
+                      class="form-control"
+                      (input)="searchTeams()">
                   </div>
                 </div>
 
-                <div class="vs-separator">VS</div>
+                <!-- Hint inicial -->
+                <div class="search-start-hint" *ngIf="searchResults.length === 0 && !teamSearchTerm">
+                  <span class="hint-icon">🔍</span>
+                  <span>Escribe el nombre de un equipo o filtra por liga para empezar</span>
+                </div>
 
-                <div class="team-selector">
-                  <label>Equipo Visitante</label>
-                  <div class="selected-team" *ngIf="selectedAwayTeam">
-                    <img [src]="selectedAwayTeam.logo" [alt]="selectedAwayTeam.name">
-                    <span>{{ selectedAwayTeam.name }}</span>
-                    <button type="button" (click)="clearAwayTeam()" class="btn-clear">×</button>
+                <!-- Hint contextual + resultados -->
+                <div class="teams-results" *ngIf="searchResults.length > 0">
+                  <div class="teams-role-hint" [class.hint-away]="selectedHomeTeam && !selectedAwayTeam">
+                    <span *ngIf="!selectedHomeTeam">👇 Toca un equipo para <strong>Local</strong></span>
+                    <span *ngIf="selectedHomeTeam && !selectedAwayTeam">👇 Ahora toca el equipo <strong>Visitante</strong></span>
+                    <span *ngIf="selectedHomeTeam && selectedAwayTeam">✅ Listo — pon la fecha y agrégalo</span>
                   </div>
-                  <div class="empty-team" *ngIf="!selectedAwayTeam">
-                    Selecciona equipo visitante
+                  <div class="teams-grid">
+                    <div
+                      *ngFor="let team of searchResults"
+                      class="team-card"
+                      [class.team-home]="selectedHomeTeam?.id === team.id"
+                      [class.team-away]="selectedAwayTeam?.id === team.id"
+                      [class.team-disabled]="selectedHomeTeam && selectedAwayTeam && selectedHomeTeam.id !== team.id && selectedAwayTeam.id !== team.id"
+                      (click)="selectTeam(team)">
+                      <img [src]="team.logo" [alt]="team.name" class="team-logo">
+                      <span class="team-name">{{ team.name }}</span>
+                      <span class="team-role-badge home-badge" *ngIf="selectedHomeTeam?.id === team.id">Local</span>
+                      <span class="team-role-badge away-badge" *ngIf="selectedAwayTeam?.id === team.id">Visitante</span>
+                    </div>
                   </div>
                 </div>
               </div>
 
-              <div class="form-group">
-                <label for="matchDate">Fecha y Hora del Partido *</label>
-                <input 
+              <!-- Preview en vivo del partido -->
+              <div class="match-preview-live" *ngIf="selectedHomeTeam || selectedAwayTeam">
+                <p class="preview-label">Vista previa</p>
+                <div class="preview-matchup">
+                  <div class="preview-team" [class.preview-empty]="!selectedHomeTeam">
+                    <img [src]="selectedHomeTeam.logo" [alt]="selectedHomeTeam.name" *ngIf="selectedHomeTeam">
+                    <div class="preview-placeholder" *ngIf="!selectedHomeTeam">?</div>
+                    <span>{{ selectedHomeTeam?.name || 'Local' }}</span>
+                    <button type="button" class="btn-clear-team" *ngIf="selectedHomeTeam" (click)="clearHomeTeam()" title="Quitar">✕</button>
+                  </div>
+                  <span class="preview-vs">VS</span>
+                  <div class="preview-team" [class.preview-empty]="!selectedAwayTeam">
+                    <img [src]="selectedAwayTeam.logo" [alt]="selectedAwayTeam.name" *ngIf="selectedAwayTeam">
+                    <div class="preview-placeholder" *ngIf="!selectedAwayTeam">?</div>
+                    <span>{{ selectedAwayTeam?.name || 'Visitante' }}</span>
+                    <button type="button" class="btn-clear-team" *ngIf="selectedAwayTeam" (click)="clearAwayTeam()" title="Quitar">✕</button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Fecha: aparece sólo cuando los dos equipos están listos -->
+              <div class="form-group match-date-group" *ngIf="selectedHomeTeam && selectedAwayTeam">
+                <label for="matchDate">📅 Fecha y hora del partido *</label>
+                <input
                   id="matchDate"
-                  type="datetime-local" 
+                  type="datetime-local"
                   [(ngModel)]="matchDateTime"
                   class="form-control">
               </div>
 
-              <button 
-                type="button"
-                class="btn-add-match"
-                [disabled]="!canAddMatch()"
-                (click)="addMatch()">
-                <span class="btn-icon">➕</span>
-                Agregar Partido a la Lista
+              <!-- Botón agregar (sticky en móvil) -->
+              <div class="btn-add-match-wrap">
+                <button
+                  type="button"
+                  class="btn-add-match"
+                  [class.btn-ready]="canAddMatch()"
+                  [disabled]="!canAddMatch()"
+                  (click)="addMatch()">
+                  <span class="btn-icon">➕</span>
+                  Agregar partido
+                </button>
+              </div>
+
+            </div>
+
+            <!-- PANEL DERECHO: Carrito (desktop) -->
+            <div class="matches-cart matches-cart-desktop">
+              <div class="cart-header">
+                <h4>🗒️ Partidos agregados</h4>
+                <span class="cart-counter" [class.cart-has-items]="selectedMatches.length > 0">{{ selectedMatches.length }}</span>
+              </div>
+              <div class="cart-empty" *ngIf="selectedMatches.length === 0">
+                <div class="cart-empty-icon">🏟️</div>
+                <p>Aún no agregaste partidos</p>
+                <small>Arma cada partido en el panel izquierdo y agrégalo aquí.</small>
+              </div>
+              <div class="cart-list" *ngIf="selectedMatches.length > 0">
+                <div
+                  *ngFor="let match of selectedMatches; let i = index"
+                  class="cart-item"
+                  [class.cart-item-new]="i === selectedMatches.length - 1 && showMatchAddedAnimation">
+                  <div class="cart-item-num">#{{ i + 1 }}</div>
+                  <div class="cart-item-body">
+                    <div class="cart-teams">
+                      <div class="cart-team">
+                        <img [src]="match.logoLocal" [alt]="match.equipoLocal" *ngIf="match.logoLocal" class="cart-logo">
+                        <span>{{ match.equipoLocal }}</span>
+                      </div>
+                      <span class="cart-vs">vs</span>
+                      <div class="cart-team">
+                        <img [src]="match.logoVisitante" [alt]="match.equipoVisitante" *ngIf="match.logoVisitante" class="cart-logo">
+                        <span>{{ match.equipoVisitante }}</span>
+                      </div>
+                    </div>
+                    <div class="cart-date">📅 {{ formatMatchDate(match.fechaHoraPartido) }}</div>
+                  </div>
+                  <button type="button" class="cart-remove" (click)="removeMatch(i)" title="Eliminar">✕</button>
+                </div>
+              </div>
+              <div class="cart-footer" *ngIf="selectedMatches.length > 0">
+                <span>{{ selectedMatches.length }} partido{{ selectedMatches.length !== 1 ? 's' : '' }} agregado{{ selectedMatches.length !== 1 ? 's' : '' }}</span>
+                <span class="cart-add-more">¿Quieres más? Sigue agregando ›</span>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- ===== MOBILE ONLY: Floating cart trigger ===== -->
+          <button
+            type="button"
+            class="mobile-cart-fab"
+            (click)="toggleCartMobile()"
+            [class.fab-has-items]="selectedMatches.length > 0">
+            <span class="fab-icon">🗒️</span>
+            <span class="fab-label">Mis partidos</span>
+            <span class="fab-badge" *ngIf="selectedMatches.length > 0">{{ selectedMatches.length }}</span>
+          </button>
+
+          <!-- ===== MOBILE ONLY: Backdrop ---> 
+          <div class="mobile-cart-backdrop" *ngIf="showCartMobile" (click)="closeCartMobile()"></div>
+
+          <!-- ===== MOBILE ONLY: Bottom sheet carrito ===== -->
+          <div class="mobile-cart-sheet" [class.sheet-open]="showCartMobile">
+            <div class="sheet-handle-bar" (click)="closeCartMobile()"></div>
+            <div class="sheet-header">
+              <h4>🗒️ Partidos en tu polla</h4>
+              <button type="button" class="sheet-close" (click)="closeCartMobile()">✕</button>
+            </div>
+            <div class="sheet-body">
+              <div class="cart-empty" *ngIf="selectedMatches.length === 0">
+                <div class="cart-empty-icon">🏟️</div>
+                <p>Aún no agregaste partidos</p>
+                <small>Cierra esto y arma tu primer partido.</small>
+              </div>
+              <div class="cart-list" *ngIf="selectedMatches.length > 0">
+                <div
+                  *ngFor="let match of selectedMatches; let i = index"
+                  class="cart-item"
+                  [class.cart-item-new]="i === selectedMatches.length - 1 && showMatchAddedAnimation">
+                  <div class="cart-item-num">#{{ i + 1 }}</div>
+                  <div class="cart-item-body">
+                    <div class="cart-teams">
+                      <div class="cart-team">
+                        <img [src]="match.logoLocal" [alt]="match.equipoLocal" *ngIf="match.logoLocal" class="cart-logo">
+                        <span>{{ match.equipoLocal }}</span>
+                      </div>
+                      <span class="cart-vs">vs</span>
+                      <div class="cart-team">
+                        <img [src]="match.logoVisitante" [alt]="match.equipoVisitante" *ngIf="match.logoVisitante" class="cart-logo">
+                        <span>{{ match.equipoVisitante }}</span>
+                      </div>
+                    </div>
+                    <div class="cart-date">📅 {{ formatMatchDate(match.fechaHoraPartido) }}</div>
+                  </div>
+                  <button type="button" class="cart-remove" (click)="removeMatch(i)" title="Eliminar">✕</button>
+                </div>
+              </div>
+            </div>
+            <div class="sheet-footer" *ngIf="selectedMatches.length > 0">
+              <button type="button" class="btn-sheet-close-add" (click)="closeCartMobile()">
+                + Agregar otro partido
               </button>
             </div>
           </div>
 
-          <!-- Animación de confirmación -->
+          <!-- Toast confirmación -->
           <div class="match-added-toast" *ngIf="showMatchAddedAnimation">
             <span class="toast-icon">✅</span>
-            <span class="toast-text">¡Partido agregado exitosamente!</span>
+            <span class="toast-text">¡Partido agregado!</span>
           </div>
         </div>
 
@@ -625,6 +720,20 @@ interface SelectedMatch {
       border-color: #667eea;
     }
 
+    .form-control-readonly {
+      background-color: #f5f5f5;
+      color: #555;
+      cursor: default;
+      user-select: none;
+    }
+
+    .form-text {
+      display: block;
+      margin-top: 0.25rem;
+      font-size: 0.8rem;
+      color: #888;
+    }
+
     .error {
       color: #d63031;
       font-size: 0.85rem;
@@ -725,430 +834,625 @@ interface SelectedMatch {
     }
 
     /* Match Search */
-    .match-search-section {
-      margin-bottom: 2rem;
-    }
+    /* ============================================
+       PASO 3 - Layout dos paneles
+    ============================================ */
 
-    /* Partidos Seleccionados - Showcase en la parte superior */
-    .selected-matches-showcase {
-      margin-bottom: 2rem;
-      background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
-      border: 2px solid #0ea5e9;
-      border-radius: 12px;
-      padding: 1.5rem;
-      animation: slideDown 0.3s ease-out;
-    }
-
-    @keyframes slideDown {
-      from {
-        opacity: 0;
-        transform: translateY(-20px);
-      }
-      to {
-        opacity: 1;
-        transform: translateY(0);
-      }
-    }
-
-    .showcase-header {
+    .step3-header {
       margin-bottom: 1.5rem;
       text-align: center;
     }
 
-    .showcase-header h4 {
-      margin: 0 0 0.5rem 0;
-      color: #0369a1;
+    .step3-header h3 {
+      margin: 0 0 0.4rem;
+      color: #1e293b;
       font-size: 1.4rem;
-      font-weight: 700;
     }
 
-    .showcase-subtitle {
+    .step3-subtitle {
       color: #64748b;
       font-size: 0.95rem;
       margin: 0;
     }
 
-    .selected-matches-grid {
+    .step3-layout {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      grid-template-columns: 1fr 380px;
+      gap: 1.5rem;
+      align-items: start;
+    }
+
+    /* --- Guía de pasos --- */
+    .builder-guide {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 0.75rem 1rem;
+      margin-bottom: 1.25rem;
+      flex-wrap: wrap;
+    }
+
+    .guide-step {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+      font-size: 0.82rem;
+      color: #94a3b8;
+      transition: color 0.2s;
+    }
+
+    .guide-step.guide-active {
+      color: #667eea;
+      font-weight: 700;
+    }
+
+    .guide-step.guide-done {
+      color: #10b981;
+    }
+
+    .guide-num {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: #e2e8f0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.75rem;
+      font-weight: 700;
+      transition: background 0.2s, color 0.2s;
+    }
+
+    .guide-step.guide-active .guide-num {
+      background: #667eea;
+      color: white;
+    }
+
+    .guide-step.guide-done .guide-num {
+      background: #10b981;
+      color: white;
+    }
+
+    .guide-check {
+      color: #10b981;
+      font-weight: 700;
+    }
+
+    .guide-arrow {
+      color: #cbd5e1;
+      font-size: 1.1rem;
+      flex-shrink: 0;
+    }
+
+    /* --- Panel constructor --- */
+    .builder-panel {
+      background: #fff;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 1.25rem;
+      display: flex;
+      flex-direction: column;
       gap: 1rem;
     }
 
-    .selected-match-card {
-      position: relative;
-      background: white;
-      border: 2px solid #0ea5e9;
-      border-radius: 10px;
-      padding: 1rem;
-      box-shadow: 0 2px 8px rgba(14, 165, 233, 0.15);
-      transition: all 0.3s ease;
-      animation: cardAppear 0.4s ease-out;
-    }
-
-    @keyframes cardAppear {
-      from {
-        opacity: 0;
-        transform: scale(0.9);
-      }
-      to {
-        opacity: 1;
-        transform: scale(1);
-      }
-    }
-
-    .selected-match-card:hover {
-      transform: translateY(-4px);
-      box-shadow: 0 6px 16px rgba(14, 165, 233, 0.25);
-    }
-
-    .match-number {
-      position: absolute;
-      top: 0.5rem;
-      left: 0.5rem;
-      background: #0ea5e9;
-      color: white;
-      width: 32px;
-      height: 32px;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: 700;
-      font-size: 0.85rem;
-    }
-
-    .match-content {
-      padding-top: 0.5rem;
-    }
-
-    .match-teams-display {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 0.75rem;
-      margin-bottom: 1rem;
-    }
-
-    .team-display {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 0.5rem;
-      flex: 1;
-    }
-
-    .team-display .team-logo {
-      width: 48px;
-      height: 48px;
-      object-fit: contain;
-      border-radius: 8px;
-      background: #f8fafc;
-      padding: 4px;
-    }
-
-    .team-display .team-name {
-      font-weight: 600;
-      font-size: 0.9rem;
-      color: #1e293b;
-      text-align: center;
-      line-height: 1.2;
-    }
-
-    .vs-badge {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: white;
-      padding: 0.4rem 0.8rem;
-      border-radius: 20px;
-      font-weight: 700;
-      font-size: 0.85rem;
-      box-shadow: 0 2px 6px rgba(102, 126, 234, 0.3);
-    }
-
-    .match-datetime {
-      text-align: center;
-      font-size: 0.9rem;
-      color: #64748b;
-      padding: 0.5rem;
-      background: #f8fafc;
-      border-radius: 6px;
-      margin-bottom: 0.5rem;
-    }
-
-    .btn-remove-match {
-      width: 100%;
-      padding: 0.5rem;
-      background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-      color: white;
-      border: none;
-      border-radius: 6px;
-      font-size: 0.85rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-
-    .btn-remove-match:hover {
-      transform: scale(1.02);
-      box-shadow: 0 2px 8px rgba(239, 68, 68, 0.4);
-    }
-
-    /* Mensaje cuando no hay partidos */
-    .no-matches-alert {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      padding: 2rem;
-      background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
-      border: 2px dashed #f59e0b;
-      border-radius: 12px;
-      margin-bottom: 2rem;
-    }
-
-    .alert-icon {
-      font-size: 3rem;
-      margin-bottom: 1rem;
-      animation: bounce 2s infinite;
-    }
-
-    @keyframes bounce {
-      0%, 100% {
-        transform: translateY(0);
-      }
-      50% {
-        transform: translateY(-10px);
-      }
-    }
-
-    .alert-content h4 {
-      margin: 0 0 0.5rem 0;
-      color: #92400e;
-      font-size: 1.2rem;
-    }
-
-    .alert-content p {
-      margin: 0;
-      color: #b45309;
-      font-size: 0.95rem;
-    }
-
-    /* Toast de confirmación mejorado */
-    .match-added-toast {
-      position: fixed;
-      top: 2rem;
-      right: 2rem;
-      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-      color: white;
-      padding: 1rem 1.5rem;
-      border-radius: 10px;
-      box-shadow: 0 8px 24px rgba(16, 185, 129, 0.4);
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-      z-index: 2000;
-      animation: toastSlideIn 0.3s ease-out, toastSlideOut 0.3s ease-in 2.2s;
-      animation-fill-mode: forwards;
-    }
-
-    @keyframes toastSlideIn {
-      from {
-        opacity: 0;
-        transform: translateX(100%);
-      }
-      to {
-        opacity: 1;
-        transform: translateX(0);
-      }
-    }
-
-    @keyframes toastSlideOut {
-      from {
-        opacity: 1;
-        transform: translateX(0);
-      }
-      to {
-        opacity: 0;
-        transform: translateX(100%);
-      }
-    }
-
-    .toast-icon {
-      font-size: 1.5rem;
-    }
-
-    .toast-text {
-      font-weight: 600;
-      font-size: 1rem;
-    }
-
-    .btn-add-match .btn-icon {
-      font-size: 1.2rem;
-    }
-
-    .search-options {
+    .builder-search .search-options {
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 1rem;
-      margin-bottom: 1.5rem;
+      margin-bottom: 1rem;
     }
 
+    /* Hint inicial */
+    .search-start-hint {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      padding: 0.85rem 1rem;
+      background: #f0f9ff;
+      border: 1px dashed #7dd3fc;
+      border-radius: 8px;
+      color: #0369a1;
+      font-size: 0.9rem;
+    }
+
+    .hint-icon {
+      font-size: 1.2rem;
+      flex-shrink: 0;
+    }
+
+    /* Hint de rol contextual */
+    .teams-role-hint {
+      padding: 0.5rem 0.75rem;
+      background: #fef9c3;
+      border-left: 3px solid #eab308;
+      border-radius: 0 6px 6px 0;
+      font-size: 0.88rem;
+      color: #713f12;
+      margin-bottom: 0.75rem;
+    }
+
+    .teams-role-hint.hint-away {
+      background: #f0fdf4;
+      border-left-color: #22c55e;
+      color: #14532d;
+    }
+
+    /* Resultados de equipos */
     .teams-results {
-      margin-bottom: 1.5rem;
+      margin-bottom: 0.5rem;
     }
 
     .teams-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-      gap: 1rem;
+      grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+      gap: 0.75rem;
     }
 
     .team-card {
+      position: relative;
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 0.5rem;
-      padding: 1rem;
-      border: 2px solid #e0e0e0;
-      border-radius: 8px;
+      gap: 0.4rem;
+      padding: 0.85rem 0.6rem 0.6rem;
+      border: 2px solid #e2e8f0;
+      border-radius: 10px;
       cursor: pointer;
-      transition: all 0.2s;
+      transition: all 0.18s;
+      background: #fff;
+      user-select: none;
     }
 
-    .team-card:hover {
+    .team-card:hover:not(.team-disabled) {
       border-color: #667eea;
-      transform: translateY(-2px);
+      transform: translateY(-3px);
+      box-shadow: 0 4px 12px rgba(102,126,234,0.18);
     }
 
-    .team-card.selected {
-      border-color: #667eea;
-      background: #e8ecff;
+    .team-card.team-home {
+      border-color: #3b82f6;
+      background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+    }
+
+    .team-card.team-away {
+      border-color: #f97316;
+      background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%);
+    }
+
+    .team-card.team-disabled {
+      opacity: 0.4;
+      cursor: default;
+      pointer-events: none;
     }
 
     .team-logo {
-      width: 60px;
-      height: 60px;
+      width: 52px;
+      height: 52px;
       object-fit: contain;
     }
 
     .team-name {
       text-align: center;
-      font-size: 0.9rem;
+      font-size: 0.82rem;
       font-weight: 600;
-      color: #444;
+      color: #334155;
+      line-height: 1.2;
     }
 
-    /* Match Builder */
-    .match-builder {
-      background: #f8f9fa;
-      border-radius: 8px;
-      padding: 1.5rem;
+    .team-role-badge {
+      position: absolute;
+      top: -8px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 0.7rem;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 20px;
+      white-space: nowrap;
     }
 
-    .match-form {
-      display: grid;
-      grid-template-columns: 1fr auto 1fr;
-      gap: 1rem;
-      align-items: center;
-      margin-bottom: 1rem;
+    .home-badge {
+      background: #3b82f6;
+      color: white;
     }
 
-    .team-selector label {
-      display: block;
+    .away-badge {
+      background: #f97316;
+      color: white;
+    }
+
+    /* --- Preview en vivo --- */
+    .match-preview-live {
+      background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+      border: 2px dashed #94a3b8;
+      border-radius: 10px;
+      padding: 1rem;
+    }
+
+    .preview-label {
+      text-align: center;
+      font-size: 0.78rem;
       font-weight: 600;
-      color: #444;
-      margin-bottom: 0.5rem;
+      color: #94a3b8;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin: 0 0 0.75rem;
     }
 
-    .selected-team, .empty-team {
+    .preview-matchup {
       display: flex;
       align-items: center;
-      gap: 0.5rem;
-      padding: 1rem;
-      border: 2px dashed #ddd;
-      border-radius: 8px;
-      min-height: 80px;
+      justify-content: space-around;
+      gap: 0.75rem;
     }
 
-    .selected-team {
-      border-style: solid;
-      border-color: #667eea;
-      background: white;
+    .preview-team {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.4rem;
+      flex: 1;
       position: relative;
+      min-width: 0;
     }
 
-    .selected-team img {
-      width: 40px;
-      height: 40px;
+    .preview-team img {
+      width: 48px;
+      height: 48px;
       object-fit: contain;
     }
 
-    .selected-team span {
-      flex: 1;
+    .preview-team span {
+      font-size: 0.85rem;
       font-weight: 600;
+      color: #1e293b;
+      text-align: center;
+      line-height: 1.2;
+      word-break: break-word;
     }
 
-    .btn-clear {
-      position: absolute;
-      top: 0.25rem;
-      right: 0.25rem;
-      width: 24px;
-      height: 24px;
-      border: none;
-      background: #d63031;
-      color: white;
+    .preview-placeholder {
+      width: 48px;
+      height: 48px;
       border-radius: 50%;
-      cursor: pointer;
-      font-size: 1.2rem;
-      line-height: 1;
+      background: #e2e8f0;
       display: flex;
       align-items: center;
       justify-content: center;
+      font-size: 1.4rem;
+      color: #94a3b8;
     }
 
-    .empty-team {
-      color: #999;
-      justify-content: center;
+    .preview-team.preview-empty span {
+      color: #94a3b8;
+      font-style: italic;
+      font-weight: 400;
     }
 
-    .vs-separator {
-      font-size: 1.5rem;
-      font-weight: 700;
-      color: #667eea;
-      text-align: center;
-    }
-
-    .btn-add-match {
-      width: 100%;
-      padding: 0.75rem;
-      background: #00b894;
+    .btn-clear-team {
+      background: #ef4444;
       color: white;
       border: none;
-      border-radius: 6px;
-      font-weight: 600;
+      border-radius: 50%;
+      width: 20px;
+      height: 20px;
+      font-size: 0.75rem;
+      line-height: 1;
       cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: absolute;
+      top: -6px;
+      right: calc(50% - 34px);
+    }
+
+    .preview-vs {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      font-weight: 800;
+      font-size: 0.85rem;
+      padding: 0.4rem 0.75rem;
+      border-radius: 20px;
+      flex-shrink: 0;
+    }
+
+    /* --- Fecha del partido --- */
+    .match-date-group {
+      animation: fadeInDown 0.25s ease-out;
+    }
+
+    @keyframes fadeInDown {
+      from { opacity: 0; transform: translateY(-8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* --- Botón agregar --- */
+    .btn-add-match {
+      width: 100%;
+      padding: 0.85rem;
+      background: #94a3b8;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-weight: 700;
+      font-size: 1rem;
+      cursor: not-allowed;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+    }
+
+    .btn-add-match.btn-ready {
+      background: linear-gradient(135deg, #00b894 0%, #00957a 100%);
+      cursor: pointer;
+      box-shadow: 0 4px 14px rgba(0,184,148,0.35);
+      animation: pulse-green 2s infinite;
+    }
+
+    .btn-add-match.btn-ready:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(0,184,148,0.45);
+    }
+
+    @keyframes pulse-green {
+      0%, 100% { box-shadow: 0 4px 14px rgba(0,184,148,0.35); }
+      50%       { box-shadow: 0 4px 22px rgba(0,184,148,0.6); }
+    }
+
+    .btn-icon { font-size: 1.1rem; }
+
+    /* Wrapper del bot\u00f3n agregar: normal en desktop, sticky en m\u00f3vil */
+    .btn-add-match-wrap {
+      display: block;
+    }
+
+    /* ============================================
+       CARRITO DE PARTIDOS (panel derecho)
+    ============================================ */
+    .matches-cart {
+      background: #fff;
+      border: 2px solid #e2e8f0;
+      border-radius: 12px;
+      overflow: hidden;
+      position: sticky;
+      top: 1rem;
+      max-height: calc(100vh - 140px);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .cart-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1rem 1.25rem;
+      background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+      color: white;
+    }
+
+    .cart-header h4 {
+      margin: 0;
+      font-size: 1rem;
+      font-weight: 700;
+    }
+
+    .cart-counter {
+      background: #475569;
+      color: #94a3b8;
+      font-weight: 700;
+      font-size: 0.9rem;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.3s;
+    }
+
+    .cart-counter.cart-has-items {
+      background: #00b894;
+      color: white;
+    }
+
+    .cart-empty {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 2.5rem 1.5rem;
+      text-align: center;
+      flex: 1;
+    }
+
+    .cart-empty-icon {
+      font-size: 2.5rem;
+      margin-bottom: 0.75rem;
+      opacity: 0.5;
+    }
+
+    .cart-empty p {
+      margin: 0 0 0.25rem;
+      font-weight: 600;
+      color: #475569;
+      font-size: 0.95rem;
+    }
+
+    .cart-empty small {
+      color: #94a3b8;
+      font-size: 0.82rem;
+    }
+
+    .cart-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 0.75rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.6rem;
+    }
+
+    .cart-item {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 0.65rem 0.75rem;
       transition: all 0.2s;
     }
 
-    .btn-add-match:hover:not(:disabled) {
-      background: #00a185;
+    .cart-item-new {
+      animation: cartItemIn 0.4s ease-out;
+      border-color: #00b894;
+      background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
     }
 
-    .btn-add-match:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
+    @keyframes cartItemIn {
+      from { opacity: 0; transform: scale(0.92) translateX(20px); }
+      to   { opacity: 1; transform: scale(1) translateX(0); }
     }
 
-    /* Contador de partidos antes del botón */
-    .match-counter-info {
-      padding: 0.75rem;
-      background: #d4edda;
-      border: 1px solid #c3e6cb;
+    .cart-item-num {
+      background: #667eea;
+      color: white;
+      font-size: 0.72rem;
+      font-weight: 700;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .cart-item-body {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .cart-teams {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      margin-bottom: 0.2rem;
+      font-size: 0.83rem;
+      font-weight: 600;
+      color: #1e293b;
+    }
+
+    .cart-team {
+      display: flex;
+      align-items: center;
+      gap: 0.3rem;
+      min-width: 0;
+      overflow: hidden;
+    }
+
+    .cart-team span {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .cart-logo {
+      width: 22px;
+      height: 22px;
+      object-fit: contain;
+      flex-shrink: 0;
+    }
+
+    .cart-vs {
+      color: #94a3b8;
+      font-size: 0.75rem;
+      font-weight: 600;
+      flex-shrink: 0;
+    }
+
+    .cart-date {
+      font-size: 0.77rem;
+      color: #64748b;
+    }
+
+    .cart-remove {
+      background: none;
+      border: 1px solid #fca5a5;
+      color: #ef4444;
       border-radius: 6px;
-      color: #155724;
-      text-align: center;
-      font-size: 0.95rem;
-      margin: 0.5rem 0;
+      width: 26px;
+      height: 26px;
+      font-size: 0.85rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: all 0.15s;
     }
+
+    .cart-remove:hover {
+      background: #ef4444;
+      color: white;
+    }
+
+    .cart-footer {
+      padding: 0.75rem 1rem;
+      border-top: 1px solid #e2e8f0;
+      display: flex;
+      flex-direction: column;
+      gap: 0.2rem;
+      background: #f8fafc;
+    }
+
+    .cart-footer span {
+      font-size: 0.83rem;
+      font-weight: 600;
+      color: #334155;
+    }
+
+    .cart-add-more {
+      font-size: 0.78rem !important;
+      color: #667eea !important;
+      font-weight: 400 !important;
+    }
+
+    /* Toast */
+    .match-added-toast {
+      position: fixed;
+      bottom: 2rem;
+      right: 2rem;
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+      color: white;
+      padding: 0.85rem 1.25rem;
+      border-radius: 10px;
+      box-shadow: 0 8px 24px rgba(16,185,129,0.4);
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      z-index: 2000;
+      animation: toastIn 0.3s ease-out, toastOut 0.3s ease-in 2.2s forwards;
+    }
+
+    @keyframes toastIn {
+      from { opacity: 0; transform: translateY(20px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes toastOut {
+      from { opacity: 1; transform: translateY(0); }
+      to   { opacity: 0; transform: translateY(20px); }
+    }
+
+    .toast-icon { font-size: 1.3rem; }
+    .toast-text { font-weight: 600; font-size: 0.95rem; }
 
     .match-counter-info strong {
       font-size: 1.1rem;
@@ -1470,120 +1774,347 @@ interface SelectedMatch {
       cursor: not-allowed;
     }
 
-    /* Responsive */
-    @media (max-width: 768px) {
-      .poll-create-container {
-        padding: 1rem;
-      }
+    /* ============================================
+       RESPONSIVE — MOBILE FIRST
+    ============================================ */
 
-      .selected-matches-grid {
+    /* En desktop: panel derecho a la derecha, FAB y drawer ocultos */
+    .matches-cart-desktop {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .mobile-cart-fab,
+    .mobile-cart-backdrop,
+    .mobile-cart-sheet {
+      display: none;
+    }
+
+    /* Ajustes en tableta */
+    @media (max-width: 900px) {
+      .step3-layout {
         grid-template-columns: 1fr;
       }
 
-      .match-added-toast {
-        top: 1rem;
-        right: 1rem;
-        left: 1rem;
-        padding: 0.75rem 1rem;
+      .matches-cart-desktop {
+        position: static;
+        max-height: 400px;
+      }
+    }
+
+    /* ==========================
+       MÓVIL (≤ 768px)
+    ========================== */
+    @media (max-width: 768px) {
+
+      /* Layout general */
+      .poll-create-container {
+        padding: 0.75rem;
+        /* Espacio para el FAB pegado al fondo */
+        padding-bottom: 90px;
       }
 
-      .toast-icon {
-        font-size: 1.2rem;
+      /* Wizard steps: ocultar texto, solo número */
+      .steps {
+        gap: 0.25rem;
       }
-
-      .toast-text {
-        font-size: 0.9rem;
+      .step span {
+        display: none;
       }
-
-      .no-matches-alert {
-        padding: 1.5rem;
-      }
-
-      .alert-icon {
-        font-size: 2.5rem;
-      }
-
-      .alert-content h4 {
-        font-size: 1.1rem;
-      }
-
-      .alert-content p {
-        font-size: 0.9rem;
-      }
-
-      .floating-matches-badge {
-        bottom: 1rem;
-        right: 1rem;
-        padding: 0.5rem 1rem;
-      }
-
-      .badge-icon {
-        font-size: 1.2rem;
-      }
-
-      .badge-count {
-        font-size: 1.2rem;
+      .step-number {
         width: 30px;
         height: 30px;
+        font-size: 0.9rem;
+      }
+      .step-divider {
+        flex: 1;
+        max-width: 24px;
       }
 
-      .badge-label {
+      /* Ocultar carrito de escritorio en móvil */
+      .matches-cart-desktop {
+        display: none !important;
+      }
+
+      /* Guía de pasos compacta */
+      .builder-guide {
+        padding: 0.6rem 0.75rem;
+        gap: 0.3rem;
+      }
+      .guide-label {
+        font-size: 0.75rem;
+      }
+      .guide-num {
+        width: 20px;
+        height: 20px;
         font-size: 0.7rem;
       }
 
-      .match-added-animation {
-        padding: 1rem 1.5rem;
+      /* Búsqueda: inputs en columna */
+      .builder-search .search-options {
+        grid-template-columns: 1fr;
+        gap: 0.6rem;
+      }
+
+      /* Tamaño de inputs — 16px evita zoom automático en iOS */
+      .form-control,
+      .form-control:focus {
+        font-size: 16px !important;
+        min-height: 48px;
+        padding: 0.75rem;
+      }
+      select.form-control {
+        min-height: 48px;
+      }
+
+      /* Tarjetas de equipos: 3 columnas, más grandes para el dedo */
+      .teams-grid {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 0.6rem;
+      }
+      .team-card {
+        padding: 0.8rem 0.4rem 0.5rem;
+        min-height: 96px;
+        border-radius: 10px;
+      }
+      .team-logo {
+        width: 44px;
+        height: 44px;
+      }
+      .team-name {
+        font-size: 0.75rem;
+      }
+      .team-role-badge {
+        font-size: 0.65rem;
+        padding: 1px 6px;
+        top: -7px;
+      }
+
+      /* Preview del partido más compacta */
+      .match-preview-live {
+        padding: 0.75rem;
+      }
+      .preview-team img {
+        width: 38px;
+        height: 38px;
+      }
+      .preview-team span {
+        font-size: 0.78rem;
+      }
+
+      /* Botón agregar: sticky al fondo de la pantalla */
+      .btn-add-match-wrap {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        padding: 0.75rem 1rem;
+        background: rgba(255,255,255,0.95);
+        backdrop-filter: blur(8px);
+        border-top: 1px solid #e2e8f0;
+        z-index: 100;
+      }
+      .btn-add-match {
+        min-height: 52px;
+        font-size: 1rem;
+        border-radius: 12px;
+      }
+
+      /* ---- FAB visible en móvil ---- */
+      .mobile-cart-fab {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        position: fixed;
+        top: 1rem;
+        right: 1rem;
+        background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+        color: white;
+        border: none;
+        border-radius: 30px;
+        padding: 0.55rem 1rem 0.55rem 0.8rem;
+        font-size: 0.85rem;
+        font-weight: 700;
+        box-shadow: 0 4px 16px rgba(0,0,0,0.28);
+        cursor: pointer;
+        z-index: 110;
+        transition: transform 0.15s;
+      }
+      .mobile-cart-fab:active {
+        transform: scale(0.95);
+      }
+      .mobile-cart-fab.fab-has-items {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      }
+      .fab-icon { font-size: 1rem; }
+      .fab-label { font-size: 0.82rem; }
+      .fab-badge {
+        background: #00b894;
+        color: white;
+        border-radius: 50%;
+        width: 22px;
+        height: 22px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.75rem;
+        font-weight: 800;
+      }
+
+      /* ---- Backdrop ---- */
+      .mobile-cart-backdrop {
+        display: block;
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,0.45);
+        z-index: 200;
+        backdrop-filter: blur(2px);
+      }
+
+      /* ---- Bottom sheet ---- */
+      .mobile-cart-sheet {
+        display: flex;
+        flex-direction: column;
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 72vh;
+        background: white;
+        border-radius: 20px 20px 0 0;
+        box-shadow: 0 -8px 32px rgba(0,0,0,0.2);
+        z-index: 300;
+        transform: translateY(100%);
+        transition: transform 0.32s cubic-bezier(0.32, 0.72, 0, 1);
+      }
+      .mobile-cart-sheet.sheet-open {
+        transform: translateY(0);
+      }
+
+      .sheet-handle-bar {
+        width: 40px;
+        height: 4px;
+        background: #cbd5e1;
+        border-radius: 2px;
+        margin: 12px auto 0;
+        flex-shrink: 0;
+        cursor: pointer;
+      }
+
+      .sheet-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0.85rem 1.25rem;
+        border-bottom: 1px solid #f1f5f9;
+        flex-shrink: 0;
+      }
+      .sheet-header h4 {
+        margin: 0;
+        font-size: 1rem;
+        font-weight: 700;
+        color: #1e293b;
+      }
+      .sheet-close {
+        background: #f1f5f9;
+        border: none;
+        border-radius: 50%;
+        width: 32px;
+        height: 32px;
+        font-size: 1rem;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #475569;
+      }
+
+      .sheet-body {
+        flex: 1;
+        overflow-y: auto;
+        padding: 0.75rem;
+        -webkit-overflow-scrolling: touch;
+      }
+
+      .sheet-footer {
+        padding: 0.75rem 1rem;
+        border-top: 1px solid #f1f5f9;
+        flex-shrink: 0;
+        padding-bottom: calc(0.75rem + env(safe-area-inset-bottom));
+      }
+      .btn-sheet-close-add {
+        width: 100%;
+        padding: 0.85rem;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        border-radius: 12px;
+        font-size: 1rem;
+        font-weight: 700;
+        cursor: pointer;
+      }
+
+      /* Cart items dentro del sheet: más espaciosos */
+      .sheet-body .cart-item {
+        padding: 0.85rem;
+        border-radius: 10px;
+        gap: 0.75rem;
+      }
+      .sheet-body .cart-teams {
+        font-size: 0.9rem;
+      }
+      .sheet-body .cart-logo {
+        width: 28px;
+        height: 28px;
+      }
+      .sheet-body .cart-remove {
+        width: 34px;
+        height: 34px;
         font-size: 1rem;
       }
 
-      .match-counter-info {
-        font-size: 0.9rem;
+      /* Toast: barra ancha en móvil */
+      .match-added-toast {
+        bottom: 5.5rem;
+        right: 1rem;
+        left: 1rem;
       }
 
-      .steps {
-        flex-wrap: wrap;
-      }
-
-      .step span {
-        font-size: 0.75rem;
-      }
-
+      /* Paso 1: form en columna */
       .form-row {
         grid-template-columns: 1fr;
       }
 
+      /* Paso 2: selección en columna */
       .selection-container {
         grid-template-columns: 1fr;
       }
 
-      .search-options {
-        grid-template-columns: 1fr;
-      }
-
-      .teams-grid {
-        grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
-      }
-
-      .match-form {
-        grid-template-columns: 1fr;
-      }
-
-      .vs-separator {
-        transform: rotate(90deg);
-      }
-
+      /* Footer del wizard */
       .wizard-footer {
         flex-direction: column;
-        gap: 1rem;
+        gap: 0.75rem;
+        padding-bottom: calc(0.75rem + env(safe-area-inset-bottom));
       }
-
       .footer-right {
         width: 100%;
         flex-direction: column;
       }
-
-      .footer-right button {
+      .footer-right button,
+      .wizard-footer button {
         width: 100%;
+        min-height: 48px;
+        font-size: 1rem;
+        border-radius: 10px;
+      }
+    }
+
+    /* Iphones con notch */
+    @supports (padding: env(safe-area-inset-bottom)) {
+      @media (max-width: 768px) {
+        .btn-add-match-wrap {
+          padding-bottom: calc(0.75rem + env(safe-area-inset-bottom));
+        }
       }
     }
   `]
@@ -1621,13 +2152,29 @@ export class PollCreateComponent implements OnInit {
   matchDateTime = '';
   selectedMatches: SelectedMatch[] = [];
   showMatchAddedAnimation = false;
+  // Drawer del carrito en móvil
+  showCartMobile = false;
+
+  toggleCartMobile(): void {
+    this.showCartMobile = !this.showCartMobile;
+    if (this.showCartMobile) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+  }
+
+  closeCartMobile(): void {
+    this.showCartMobile = false;
+    document.body.style.overflow = '';
+  }
 
   constructor() {
     this.pollDetailsForm = this.fb.group({
       nombre: ['', Validators.required],
       descripcion: [''],
       tipo: ['PRIVADA', Validators.required], // Tipo de polla (PRIVADA por defecto)
-      fechaInicio: ['', [Validators.required, this.futureDateValidator]],
+      fechaInicio: [''], // Se establece automáticamente al crear
       montoEntrada: ['', [Validators.required, Validators.min(1)]]
     });
   }
@@ -1712,6 +2259,8 @@ export class PollCreateComponent implements OnInit {
 
   nextStep(): void {
     if (this.canProceed() && this.currentStep < 4) {
+      // Cerrar el drawer móvil si está abierto
+      this.closeCartMobile();
       this.currentStep++;
     }
   }
@@ -1855,13 +2404,20 @@ export class PollCreateComponent implements OnInit {
       this.showMatchAddedAnimation = false;
     }, 2500);
     
-    // Scroll suave a la parte superior donde están los partidos seleccionados
-    setTimeout(() => {
-      const element = document.querySelector('.selected-matches-showcase');
-      if (element) {
-        element.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }
-    }, 100);
+    // En móvil: abrir el drawer brevemente para mostrar que fue agregado
+    const isMobile = window.innerWidth < 768;
+    if (isMobile) {
+      this.showCartMobile = true;
+      document.body.style.overflow = 'hidden';
+    } else {
+      // En desktop: scroll al carrito
+      setTimeout(() => {
+        const element = document.querySelector('.matches-cart');
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }, 100);
+    }
     
     // Reset selection
     this.selectedHomeTeam = null;
@@ -1927,9 +2483,8 @@ export class PollCreateComponent implements OnInit {
 
     this.creating = true;
 
-    // Format date properly for backend (ISO format without timezone)
-    const fechaInicio = this.pollDetailsForm.value.fechaInicio;
-    const formattedDate = fechaInicio.includes('T') ? fechaInicio : new Date(fechaInicio).toISOString().slice(0, 19);
+    // Usar la fecha/hora exacta del momento de creación
+    const formattedDate = new Date().toISOString().slice(0, 19);
 
     const pollRequest: CreatePollRequest = {
       nombre: this.pollDetailsForm.value.nombre,
