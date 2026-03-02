@@ -2483,8 +2483,8 @@ export class PollCreateComponent implements OnInit {
 
     this.creating = true;
 
-    // Usar la fecha/hora exacta del momento de creación
-    const formattedDate = new Date().toISOString().slice(0, 19);
+    // Fecha 5 minutos en el futuro para pasar la validación @Future del backend
+    const formattedDate = new Date(Date.now() + 5 * 60 * 1000).toISOString().slice(0, 19);
 
     const pollRequest: CreatePollRequest = {
       nombre: this.pollDetailsForm.value.nombre,
