@@ -74,9 +74,11 @@ export class AuthService {
   /**
    * Procesar tokens OAuth2 recibidos desde la URL de redirección
    */
-  handleOAuthRedirect(accessToken: string, refreshToken: string): Observable<User> {
-    // Guardar tokens
-    this.saveTokens(accessToken, refreshToken);
+  handleOAuthRedirect(accessToken: string, refreshToken: string, expiresIn?: number): Observable<User> {
+    // Guardar tokens con expiración si el backend la envía
+    this.saveTokens(accessToken, refreshToken, expiresIn);
+    // Programar refresco proactivo si tenemos fecha de expiración
+    this.scheduleTokenExpiration();
     
     // Obtener información del usuario
     return this.getCurrentUser().pipe(
@@ -304,7 +306,15 @@ export class AuthService {
 
     const expiresAt = parseInt(expiration);
     const now = new Date().getTime();
-    // Refrescar 60 segundos antes de que expire (o en 1 segundo si ya está por expirar)
+
+    // Si ya expiró, actuar de inmediato
+    if (expiresAt <= now) {
+      console.warn('⚠️ scheduleTokenExpiration: token ya expirado al programar');
+      this.checkTokenExpiration();
+      return;
+    }
+
+    // Refrescar 60 segundos antes de que expire (mínimo 1 segundo)
     const msUntilRefresh = Math.max(expiresAt - now - 60_000, 1_000);
 
     console.log(`🕐 Token se refrescará en ${Math.round(msUntilRefresh / 1000)}s`);

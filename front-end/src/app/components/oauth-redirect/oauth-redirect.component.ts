@@ -119,15 +119,16 @@ export class OauthRedirectComponent implements OnInit {
       }
 
       if (accessToken && refreshToken) {
-        this.handleOAuthSuccess(accessToken, refreshToken);
+        const expiresIn = params['expiresIn'] ? Number(params['expiresIn']) : undefined;
+        this.handleOAuthSuccess(accessToken, refreshToken, expiresIn);
       } else {
         this.handleError('No se recibieron los tokens de autenticación.');
       }
     });
   }
 
-  private handleOAuthSuccess(accessToken: string, refreshToken: string): void {
-    this.authService.handleOAuthRedirect(accessToken, refreshToken).subscribe({
+  private handleOAuthSuccess(accessToken: string, refreshToken: string, expiresIn?: number): void {
+    this.authService.handleOAuthRedirect(accessToken, refreshToken, expiresIn).subscribe({
       next: () => {
         // El servicio ya maneja la navegación al dashboard
       },
