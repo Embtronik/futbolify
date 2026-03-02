@@ -35,4 +35,10 @@ public interface TeamMemberRepository extends JpaRepository<TeamMember, Long> {
     
     // Verificar si un usuario (por email) es miembro aprobado de un equipo
     boolean existsByTeamIdAndUserEmailAndStatus(Long teamId, String userEmail, MembershipStatus status);
+
+    // Verificar si un usuario (por email) es miembro aprobado de algún grupo asociado a una polla
+    @Query("SELECT CASE WHEN COUNT(tm) > 0 THEN true ELSE false END FROM TeamMember tm " +
+           "WHERE tm.team.id IN (SELECT t.id FROM Polla p JOIN p.gruposInvitados t WHERE p.id = :pollaId) " +
+           "AND tm.userEmail = :email AND tm.status = 'APPROVED'")
+    boolean isApprovedMemberOfPollaGroup(@Param("pollaId") Long pollaId, @Param("email") String email);
 }
