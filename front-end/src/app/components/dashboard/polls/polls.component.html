@@ -230,45 +230,94 @@
       <button class="close-btn" (click)="closePollDetail()">&times;</button>
     </div>
     <div class="modal-body">
-      <!-- Resultados detallados cuando la polla está finalizada (vista administración) -->
-      <div *ngIf="selectedPoll?.estado === 'FINALIZADA'">
-        <h3>Resultados Detallados</h3>
-        <div *ngIf="loadingDetailedResults">Cargando resultados...</div>
-        <div *ngIf="!loadingDetailedResults && detailedParticipants.length > 0">
-          <div class="table-wrap">
-            <table class="detailed-table">
-              <thead>
-                <tr>
-                  <th>#</th>
-                  <th>Participante</th>
-                  <th *ngFor="let m of detailedMatchesHeader">
-                    <div class="match-header">
-                      <span class="team">{{ m.equipoLocal }}</span>
-                      <span class="vs">vs</span>
-                      <span class="team">{{ m.equipoVisitante }}</span>
-                    </div>
-                    <div class="real-score">Real: {{ m.golesLocalReal ?? '-' }} - {{ m.golesVisitanteReal ?? '-' }}</div>
-                  </th>
-                  <th>Total</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr *ngFor="let participante of detailedParticipants; index as i">
-                  <td class="pos-cell">{{ i + 1 }}</td>
-                  <td class="name-cell">{{ participante.nombre }}</td>
-                  <td *ngFor="let partido of participante.partidos" class="match-cell">
-                    <div class="predicted">{{ partido.golesLocalPronosticado ?? '-' }} - {{ partido.golesVisitantePronosticado ?? '-' }}</div>
-                    <div class="points">{{ partido.puntosObtenidos ?? 0 }} pts</div>
-                  </td>
-                  <td class="score-cell total-cell">{{ participante.puntajeTotal ?? 0 }}</td>
-                </tr>
-              </tbody>
-            </table>
+      <!-- Resultados detallados cuando la polla está finalizada -->
+      <div *ngIf="selectedPoll?.estado === 'FINALIZADA'" class="dr-container">
+
+        <div class="dr-header">
+          <h3 class="dr-title">🏆 Resultados Finales</h3>
+          <span class="dr-total-badge" *ngIf="detailedParticipants.length > 0">{{ detailedParticipants.length }} participante(s)</span>
+        </div>
+
+        <!-- Loading -->
+        <div *ngIf="loadingDetailedResults" class="dr-loading">
+          <div class="dr-spinner"></div>
+          <span>Calculando resultados...</span>
+        </div>
+
+        <!-- Empty -->
+        <div *ngIf="!loadingDetailedResults && detailedParticipants.length === 0" class="dr-empty">
+          <span class="dr-empty-icon">📊</span>
+          <p>Sin resultados disponibles todavía.</p>
+        </div>
+
+        <!-- Tarjetas de participantes -->
+        <div class="dr-cards" *ngIf="!loadingDetailedResults && detailedParticipants.length > 0">
+          <div
+            *ngFor="let p of detailedParticipants; index as i"
+            class="dr-card"
+            [class.dr-gold]="i === 0"
+            [class.dr-silver]="i === 1"
+            [class.dr-bronze]="i === 2"
+            [class.dr-me]="p.email === currentUserEmail || p.nombre === currentUserEmail">
+
+            <!-- Cabecera de la tarjeta -->
+            <div class="dr-card-head">
+              <div class="dr-rank">
+                <span *ngIf="i === 0" class="dr-medal">🥇</span>
+                <span *ngIf="i === 1" class="dr-medal">🥈</span>
+                <span *ngIf="i === 2" class="dr-medal">🥉</span>
+                <span *ngIf="i > 2" class="dr-rank-num">{{ i + 1 }}</span>
+              </div>
+              <div class="dr-avatar">
+                {{ (p.nombre || '?').slice(0,2).toUpperCase() }}
+              </div>
+              <div class="dr-name-block">
+                <span class="dr-name">{{ p.nombre }}</span>
+                <span class="dr-you" *ngIf="p.email === currentUserEmail || p.nombre === currentUserEmail">TÚ</span>
+              </div>
+              <div class="dr-total-pts">
+                <span class="dr-pts-val">{{ p.puntajeTotal ?? 0 }}</span>
+                <span class="dr-pts-label">pts</span>
+              </div>
+            </div>
+
+            <!-- Desglose de partidos -->
+            <div class="dr-matches">
+              <div
+                *ngFor="let m of p.partidos"
+                class="dr-match-row"
+                [class.dr-exact]="(m.puntosObtenidos ?? 0) >= 3"
+                [class.dr-correct]="(m.puntosObtenidos ?? 0) === 1"
+                [class.dr-wrong]="(m.puntosObtenidos ?? 0) === 0">
+
+                <div class="dr-match-info">
+                  <span class="dr-team-name">{{ m.equipoLocal }}</span>
+                  <span class="dr-match-sep">vs</span>
+                  <span class="dr-team-name">{{ m.equipoVisitante }}</span>
+                </div>
+
+                <div class="dr-score-row">
+                  <div class="dr-score-block">
+                    <span class="dr-score-lbl">Real</span>
+                    <span class="dr-score-val">{{ m.golesLocalReal ?? '?' }} – {{ m.golesVisitanteReal ?? '?' }}</span>
+                  </div>
+                  <div class="dr-score-block">
+                    <span class="dr-score-lbl">Pronós.</span>
+                    <span class="dr-score-val pred">{{ m.golesLocalPronosticado ?? '?' }} – {{ m.golesVisitantePronosticado ?? '?' }}</span>
+                  </div>
+                  <div class="dr-pts-chip"
+                    [class.chip-exact]="(m.puntosObtenidos ?? 0) >= 3"
+                    [class.chip-correct]="(m.puntosObtenidos ?? 0) === 1"
+                    [class.chip-wrong]="(m.puntosObtenidos ?? 0) === 0">
+                    +{{ m.puntosObtenidos ?? 0 }}
+                  </div>
+                </div>
+              </div>
+            </div>
+
           </div>
         </div>
-        <div *ngIf="!loadingDetailedResults && (!detailedParticipants || detailedParticipants.length === 0)">
-          <p>No hay resultados para mostrar.</p>
-        </div>
+
       </div>
       <div class="poll-detail-info">
         <p>{{ selectedPoll?.descripcion }}</p>
