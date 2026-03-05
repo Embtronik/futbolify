@@ -85,7 +85,14 @@ export class AuthService {
       tap(user => {
         this.currentUserSubject.next(user);
         this.isAuthenticatedSubject.next(true);
-        this.router.navigate(['/dashboard']);
+        // Si había una URL pendiente (ej: enlace de invitación), navegar allí
+        const pendingUrl = sessionStorage.getItem('pendingReturnUrl');
+        if (pendingUrl) {
+          sessionStorage.removeItem('pendingReturnUrl');
+          this.router.navigateByUrl(pendingUrl);
+        } else {
+          this.router.navigate(['/dashboard']);
+        }
       })
     );
   }

@@ -66,6 +66,10 @@ export class LoginComponent {
   }
 
   loginWithGoogle(): void {
+    // Persist the returnUrl so it survives the full-page OAuth redirect
+    if (this.returnUrl && this.returnUrl !== '/dashboard') {
+      sessionStorage.setItem('pendingReturnUrl', this.returnUrl);
+    }
     this.authService.loginWithGoogle();
   }
 

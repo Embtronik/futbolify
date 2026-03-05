@@ -121,34 +121,25 @@ interface MatchDetail {
             <p>Aún no hay datos de ranking. Los partidos deben tener resultados para calcular los puntos.</p>
           </div>
 
-          <div *ngIf="ranking.length > 0" class="ranking-table">
-            <div class="ranking-header-row">
-              <div class="col-position">#</div>
-              <div class="col-participant">Participante</div>
-              <div class="col-points">Puntos</div>
-              <div class="col-correct">Aciertos</div>
-              <div class="col-exact">Exactos</div>
-            </div>
-
+          <div *ngIf="ranking.length > 0" class="ranking-accordion">
             <div 
-              *ngFor="let entry of ranking; let i = index" 
-              class="ranking-row"
+              *ngFor="let entry of ranking" 
+              class="ranking-card"
               [class.podium-1]="entry.position === 1"
               [class.podium-2]="entry.position === 2"
               [class.podium-3]="entry.position === 3"
-              [class.current-user]="isCurrentUser(entry.emailParticipante)">
-              
-              <div class="col-position">
-                <span class="position-badge">
-                  <span *ngIf="entry.position === 1">🥇</span>
-                  <span *ngIf="entry.position === 2">🥈</span>
-                  <span *ngIf="entry.position === 3">🥉</span>
-                  <span *ngIf="entry.position > 3">{{ entry.position }}</span>
-                </span>
-              </div>
-              
-              <div class="col-participant">
-                <div class="participant-info">
+              [class.current-user]="isCurrentUser(entry.emailParticipante)"
+              [class.expanded]="isExpanded(entry.emailParticipante)">
+
+              <!-- Fila resumen (siempre visible) -->
+              <div class="ranking-summary" (click)="toggleParticipant(entry.emailParticipante)">
+                <div class="ranking-summary-left">
+                  <span class="position-badge">
+                    <span *ngIf="entry.position === 1">🥇</span>
+                    <span *ngIf="entry.position === 2">🥈</span>
+                    <span *ngIf="entry.position === 3">🥉</span>
+                    <span *ngIf="entry.position > 3">{{ entry.position }}</span>
+                  </span>
                   <div class="participant-avatar">
                     {{ getInitials(entry.emailParticipante) }}
                   </div>
@@ -157,18 +148,42 @@ interface MatchDetail {
                     <span class="you-badge" *ngIf="isCurrentUser(entry.emailParticipante)">TÚ</span>
                   </div>
                 </div>
+                <div class="ranking-summary-right">
+                  <span class="accuracy-badge" [class]="getAccuracyClass(entry)">{{ getAccuracyPercentage(entry) }}%</span>
+                  <span class="points-value">{{ entry.puntosTotales }} <span class="pts-label">pts</span></span>
+                  <span class="expand-chevron" [class.open]="isExpanded(entry.emailParticipante)">▼</span>
+                </div>
               </div>
-              
-              <div class="col-points">
-                <span class="points-value">{{ entry.puntosTotales }}</span>
-              </div>
-              
-              <div class="col-correct">
-                {{ entry.pronosticosAcertados }}
-              </div>
-              
-              <div class="col-exact">
-                {{ entry.resultadosExactos }}
+
+              <!-- Detalle de partidos (visible al hacer clic) -->
+              <div class="ranking-detail" *ngIf="isExpanded(entry.emailParticipante)">
+                <div class="detail-stats-row">
+                  <span class="detail-stat-item">✅ Aciertos: <strong>{{ entry.pronosticosAcertados }}</strong></span>
+                  <span class="detail-stat-item">🎯 Exactos: <strong>{{ entry.resultadosExactos }}</strong></span>
+                  <span class="detail-stat-item">📈 Acierto: <strong [class]="getAccuracyClass(entry)">{{ getAccuracyPercentage(entry) }}%</strong></span>
+                </div>
+                <div class="detail-matches-list" *ngIf="matchesWithDetails.length > 0">
+                  <div class="detail-matches-header">
+                    <span>Partido</span>
+                    <span>Resultado</span>
+                    <span>Pronóstico</span>
+                  </div>
+                  <div *ngFor="let item of matchesWithDetails" class="detail-match-row">
+                    <div class="detail-match-name">
+                      {{ item.match.equipoLocal }} vs {{ item.match.equipoVisitante }}
+                    </div>
+                    <div class="detail-result">
+                      <span *ngIf="item.hasResult" class="score-chip real-score">{{ item.match.golesLocal }} - {{ item.match.golesVisitante }}</span>
+                      <span *ngIf="!item.hasResult" class="score-chip pending-score">Pendiente</span>
+                    </div>
+                    <div class="detail-prediction">
+                      <ng-container *ngIf="getPredictionForUser(item, entry.emailParticipante) as pred">
+                        <span class="score-chip pred-score">{{ pred.golesLocalPronosticado }} - {{ pred.golesVisitantePronosticado }}</span>
+                      </ng-container>
+                      <span *ngIf="!getPredictionForUser(item, entry.emailParticipante)" class="score-chip no-pred-score">—</span>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -176,59 +191,67 @@ interface MatchDetail {
 
         <!-- Matches Tab -->
         <div *ngIf="activeTab === 'matches'" class="tab-content">
-          <h3>Partidos y Pronósticos</h3>
-
           <div *ngIf="matchesWithDetails.length === 0" class="empty-state">
             <p>No hay partidos en esta polla</p>
           </div>
 
           <div class="matches-list">
             <div *ngFor="let item of matchesWithDetails" class="match-detail-card">
-              <div class="match-header">
-                <div class="match-date">
-                  {{ formatDate(item.match.fechaHoraPartido) }}
+
+              <!-- Cabecera: fecha + estado -->
+              <div class="mdc-header">
+                <span class="mdc-date">📅 {{ formatDate(item.match.fechaHoraPartido) }}</span>
+                <span *ngIf="!item.hasResult" class="pending-badge">⏳ Pendiente</span>
+                <span *ngIf="item.hasResult" class="completed-badge">✅ Finalizado</span>
+              </div>
+
+              <!-- Marcador central -->
+              <div class="mdc-scoreboard">
+                <div class="mdc-team mdc-team--local">
+                  <div class="mdc-team-avatar">{{ getInitials(item.match.equipoLocal) }}</div>
+                  <span class="mdc-team-name">{{ item.match.equipoLocal }}</span>
                 </div>
-                <div class="match-status">
-                  <span *ngIf="!item.hasResult" class="pending-badge">Pendiente</span>
-                  <span *ngIf="item.hasResult" class="completed-badge">Finalizado</span>
+
+                <div class="mdc-score-box">
+                  <ng-container *ngIf="item.hasResult">
+                    <span class="mdc-score">{{ item.match.golesLocal }}</span>
+                    <span class="mdc-score-sep">:</span>
+                    <span class="mdc-score">{{ item.match.golesVisitante }}</span>
+                  </ng-container>
+                  <ng-container *ngIf="!item.hasResult">
+                    <span class="mdc-score-pending">vs</span>
+                  </ng-container>
+                </div>
+
+                <div class="mdc-team mdc-team--visitor">
+                  <div class="mdc-team-avatar">{{ getInitials(item.match.equipoVisitante) }}</div>
+                  <span class="mdc-team-name">{{ item.match.equipoVisitante }}</span>
                 </div>
               </div>
 
-              <div class="match-teams-display">
-                <div class="team-display">
-                  <span class="team-name">{{ item.match.equipoLocal }}</span>
-                  <span class="team-score" *ngIf="item.hasResult">
-                    {{ item.match.golesLocal }}
-                  </span>
-                </div>
-                <span class="vs">VS</span>
-                <div class="team-display">
-                  <span class="team-score" *ngIf="item.hasResult">
-                    {{ item.match.golesVisitante }}
-                  </span>
-                  <span class="team-name">{{ item.match.equipoVisitante }}</span>
-                </div>
-              </div>
-
-              <div class="predictions-summary" *ngIf="item.allPredictions.length > 0">
-                <h4>Pronósticos de Participantes</h4>
-                <div class="predictions-grid">
-                  <div *ngFor="let pred of item.allPredictions" class="prediction-item"
-                       [class.user-prediction]="isCurrentUser(pred.emailParticipante)">
-                    <div class="prediction-user">
-                      {{ getEmailShort(pred.emailParticipante) }}
-                      <span class="you-tag" *ngIf="isCurrentUser(pred.emailParticipante)">TÚ</span>
-                    </div>
-                    <div class="prediction-score">
-                      {{ pred.golesLocalPronosticado }} - {{ pred.golesVisitantePronosticado }}
+              <!-- Pronósticos -->
+              <div class="mdc-predictions" *ngIf="item.allPredictions.length > 0">
+                <p class="mdc-predictions-label">Pronósticos</p>
+                <div class="mdc-chips">
+                  <div *ngFor="let pred of item.allPredictions"
+                       class="mdc-chip"
+                       [class.mdc-chip--me]="isCurrentUser(pred.emailParticipante)">
+                    <div class="mdc-chip-avatar">{{ getInitials(pred.emailParticipante) }}</div>
+                    <div class="mdc-chip-info">
+                      <span class="mdc-chip-user">
+                        {{ getEmailShort(pred.emailParticipante) }}
+                        <span class="you-tag" *ngIf="isCurrentUser(pred.emailParticipante)">TÚ</span>
+                      </span>
+                      <span class="mdc-chip-score">{{ pred.golesLocalPronosticado }} – {{ pred.golesVisitantePronosticado }}</span>
                     </div>
                   </div>
                 </div>
               </div>
 
               <div *ngIf="item.allPredictions.length === 0" class="no-predictions">
-                Aún no hay pronósticos para este partido
+                Sin pronósticos aún
               </div>
+
             </div>
           </div>
         </div>
@@ -477,72 +500,76 @@ interface MatchDetail {
       font-size: 0.9rem;
     }
 
-    .ranking-table {
+    /* Ranking accordion */
+    .ranking-accordion {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .ranking-card {
       border: 1px solid #e0e0e0;
-      border-radius: 8px;
+      border-radius: 10px;
       overflow: hidden;
+      transition: box-shadow 0.2s;
     }
 
-    .ranking-header-row {
-      display: grid;
-      grid-template-columns: 60px 1fr 100px 100px 100px;
-      gap: 1rem;
-      padding: 1rem;
-      background: #f8f9fa;
-      font-weight: 700;
-      color: #444;
-      border-bottom: 2px solid #e0e0e0;
+    .ranking-card.podium-1 {
+      border-color: #ffc107;
+      background: linear-gradient(135deg, #fff9e6 0%, #fffde6 100%);
     }
 
-    .ranking-row {
-      display: grid;
-      grid-template-columns: 60px 1fr 100px 100px 100px;
-      gap: 1rem;
-      padding: 1rem;
-      border-bottom: 1px solid #e0e0e0;
+    .ranking-card.podium-2 {
+      border-color: #9e9e9e;
+      background: linear-gradient(135deg, #f5f5f5 0%, #fafafa 100%);
+    }
+
+    .ranking-card.podium-3 {
+      border-color: #ff8c00;
+      background: linear-gradient(135deg, #fff0e6 0%, #fff8f0 100%);
+    }
+
+    .ranking-card.current-user {
+      border-color: #667eea;
+    }
+
+    .ranking-card.expanded {
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+    }
+
+    .ranking-summary {
+      display: flex;
+      justify-content: space-between;
       align-items: center;
-      transition: all 0.2s;
+      padding: 1rem 1.25rem;
+      cursor: pointer;
+      user-select: none;
+      transition: background 0.15s;
     }
 
-    .ranking-row:last-child {
-      border-bottom: none;
+    .ranking-summary:hover {
+      background: rgba(102, 126, 234, 0.05);
     }
 
-    .ranking-row:hover {
-      background: #f8f9ff;
-    }
-
-    .ranking-row.podium-1 {
-      background: linear-gradient(135deg, #fff9e6 0%, #ffe5b4 100%);
-    }
-
-    .ranking-row.podium-2 {
-      background: linear-gradient(135deg, #f5f5f5 0%, #e0e0e0 100%);
-    }
-
-    .ranking-row.podium-3 {
-      background: linear-gradient(135deg, #fff0e6 0%, #ffd4a3 100%);
-    }
-
-    .ranking-row.current-user {
-      border: 2px solid #667eea;
-      background: #e8ecff;
-    }
-
-    .col-position {
-      text-align: center;
-    }
-
-    .position-badge {
-      display: inline-block;
-      font-size: 1.5rem;
-      font-weight: 700;
-    }
-
-    .participant-info {
+    .ranking-summary-left {
       display: flex;
       align-items: center;
       gap: 0.75rem;
+    }
+
+    .ranking-summary-right {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .position-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 36px;
+      font-size: 1.4rem;
+      font-weight: 700;
     }
 
     .participant-avatar {
@@ -556,17 +583,19 @@ interface MatchDetail {
       justify-content: center;
       font-weight: 700;
       font-size: 0.9rem;
+      flex-shrink: 0;
     }
 
     .participant-details {
       display: flex;
       flex-direction: column;
-      gap: 0.25rem;
+      gap: 0.2rem;
     }
 
     .participant-email {
       font-weight: 600;
       color: #1a1a1a;
+      font-size: 0.95rem;
     }
 
     .you-badge {
@@ -579,152 +608,370 @@ interface MatchDetail {
       border-radius: 10px;
     }
 
-    .col-points {
+    .points-value {
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: #667eea;
+      white-space: nowrap;
+    }
+
+    .pts-label {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #888;
+    }
+
+    .accuracy-badge {
+      font-size: 0.85rem;
+      font-weight: 700;
+      padding: 0.25rem 0.6rem;
+      border-radius: 20px;
+      white-space: nowrap;
+    }
+
+    .accuracy-high {
+      background: #e8f5e9;
+      color: #2e7d32;
+    }
+
+    .accuracy-mid {
+      background: #fff8e1;
+      color: #f57f17;
+    }
+
+    .accuracy-low {
+      background: #fce4ec;
+      color: #c62828;
+    }
+
+    .expand-chevron {
+      font-size: 0.75rem;
+      color: #999;
+      transition: transform 0.25s;
+      display: inline-block;
+    }
+
+    .expand-chevron.open {
+      transform: rotate(180deg);
+    }
+
+    .ranking-detail {
+      border-top: 1px solid #e8e8e8;
+      padding: 1rem 1.25rem;
+      background: white;
+    }
+
+    .detail-stats-row {
+      display: flex;
+      gap: 1.5rem;
+      margin-bottom: 1rem;
+      padding-bottom: 0.75rem;
+      border-bottom: 1px dashed #e0e0e0;
+    }
+
+    .detail-stat-item {
+      font-size: 0.9rem;
+      color: #555;
+    }
+
+    .detail-matches-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+    }
+
+    .detail-matches-header {
+      display: grid;
+      grid-template-columns: 1fr 110px 110px;
+      gap: 0.5rem;
+      padding: 0.4rem 0.5rem;
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: #888;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .detail-match-row {
+      display: grid;
+      grid-template-columns: 1fr 110px 110px;
+      gap: 0.5rem;
+      padding: 0.5rem;
+      border-radius: 6px;
+      background: #f8f9fa;
+      align-items: center;
+    }
+
+    .detail-match-row:hover {
+      background: #f0f2ff;
+    }
+
+    .detail-match-name {
+      font-size: 0.88rem;
+      font-weight: 600;
+      color: #333;
+    }
+
+    .detail-result, .detail-prediction {
       text-align: center;
     }
 
-    .points-value {
-      font-size: 1.3rem;
+    .score-chip {
+      display: inline-block;
+      padding: 0.2rem 0.6rem;
+      border-radius: 12px;
+      font-size: 0.85rem;
       font-weight: 700;
+    }
+
+    .real-score {
+      background: #e8f5e9;
+      color: #388e3c;
+    }
+
+    .pending-score {
+      background: #fff3e0;
+      color: #f57c00;
+      font-size: 0.75rem;
+    }
+
+    .pred-score {
+      background: #e8ecff;
       color: #667eea;
     }
 
-    .col-correct, .col-exact {
-      text-align: center;
-      font-weight: 600;
+    .no-pred-score {
+      background: #f5f5f5;
+      color: #bbb;
     }
 
     /* Matches */
     .matches-list {
       display: flex;
       flex-direction: column;
-      gap: 1.5rem;
+      gap: 1.25rem;
     }
 
     .match-detail-card {
-      border: 1px solid #e0e0e0;
-      border-radius: 8px;
-      padding: 1.5rem;
+      border: 1px solid #e8e8f0;
+      border-radius: 14px;
+      overflow: hidden;
+      background: #fff;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+      transition: box-shadow 0.2s;
     }
 
-    .match-header {
+    .match-detail-card:hover {
+      box-shadow: 0 4px 16px rgba(102,126,234,0.12);
+    }
+
+    /* Header */
+    .mdc-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 1rem;
-      padding-bottom: 1rem;
-      border-bottom: 2px solid #e0e0e0;
+      padding: 0.6rem 1.25rem;
+      background: #f7f8fc;
+      border-bottom: 1px solid #eeeef5;
     }
 
-    .match-date {
+    .mdc-date {
+      font-size: 0.82rem;
       font-weight: 600;
-      color: #444;
+      color: #666;
     }
 
     .pending-badge, .completed-badge {
-      padding: 0.25rem 0.75rem;
-      border-radius: 12px;
-      font-size: 0.8rem;
+      padding: 0.2rem 0.65rem;
+      border-radius: 20px;
+      font-size: 0.75rem;
       font-weight: 700;
     }
 
     .pending-badge {
       background: #fff3e0;
-      color: #f57c00;
+      color: #e65100;
     }
 
     .completed-badge {
       background: #e8f5e9;
-      color: #388e3c;
+      color: #2e7d32;
     }
 
-    .match-teams-display {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 2rem;
-      margin-bottom: 1.5rem;
-    }
-
-    .team-display {
-      display: flex;
+    /* Scoreboard */
+    .mdc-scoreboard {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
       align-items: center;
       gap: 1rem;
+      padding: 1.25rem 1.5rem;
     }
 
-    .team-display .team-name {
-      font-weight: 700;
-      font-size: 1.2rem;
-      color: #1a1a1a;
-    }
-
-    .team-display .team-score {
-      font-size: 2rem;
-      font-weight: 700;
-      color: #667eea;
-      width: 60px;
-      text-align: center;
-    }
-
-    .vs {
-      font-size: 1.2rem;
-      font-weight: 700;
-      color: #999;
-    }
-
-    .predictions-summary h4 {
-      margin: 0 0 1rem 0;
-      color: #444;
-      font-size: 1rem;
-    }
-
-    .predictions-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-      gap: 0.75rem;
-    }
-
-    .prediction-item {
+    .mdc-team {
       display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 0.75rem;
-      background: #f8f9fa;
-      border-radius: 6px;
-      border: 2px solid transparent;
-    }
-
-    .prediction-item.user-prediction {
-      background: #e8ecff;
-      border-color: #667eea;
-    }
-
-    .prediction-user {
-      font-size: 0.9rem;
-      color: #444;
-      display: flex;
+      flex-direction: column;
       align-items: center;
       gap: 0.5rem;
     }
 
+    .mdc-team--local {
+      text-align: center;
+    }
+
+    .mdc-team--visitor {
+      text-align: center;
+    }
+
+    .mdc-team-avatar {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 1rem;
+    }
+
+    .mdc-team-name {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: #1a1a2e;
+      text-align: center;
+      line-height: 1.2;
+    }
+
+    .mdc-score-box {
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+      background: #1a1a2e;
+      border-radius: 12px;
+      padding: 0.5rem 1rem;
+      min-width: 90px;
+      justify-content: center;
+    }
+
+    .mdc-score {
+      font-size: 2rem;
+      font-weight: 800;
+      color: #fff;
+      line-height: 1;
+      min-width: 28px;
+      text-align: center;
+    }
+
+    .mdc-score-sep {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: #667eea;
+    }
+
+    .mdc-score-pending {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: #aaa;
+      letter-spacing: 0.05em;
+    }
+
+    /* Predictions */
+    .mdc-predictions {
+      padding: 0 1.25rem 1.25rem;
+    }
+
+    .mdc-predictions-label {
+      margin: 0 0 0.65rem;
+      font-size: 0.78rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: #999;
+    }
+
+    .mdc-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+
+    .mdc-chip {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.4rem 0.75rem 0.4rem 0.4rem;
+      border-radius: 30px;
+      background: #f4f5fb;
+      border: 1.5px solid #e8e8f0;
+      transition: border-color 0.15s, background 0.15s;
+    }
+
+    .mdc-chip:hover {
+      border-color: #667eea;
+      background: #eef0ff;
+    }
+
+    .mdc-chip--me {
+      border-color: #667eea;
+      background: #eef0ff;
+    }
+
+    .mdc-chip-avatar {
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      background: #667eea;
+      color: #fff;
+      font-size: 0.65rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .mdc-chip--me .mdc-chip-avatar {
+      background: #764ba2;
+    }
+
+    .mdc-chip-info {
+      display: flex;
+      flex-direction: column;
+      gap: 0.1rem;
+    }
+
+    .mdc-chip-user {
+      font-size: 0.75rem;
+      color: #555;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 0.3rem;
+    }
+
+    .mdc-chip-score {
+      font-size: 0.9rem;
+      font-weight: 800;
+      color: #1a1a2e;
+    }
+
     .you-tag {
-      padding: 0.1rem 0.4rem;
+      padding: 0.1rem 0.35rem;
       background: #667eea;
       color: white;
-      font-size: 0.65rem;
+      font-size: 0.6rem;
       font-weight: 700;
       border-radius: 8px;
     }
 
-    .prediction-score {
-      font-weight: 700;
-      color: #1a1a1a;
-      font-size: 1rem;
-    }
-
     .no-predictions {
       text-align: center;
-      padding: 1.5rem;
+      padding: 1rem 1.25rem;
+      color: #bbb;
+      font-size: 0.88rem;
+      font-style: italic;
+    }
       color: #999;
       font-style: italic;
     }
@@ -826,15 +1073,6 @@ interface MatchDetail {
     }
 
     /* Responsive */
-    @media (max-width: 968px) {
-      .ranking-header-row,
-      .ranking-row {
-        grid-template-columns: 50px 1fr 80px 80px 80px;
-        gap: 0.5rem;
-        font-size: 0.9rem;
-      }
-    }
-
     @media (max-width: 768px) {
       .poll-detail-container {
         padding: 1rem;
@@ -869,26 +1107,29 @@ interface MatchDetail {
         font-size: 0.85rem;
       }
 
-      .ranking-header-row {
-        display: none;
+      .detail-matches-header,
+      .detail-match-row {
+        grid-template-columns: 1fr 90px 90px;
+        font-size: 0.8rem;
       }
 
-      .ranking-row {
-        grid-template-columns: 1fr;
-        gap: 0.75rem;
+      .mdc-scoreboard {
+        grid-template-columns: 1fr auto 1fr;
+        padding: 1rem;
+        gap: 0.5rem;
       }
 
-      .ranking-row > div {
-        text-align: left !important;
+      .mdc-team-name {
+        font-size: 0.8rem;
       }
 
-      .match-teams-display {
-        flex-direction: column;
-        gap: 1rem;
+      .mdc-score {
+        font-size: 1.5rem;
       }
 
-      .predictions-grid {
-        grid-template-columns: 1fr;
+      .mdc-score-box {
+        min-width: 70px;
+        padding: 0.4rem 0.6rem;
       }
 
       .participants-grid {
@@ -911,6 +1152,7 @@ export class PollDetailComponent implements OnInit {
   
   activeTab: 'ranking' | 'matches' | 'participants' = 'ranking';
   loading = true;
+  expandedParticipants = new Set<string>();
 
   ngOnInit(): void {
     this.pollId = Number(this.route.snapshot.paramMap.get('id'));
@@ -1073,6 +1315,35 @@ export class PollDetailComponent implements OnInit {
   getParticipantPoints(email: string): number {
     const entry = this.ranking.find(r => r.emailParticipante === email);
     return entry?.puntosTotales || 0;
+  }
+
+  getAccuracyPercentage(entry: RankingEntry): number {
+    const finishedMatches = this.matchesWithDetails.filter(m => m.hasResult).length;
+    if (finishedMatches === 0) return 0;
+    return Math.round((entry.pronosticosAcertados / finishedMatches) * 100);
+  }
+
+  getAccuracyClass(entry: RankingEntry): string {
+    const pct = this.getAccuracyPercentage(entry);
+    if (pct >= 70) return 'accuracy-high';
+    if (pct >= 40) return 'accuracy-mid';
+    return 'accuracy-low';
+  }
+
+  toggleParticipant(email: string): void {
+    if (this.expandedParticipants.has(email)) {
+      this.expandedParticipants.delete(email);
+    } else {
+      this.expandedParticipants.add(email);
+    }
+  }
+
+  isExpanded(email: string): boolean {
+    return this.expandedParticipants.has(email);
+  }
+
+  getPredictionForUser(item: MatchDetail, email: string): PollPrediction | undefined {
+    return item.allPredictions.find(p => p.emailParticipante === email);
   }
 
   goToPredictions(): void {
