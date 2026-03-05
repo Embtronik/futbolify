@@ -8,61 +8,265 @@
       </div>
 
       <nav class="nav-menu">
+        <a (click)="scrollToSection('how-it-works')" class="nav-link">Cómo funciona</a>
         <a (click)="scrollToSection('features')" class="nav-link">Características</a>
-        <a (click)="scrollToSection('benefits')" class="nav-link">Beneficios</a>
-        <a (click)="scrollToSection('cta')" class="nav-link">Planes</a>
+        <a (click)="scrollToSection('benefits')" class="nav-link">¿Por qué?</a>
       </nav>
 
       <div class="header-actions">
-        <button (click)="navigateToLogin()" class="btn btn-secondary btn-sm">Inicia Sesión</button>
-        <button (click)="navigateToRegister()" class="btn btn-primary btn-sm">Regístrate</button>
+        <button (click)="navigateToLogin()" class="btn btn-ghost btn-sm">Iniciar Sesión</button>
+        <button (click)="navigateToRegister()" class="btn btn-primary btn-sm">Registrarse gratis</button>
       </div>
     </div>
   </header>
 
-  <!-- Hero Section -->
-  <section class="hero-section">
-    <div class="hero-bg"></div>
-    <div class="container hero-content">
-      <div class="badge">Nuevas características disponibles →</div>
-      
-      <h1 class="hero-title">
-        Gestiona tu grupo de <span class="highlight">fútbol</span> sin límites
-      </h1>
-      
-      <p class="hero-description">
-        Organiza entrenamientos, coordina partidos, gestiona asistencias y conecta con tu equipo en un solo lugar.
-        La plataforma que necesitaban los amatistas.
-      </p>
-      
-      <div class="hero-actions">
-        <a routerLink="/auth/register" class="btn btn-primary btn-lg">Comienza Gratis</a>
-        <button (click)="scrollToSection('features')" class="btn btn-secondary btn-lg">
-          Ver Características
-        </button>
+  <!-- ══════════════════ HERO ══════════════════ -->
+  <section id="hero" class="hero-section">
+    <div class="hero-bg-effects">
+      <div class="hero-glow hero-glow-1"></div>
+      <div class="hero-glow hero-glow-2"></div>
+      <div class="hero-field-pattern"></div>
+    </div>
+
+    <div class="container hero-layout">
+      <div class="hero-text">
+        <div class="hero-live-badge">
+          <span class="live-dot"></span>
+          🔴 EN VIVO — Jornada activa · Haz tus predicciones
+        </div>
+
+        <h1 class="hero-title">
+          ¿El crack de las<br>
+          <span class="hero-highlight">pollas futboleras</span><br>
+          eres tú?
+        </h1>
+
+        <p class="hero-description">
+          Crea tu grupo privado, invita a tus amigos y compite prediciendo resultados de
+          los mejores partidos. El ranking no miente.
+        </p>
+
+        <div class="hero-actions">
+          <a routerLink="/auth/register" class="btn btn-primary btn-lg hero-cta-btn">
+            🚀 Crear grupo gratis
+          </a>
+          <button (click)="scrollToSection('how-it-works')" class="btn btn-outline-hero btn-lg">
+            ▶ Cómo funciona
+          </button>
+        </div>
+
+        <div class="hero-social-proof">
+          <div class="proof-avatars">
+            <div class="proof-avatar">👤</div>
+            <div class="proof-avatar">👤</div>
+            <div class="proof-avatar">👤</div>
+            <div class="proof-avatar">👤</div>
+            <div class="proof-avatar proof-avatar-more">+</div>
+          </div>
+          <p><strong>+10,000 futboleros</strong> ya compiten en Futbolify</p>
+        </div>
       </div>
-      
-      <p class="hero-note">
-        ✓ Sin tarjeta de crédito requerida • ✓ Acceso gratis para grupos pequeños
-      </p>
+
+      <div class="hero-visual">
+        <div class="hero-mock-wrapper">
+          <div class="hero-mock-card">
+            <div class="mock-card-topbar">
+              <div class="mock-card-title">
+                <span class="mock-live-dot"></span>
+                🎯 Jornada 28 — LaLiga
+              </div>
+              <div class="mock-countdown">⏰ Cierra en 1h 42m</div>
+            </div>
+
+            <div class="mock-predictions">
+              <div class="mock-match-row">
+                <span class="mock-team-name">Real Madrid</span>
+                <div class="mock-scores-area">
+                  <div class="mock-score-box active">2</div>
+                  <span class="mock-vs-sep">—</span>
+                  <div class="mock-score-box">1</div>
+                </div>
+                <span class="mock-team-name right">Barcelona</span>
+              </div>
+              <div class="mock-match-row">
+                <span class="mock-team-name">Atlético</span>
+                <div class="mock-scores-area">
+                  <div class="mock-score-box active">1</div>
+                  <span class="mock-vs-sep">—</span>
+                  <div class="mock-score-box active">1</div>
+                </div>
+                <span class="mock-team-name right">Sevilla</span>
+              </div>
+              <div class="mock-match-row">
+                <span class="mock-team-name">Valencia</span>
+                <div class="mock-scores-area">
+                  <div class="mock-score-box">0</div>
+                  <span class="mock-vs-sep">—</span>
+                  <div class="mock-score-box active">2</div>
+                </div>
+                <span class="mock-team-name right">Villarreal</span>
+              </div>
+            </div>
+
+            <button class="mock-save-btn">Guardar mis pollas ✅</button>
+
+            <div class="mock-divider"></div>
+
+            <div class="mock-ranking-preview">
+              <div class="mock-ranking-label">🏆 Los Gallos FC — Ranking</div>
+              <div class="mock-rank-row gold"><span>🥇 Carlos</span><span class="mock-pts">47 pts</span></div>
+              <div class="mock-rank-row silver"><span>🥈 María</span><span class="mock-pts">43 pts</span></div>
+              <div class="mock-rank-row you"><span>⚽ Tú</span><span class="mock-pts">38 pts</span></div>
+            </div>
+          </div>
+
+          <div class="floating-badge badge-tr">🔥 +3 pts ganados</div>
+          <div class="floating-badge badge-bl">🎯 68% de acierto</div>
+        </div>
+      </div>
     </div>
   </section>
 
-  <!-- Features Section -->
+  <!-- ══════════════════ STATS BAR ══════════════════ -->
+  <div class="stats-bar">
+    <div class="container">
+      <div class="stats-grid">
+        <div *ngFor="let stat of stats" class="stat-item">
+          <span class="stat-icon">{{ stat.icon }}</span>
+          <div class="stat-info">
+            <div class="stat-value">{{ stat.value }}</div>
+            <div class="stat-label">{{ stat.label }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════ TUTORIAL ══════════════════ -->
+  <section id="how-it-works" class="tutorial-section">
+    <div class="container">
+      <div class="section-header">
+        <span class="section-pill">¿Cómo funciona?</span>
+        <h2 class="section-title">En 3 pasos, ya estás compitiendo</h2>
+        <p class="section-description">Más fácil que predecir un gol en tiempo de descuento</p>
+      </div>
+
+      <!-- Step 1 -->
+      <div class="tutorial-step">
+        <div class="tutorial-step-info">
+          <div class="step-header-row">
+            <span class="step-num">01</span>
+            <div class="step-icon-circle">🏟️</div>
+          </div>
+          <h3 class="step-title">Crea tu grupo</h3>
+          <p class="step-desc">
+            Regístrate gratis en segundos. Crea tu grupo privado y ponle un nombre épico —
+            "Los Gallos FC", "Expertos del Balón", lo que quieras. Eres el admin.
+          </p>
+          <ul class="step-bullets">
+            <li>✓ Sin tarjeta de crédito</li>
+            <li>✓ Grupo listo en 60 segundos</li>
+            <li>✓ Hasta 50 jugadores por grupo</li>
+          </ul>
+        </div>
+        <div class="tutorial-step-visual">
+          <div class="ui-mock">
+            <div class="ui-mock-topbar"><span class="ui-dot red"></span><span class="ui-dot yellow"></span><span class="ui-dot green"></span></div>
+            <div class="ui-mock-title">✨ Crear nuevo grupo</div>
+            <div class="ui-field"><div class="ui-label">Nombre del grupo</div><div class="ui-input">⚽ Los Gallos FC</div></div>
+            <div class="ui-field"><div class="ui-label">Deporte</div><div class="ui-input">⚽ Fútbol</div></div>
+            <div class="ui-field"><div class="ui-label">Privacidad</div><div class="ui-input">🔒 Privado (solo con invitación)</div></div>
+            <div class="ui-btn green">🚀 Crear grupo</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="step-divider"><div class="step-divider-line"></div><div class="step-divider-icon">↓</div><div class="step-divider-line"></div></div>
+
+      <!-- Step 2 -->
+      <div class="tutorial-step tutorial-step-reverse">
+        <div class="tutorial-step-info">
+          <div class="step-header-row">
+            <span class="step-num">02</span>
+            <div class="step-icon-circle">📲</div>
+          </div>
+          <h3 class="step-title">Invita a tus amigos</h3>
+          <p class="step-desc">
+            Comparte el enlace único de tu grupo por WhatsApp, Telegram o donde quieras.
+            Tus amigos se unen con un solo clic, sin complicaciones.
+          </p>
+          <ul class="step-bullets">
+            <li>✓ Enlace único e intransferible</li>
+            <li>✓ Notificación automática al unirse</li>
+            <li>✓ Control total sobre quién entra</li>
+          </ul>
+        </div>
+        <div class="tutorial-step-visual">
+          <div class="ui-mock">
+            <div class="ui-mock-topbar"><span class="ui-dot red"></span><span class="ui-dot yellow"></span><span class="ui-dot green"></span></div>
+            <div class="ui-mock-title">📲 Invitar al grupo</div>
+            <div class="ui-invite-box">
+              <div class="ui-link-text">futbolify.app/g/los-gallos-fc</div>
+              <div class="ui-copy-btn">📋 Copiar enlace</div>
+            </div>
+            <div class="ui-members-label">Miembros del grupo (3/50)</div>
+            <div class="ui-member"><span class="member-av">👤</span><span class="member-name">Carlos García</span><span class="member-tag ok">✅ Unido</span></div>
+            <div class="ui-member"><span class="member-av">👤</span><span class="member-name">María López</span><span class="member-tag ok">✅ Unida</span></div>
+            <div class="ui-member"><span class="member-av">👤</span><span class="member-name">Luis Martín</span><span class="member-tag pending">⏳ Pendiente</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="step-divider"><div class="step-divider-line"></div><div class="step-divider-icon">↓</div><div class="step-divider-line"></div></div>
+
+      <!-- Step 3 -->
+      <div class="tutorial-step">
+        <div class="tutorial-step-info">
+          <div class="step-header-row">
+            <span class="step-num">03</span>
+            <div class="step-icon-circle">🎯</div>
+          </div>
+          <h3 class="step-title">¡Haz tus pollas futboleras!</h3>
+          <p class="step-desc">
+            Antes del pitido inicial predice los marcadores. Cada acierto suma puntos
+            y el marcador exacto vale el doble. ¿Quién coronará el ranking del grupo?
+          </p>
+          <ul class="step-bullets">
+            <li>✓ Ranking en tiempo real tras cada jornada</li>
+            <li>✓ Puntos extra por marcador exacto</li>
+            <li>✓ Historial completo de predicciones</li>
+          </ul>
+        </div>
+        <div class="tutorial-step-visual">
+          <div class="ui-mock">
+            <div class="ui-mock-topbar"><span class="ui-dot red"></span><span class="ui-dot yellow"></span><span class="ui-dot green"></span></div>
+            <div class="ui-mock-title">🎯 Mis pollas — Jornada 28</div>
+            <div class="ui-match-predict"><span class="predict-team">Real Madrid</span><div class="predict-scores"><div class="predict-box">2</div><span class="predict-sep">—</span><div class="predict-box">1</div></div><span class="predict-team right">Barça</span></div>
+            <div class="ui-match-predict"><span class="predict-team">Liverpool</span><div class="predict-scores"><div class="predict-box">3</div><span class="predict-sep">—</span><div class="predict-box">0</div></div><span class="predict-team right">Chelsea</span></div>
+            <div class="ui-match-predict"><span class="predict-team">PSG</span><div class="predict-scores"><div class="predict-box">1</div><span class="predict-sep">—</span><div class="predict-box">2</div></div><span class="predict-team right">Bayern</span></div>
+            <div class="ui-btn green">Guardar predicciones ✅</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="tutorial-final-cta">
+        <p>¿A qué esperas? Tu grupo de colegas te está esperando</p>
+        <a routerLink="/auth/register" class="btn btn-primary btn-lg">🚀 Crear mi grupo ahora</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════ FEATURES ══════════════════ -->
   <section id="features" class="features-section">
     <div class="container">
       <div class="section-header">
-        <h2 class="section-title">Todo lo que necesitas para organizar</h2>
-        <p class="section-description">
-          Herramientas poderosas y fáciles de usar diseñadas específicamente para grupos de fútbol aficionado
-        </p>
+        <span class="section-pill features-pill">Funcionalidades</span>
+        <h2 class="section-title">Todo lo que un futbolero necesita</h2>
+        <p class="section-description">Herramientas diseñadas para vivir el fútbol al máximo con tus amigos</p>
       </div>
-
       <div class="features-grid">
         <div *ngFor="let feature of features" class="feature-card">
-          <div class="feature-icon" [ngClass]="feature.gradient">
-            {{ feature.icon }}
-          </div>
+          <div class="feature-icon-box" [ngClass]="feature.colorClass">{{ feature.icon }}</div>
           <h3 class="feature-title">{{ feature.title }}</h3>
           <p class="feature-description">{{ feature.description }}</p>
         </div>
@@ -70,61 +274,101 @@
     </div>
   </section>
 
-  <!-- Benefits Section -->
+  <!-- ══════════════════ BENEFITS ══════════════════ -->
   <section id="benefits" class="benefits-section">
-    <div class="container benefits-container">
-      <div class="section-header">
-        <h2 class="section-title">Por qué elegir Futbolify</h2>
-      </div>
-
-      <div class="benefits-list">
-        <div *ngFor="let benefit of benefits" class="benefit-item">
-          <div class="benefit-icon">✓</div>
-          <div class="benefit-content">
-            <h3 class="benefit-title">{{ benefit.title }}</h3>
-            <p class="benefit-description">{{ benefit.description }}</p>
+    <div class="container benefits-wrapper">
+      <div class="benefits-text-side">
+        <span class="section-pill">¿Por qué Futbolify?</span>
+        <h2 class="section-title">Hecha por futboleros,<br>para futboleros</h2>
+        <p class="section-description">
+          No somos un software genérico. Cada función está pensada para que
+          tú y tus amigos viváis el fútbol de otra manera.
+        </p>
+        <div class="benefits-list">
+          <div *ngFor="let benefit of benefits" class="benefit-row">
+            <div class="benefit-check">✓</div>
+            <div>
+              <strong>{{ benefit.title }}</strong>
+              <p>{{ benefit.description }}</p>
+            </div>
           </div>
+        </div>
+        <a routerLink="/auth/register" class="btn btn-primary btn-lg benefits-cta-btn">Empezar gratis 🚀</a>
+      </div>
+      <div class="benefits-visual-side">
+        <div class="results-mock-card">
+          <div class="results-mock-header">
+            <span>🏆 Los Gallos FC</span>
+            <span class="results-badge">Jornada 27 finalizada</span>
+          </div>
+          <div class="results-list">
+            <div class="result-row correct"><span class="result-icon">✅</span><span class="result-match">Real Madrid 2 – 1 Barça</span><span class="result-pts">+3 pts</span></div>
+            <div class="result-row exact"><span class="result-icon">🎯</span><span class="result-match">Liverpool 3 – 0 Chelsea</span><span class="result-pts">+5 pts</span></div>
+            <div class="result-row wrong"><span class="result-icon">❌</span><span class="result-match">PSG 0 – 2 Bayern</span><span class="result-pts">+0 pts</span></div>
+            <div class="result-row correct"><span class="result-icon">✅</span><span class="result-match">Atlético 1 – 0 Sevilla</span><span class="result-pts">+3 pts</span></div>
+          </div>
+          <div class="results-total">
+            <span>Total jornada:</span>
+            <span class="results-pts-total">+11 pts 🔥</span>
+          </div>
+          <div class="rank-promotion">↑ Subiste al <strong>2.º puesto</strong> del grupo 🎉</div>
         </div>
       </div>
     </div>
   </section>
 
-  <!-- CTA Section -->
+  <!-- ══════════════════ CTA ══════════════════ -->
   <section id="cta" class="cta-section">
+    <div class="cta-bg-overlay"></div>
     <div class="container cta-content">
-      <h2 class="cta-title">¿Listo para organizarte mejor?</h2>
+      <div class="cta-trophy">🏆</div>
+      <h2 class="cta-title">¿Listo para demostrar<br>tu nivel futbolero?</h2>
       <p class="cta-description">
-        Únete a cientos de grupos de fútbol que confían en Futbolify para coordinarse.
+        Únete a miles de futboleros que ya predicen, compiten y se lo pasan
+        genial cada fin de semana.
       </p>
       <div class="cta-actions">
-        <a routerLink="/auth/register" class="btn btn-accent btn-lg">Crear Grupo Gratis</a>
-        <a href="mailto:support@futbolify.com" class="btn btn-outline btn-lg">Contactar Soporte</a>
+        <a routerLink="/auth/register" class="btn btn-cta-primary btn-xl">🚀 Crear mi grupo gratis</a>
+        <button (click)="navigateToLogin()" class="btn btn-cta-secondary btn-xl">Ya tengo cuenta</button>
       </div>
+      <p class="cta-disclaimer">Sin tarjeta de crédito · Gratis para siempre · Listo en 60 segundos</p>
     </div>
   </section>
 
-  <!-- Footer -->
+  <!-- ══════════════════ FOOTER ══════════════════ -->
   <footer class="footer">
     <div class="container">
       <div class="footer-grid">
-        <div class="footer-column">
-          <h4 class="footer-title">Futbolify</h4>
-          <ul class="footer-links">
-            <li><a href="#">Acerca de</a></li>
-            <li><a href="#">Blog</a></li>
-            <li><a href="#">Prensa</a></li>
-          </ul>
+        <div class="footer-brand">
+          <div class="footer-logo-row">
+            <div class="logo-icon">⚽</div>
+            <span class="logo-text">Futbolify</span>
+          </div>
+          <p class="footer-tagline">La app de pollas futboleras<br>para grupos de amigos.</p>
+          <div class="footer-social">
+            <a href="#" class="social-link">🐦 Twitter</a>
+            <a href="#" class="social-link">📸 Instagram</a>
+          </div>
         </div>
-        
+
         <div class="footer-column">
           <h4 class="footer-title">Producto</h4>
           <ul class="footer-links">
+            <li><a (click)="scrollToSection('how-it-works')">Cómo funciona</a></li>
             <li><a (click)="scrollToSection('features')">Características</a></li>
-            <li><a href="#">Seguridad</a></li>
             <li><a href="#">Roadmap</a></li>
           </ul>
         </div>
-        
+
+        <div class="footer-column">
+          <h4 class="footer-title">Empresa</h4>
+          <ul class="footer-links">
+            <li><a href="#">Acerca de</a></li>
+            <li><a href="#">Blog</a></li>
+            <li><a href="mailto:hello@futbolify.com">Contacto</a></li>
+          </ul>
+        </div>
+
         <div class="footer-column">
           <h4 class="footer-title">Legal</h4>
           <ul class="footer-links">
@@ -133,20 +377,11 @@
             <li><a href="#">Cookies</a></li>
           </ul>
         </div>
-        
-        <div class="footer-column">
-          <h4 class="footer-title">Contacto</h4>
-          <ul class="footer-links">
-            <li><a href="mailto:hello@futbolify.com">Email</a></li>
-            <li><a href="#">Twitter</a></li>
-            <li><a href="#">Instagram</a></li>
-          </ul>
-        </div>
       </div>
 
       <div class="footer-bottom">
         <p>© 2025 Futbolify. Todos los derechos reservados.</p>
-        <p>Hecho con ⚽ para los amatistas</p>
+        <p>Hecho con ⚽ para los futboleros de corazón</p>
       </div>
     </div>
   </footer>

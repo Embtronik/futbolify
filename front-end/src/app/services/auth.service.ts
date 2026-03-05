@@ -255,6 +255,26 @@ export class AuthService {
       // expiresIn viene en segundos desde el backend → convertir a milliseconds
       const expirationTime = new Date().getTime() + expiresIn * 1000;
       localStorage.setItem('tokenExpiration', expirationTime.toString());
+    } else {
+      // Fallback: extraer la expiración directamente del claim 'exp' del JWT.
+      // Cubre el caso de OAuth/Google donde el redirect no incluye expiresIn.
+      const jwtExpiry = this.getJwtExpiry(accessToken);
+      if (jwtExpiry) {
+        localStorage.setItem('tokenExpiration', jwtExpiry.toString());
+      }
+    }
+  }
+
+  /**
+   * Decodifica el payload de un JWT y retorna la expiración en milisegundos,
+   * o null si no se puede decodificar o no existe el claim exp.
+   */
+  private getJwtExpiry(token: string): number | null {
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      return payload.exp ? payload.exp * 1000 : null;
+    } catch {
+      return null;
     }
   }
 
@@ -272,9 +292,18 @@ export class AuthService {
     if (!token) return false;
 
     const expiration = localStorage.getItem('tokenExpiration');
-    if (!expiration) return true; // Si no hay expiración, asumimos válido
+    if (expiration) {
+      return new Date().getTime() < parseInt(expiration);
+    }
 
-    return new Date().getTime() < parseInt(expiration);
+    // Fallback: decodificar claim exp del JWT (cubre tokens OAuth sin expiresIn guardado)
+    const jwtExpiry = this.getJwtExpiry(token);
+    if (jwtExpiry) {
+      return new Date().getTime() < jwtExpiry;
+    }
+
+    // Sin ninguna información de expiración, asumir válido
+    return true;
   }
 
   private checkTokenExpiration(): void {
