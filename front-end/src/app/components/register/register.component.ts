@@ -25,6 +25,7 @@ export class RegisterComponent {
   loading = false;
   errorMessage = '';
   successMessage = '';
+  showEmailForm = false;
   countryCodes: CountryCode[] = [];
   loadingCountries = true;
   // Terms state
@@ -182,6 +183,10 @@ export class RegisterComponent {
 
 
   loginWithGoogle(): void {
+    const returnUrl = this.getReturnUrl();
+    if (returnUrl) {
+      sessionStorage.setItem('pendingReturnUrl', returnUrl);
+    }
     this.authService.loginWithGoogle();
   }
 

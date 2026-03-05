@@ -39,6 +39,7 @@ export class PollsComponent implements OnInit, AfterViewInit, OnDestroy {
   loadingDetailedResults = false;
   detailedParticipants: any[] = [];
   detailedMatchesHeader: any[] = [];
+  expandedDrCards = new Set<number>();
     // ...existing code...
 
     /**
@@ -764,6 +765,7 @@ export class PollsComponent implements OnInit, AfterViewInit, OnDestroy {
       this.detailedResults = null;
       this.detailedParticipants = [];
       this.detailedMatchesHeader = [];
+      this.expandedDrCards = new Set<number>();
       this.pollService.getPollDetailedResults(poll.id).subscribe({
         next: (res: any) => {
           this.detailedResults = res;
@@ -798,7 +800,8 @@ export class PollsComponent implements OnInit, AfterViewInit, OnDestroy {
 
               const total = Number(p.puntajeTotal ?? p.puntosTotales ?? p.puntos ?? 0);
               const nombre = String(p.nombreParticipante || p.nombreUsuario || p.emailParticipante || '').trim() || 'Sin nombre';
-              return { nombre, partidos, puntajeTotal: total };
+              const email = String(p.emailParticipante || p.email || '').trim();
+              return { nombre, email, partidos, puntajeTotal: total };
             });
 
             // Ordenar de mayor a menor por puntajeTotal
@@ -820,6 +823,31 @@ export class PollsComponent implements OnInit, AfterViewInit, OnDestroy {
         }
       });
     }
+  }
+
+  toggleDrCard(i: number): void {
+    if (this.expandedDrCards.has(i)) {
+      this.expandedDrCards.delete(i);
+    } else {
+      this.expandedDrCards.add(i);
+    }
+  }
+
+  isDrCardExpanded(i: number): boolean {
+    return this.expandedDrCards.has(i);
+  }
+
+  getDrCardAccuracy(p: any): number {
+    if (!p.partidos?.length) return 0;
+    const scored = p.partidos.filter((m: any) => (m.puntosObtenidos ?? 0) > 0).length;
+    return Math.round((scored / p.partidos.length) * 100);
+  }
+
+  getDrCardAccuracyClass(p: any): string {
+    const acc = this.getDrCardAccuracy(p);
+    if (acc >= 70) return 'acc-high';
+    if (acc >= 40) return 'acc-mid';
+    return 'acc-low';
   }
 
   private refreshSelectedPollDetail(pollId: number): void {

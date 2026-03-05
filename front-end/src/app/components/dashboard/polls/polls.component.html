@@ -260,8 +260,8 @@
             [class.dr-bronze]="i === 2"
             [class.dr-me]="p.email === currentUserEmail || p.nombre === currentUserEmail">
 
-            <!-- Cabecera de la tarjeta -->
-            <div class="dr-card-head">
+            <!-- Cabecera de la tarjeta (siempre visible, clickeable para expandir) -->
+            <div class="dr-card-head" (click)="toggleDrCard(i)" style="cursor:pointer">
               <div class="dr-rank">
                 <span *ngIf="i === 0" class="dr-medal">🥇</span>
                 <span *ngIf="i === 1" class="dr-medal">🥈</span>
@@ -275,14 +275,18 @@
                 <span class="dr-name">{{ p.nombre }}</span>
                 <span class="dr-you" *ngIf="p.email === currentUserEmail || p.nombre === currentUserEmail">TÚ</span>
               </div>
+              <div class="dr-accuracy-pill" [ngClass]="getDrCardAccuracyClass(p)">
+                {{ getDrCardAccuracy(p) }}%
+              </div>
               <div class="dr-total-pts">
                 <span class="dr-pts-val">{{ p.puntajeTotal ?? 0 }}</span>
                 <span class="dr-pts-label">pts</span>
               </div>
+              <span class="dr-chevron" [class.dr-chevron-open]="isDrCardExpanded(i)">▼</span>
             </div>
 
-            <!-- Desglose de partidos -->
-            <div class="dr-matches">
+            <!-- Desglose de partidos (expandible) -->
+            <div class="dr-matches" *ngIf="isDrCardExpanded(i)">
               <div
                 *ngFor="let m of p.partidos"
                 class="dr-match-row"
@@ -346,28 +350,28 @@
           <p>No hay partidos agregados aún</p>
         </div>
         <div class="matches-list" *ngIf="pollMatches.length > 0">
-          <div class="match-item" *ngFor="let match of pollMatches">
-            <div class="match-teams">
-              <div class="team">
-                <img [src]="match.equipoLocalLogo || 'assets/team-placeholder.png'" [alt]="match.equipoLocal">
-                <span>{{ match.equipoLocal }}</span>
+          <div class="match-card" *ngFor="let match of pollMatches">
+            <div class="mc-header">
+              <span class="mc-date">📅 {{ formatDateTime(match.fechaHoraPartido) }}</span>
+              <button 
+                class="btn-icon btn-delete" 
+                *ngIf="selectedPoll?.estado === 'CREADA'"
+                (click)="deleteMatch(match)"
+                title="Eliminar partido">
+                🗑️
+              </button>
+            </div>
+            <div class="mc-scoreboard">
+              <div class="mc-team mc-team--home">
+                <img [src]="match.equipoLocalLogo || 'assets/team-placeholder.png'" [alt]="match.equipoLocal" class="mc-logo">
+                <span class="mc-team-name">{{ match.equipoLocal }}</span>
               </div>
-              <div class="vs">VS</div>
-              <div class="team">
-                <img [src]="match.equipoVisitanteLogo || 'assets/team-placeholder.png'" [alt]="match.equipoVisitante">
-                <span>{{ match.equipoVisitante }}</span>
+              <div class="mc-vs">VS</div>
+              <div class="mc-team mc-team--away">
+                <span class="mc-team-name">{{ match.equipoVisitante }}</span>
+                <img [src]="match.equipoVisitanteLogo || 'assets/team-placeholder.png'" [alt]="match.equipoVisitante" class="mc-logo">
               </div>
             </div>
-            <div class="match-info">
-              <span class="match-date">{{ formatDateTime(match.fechaHoraPartido) }}</span>
-            </div>
-            <button 
-              class="btn-icon btn-delete" 
-              *ngIf="selectedPoll?.estado === 'CREADA'"
-              (click)="deleteMatch(match)"
-              title="Eliminar partido">
-              🗑️
-            </button>
           </div>
         </div>
       </div>
