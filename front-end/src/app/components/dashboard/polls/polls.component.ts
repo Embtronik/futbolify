@@ -839,8 +839,9 @@ export class PollsComponent implements OnInit, AfterViewInit, OnDestroy {
 
   getDrCardAccuracy(p: any): number {
     if (!p.partidos?.length) return 0;
-    const scored = p.partidos.filter((m: any) => (m.puntosObtenidos ?? 0) > 0).length;
-    return Math.round((scored / p.partidos.length) * 100);
+    const totalPuntos = p.partidos.reduce((sum: number, m: any) => sum + (m.puntosObtenidos ?? 0), 0);
+    const maxPosible = p.partidos.length * 6;
+    return Math.round((totalPuntos / maxPosible) * 100);
   }
 
   getDrCardAccuracyClass(p: any): string {

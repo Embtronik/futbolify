@@ -15,18 +15,30 @@ import { environment } from '../../../../environments/environment';
   template: `
     <div class="matches-container">
       <div class="page-header">
-        <h1>Gestión de Partidos</h1>
+        <div class="page-header-text">
+          <h1>⚽ Partidos</h1>
+          <p class="page-subtitle">Organiza encuentros con los integrantes de tus grupos y lleva el control de asistencia</p>
+        </div>
         <button 
           class="btn btn-primary"
           (click)="openCreateModal()"
           [disabled]="!selectedTeam"
         >
-          <span>➕</span> Programar Partido
+          <span>📅</span> Programar partido
         </button>
+      </div>
+
+      <!-- Banner de bienvenida (solo si tiene equipos y no está cargando) -->
+      <div class="feature-banner" *ngIf="!loadingTeams && teams.length > 0 && matches.length === 0 && !loadingMatches">
+        <div class="feature-banner-icon">🗓️</div>
+        <div class="feature-banner-body">
+          <strong>¿Sabías que puedes programar partidos con tu grupo?</strong>
+          <p>Elige fecha, hora y lugar — tus compañeros recibirán la invitación y podrán confirmar asistencia.</p>
+        </div>
       </div>
       <!-- Selección de equipo -->
       <div class="team-selector" *ngIf="teams.length > 0">
-        <label>Selecciona el grupo para ver o gestionar sus partidos:</label>
+        <label>Selecciona el grupo cuyos partidos quieres ver:</label>
         <div class="teams-chips">
           <button
             *ngFor="let team of teams"
@@ -42,13 +54,13 @@ import { environment } from '../../../../environments/environment';
       </div>
       <div *ngIf="teams.length === 0 && !loadingTeams" class="empty-state">
         <div class="empty-icon">👥</div>
-        <h2>No perteneces a ningún grupo</h2>
-        <p>Únete a un grupo o crea uno para ver y programar partidos.</p>
+        <h2>Aún no perteneces a ningún grupo</h2>
+        <p>Crea un grupo o únete a uno con un código de invitación para poder programar partidos con tus amigos.</p>
       </div>
 
       <!-- Lista de partidos -->
       <div *ngIf="selectedTeam && matches.length > 0" class="matches-list">
-        <h2>Partidos programados para {{ selectedTeam.name }}</h2>
+        <h2 class="matches-list-title">📋 Próximos partidos · {{ selectedTeam.name }}</h2>
         <div class="matches-grid">
           <div class="match-card" *ngFor="let match of matches">
             <div class="match-header-centered">
@@ -83,7 +95,7 @@ import { environment } from '../../../../environments/environment';
                   class="match-detail-btn"
                   (click)="openDetailModal(match)"
                 >
-                  Detalle asistencia
+                  👥 Ver asistencia
                 </button>
 
                 <button
@@ -92,7 +104,7 @@ import { environment } from '../../../../environments/environment';
                   class="match-manage-btn"
                   (click)="goToManageMatch(match)"
                 >
-                  Administrar Partido
+                  ⚙️ Administrar
                 </button>
               </div>
             </div>
@@ -102,10 +114,10 @@ import { environment } from '../../../../environments/environment';
 
       <!-- Estado vacío de partidos -->
       <div *ngIf="selectedTeam && matches.length === 0 && !loadingMatches" class="empty-state">
-        <div class="empty-icon">⚽</div>
-        <h2>No tienes partidos programados para {{ selectedTeam.name }}</h2>
-        <p>Organiza el primer partido seleccionando fecha, hora y ubicación.</p>
-        <button class="btn btn-primary" (click)="openCreateModal()">Crear primer partido</button>
+        <div class="empty-icon">📅</div>
+        <h2>Sin partidos programados</h2>
+        <p>¡Organiza el primer encuentro con <strong>{{ selectedTeam.name }}</strong>! Elige la fecha, hora y cancha — tus compañeros podrán confirmar su asistencia.</p>
+        <button class="btn btn-primary" (click)="openCreateModal()">📅 Programar primer partido</button>
       </div>
 
       <!-- Loading -->
@@ -266,15 +278,49 @@ import { environment } from '../../../../environments/environment';
     .page-header {
       display: flex;
       justify-content: space-between;
-      align-items: center;
-      margin-bottom: 32px;
+      align-items: flex-start;
+      margin-bottom: 24px;
+      gap: 16px;
+      flex-wrap: wrap;
     }
 
+    .page-header-text { flex: 1; min-width: 0; }
+
     .page-header h1 {
-      font-size: 32px;
+      font-size: 28px;
+      font-weight: 800;
+      color: var(--dark-color);
+      margin: 0 0 4px 0;
+    }
+
+    .page-subtitle {
+      font-size: 14px;
+      color: var(--gray-color);
+      margin: 0;
+      line-height: 1.5;
+    }
+
+    /* Feature onboarding banner */
+    .feature-banner {
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+      background: linear-gradient(135deg, #eff6ff, #f0fdf4);
+      border: 1.5px solid #bfdbfe;
+      border-radius: 16px;
+      padding: 16px 20px;
+      margin-bottom: 20px;
+    }
+    .feature-banner-icon { font-size: 2rem; flex-shrink: 0; line-height: 1; margin-top: 2px; }
+    .feature-banner-body { flex: 1; }
+    .feature-banner-body strong { font-size: 0.95rem; color: #1e40af; display: block; margin-bottom: 4px; }
+    .feature-banner-body p { font-size: 0.87rem; color: #3b82f6; margin: 0; line-height: 1.5; }
+
+    .matches-list-title {
+      font-size: 16px;
       font-weight: 700;
       color: var(--dark-color);
-      margin: 0;
+      margin: 0 0 12px 0;
     }
 
     .team-selector {
