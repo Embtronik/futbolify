@@ -348,6 +348,17 @@ public class PollaMarcadorService {
     }
 
     private void persistFinalPointsForPolla(Long pollaId) {
+        // Prevent concurrent execution from two fixtures finishing at the same time for the same polla.
+        // Only one thread/node should compute and persist the final snapshot.
+        String lockKey = "polla_points:" + pollaId;
+        boolean locked = false;
+        if (isPostgres()) {
+            locked = tryAdvisoryLock(lockKey);
+            if (!locked) {
+                log.info("Final points for pollaId={} already being written by another thread, skipping", pollaId);
+                return;
+            }
+        }
         try {
             List<PollaPartido> partidos = partidoRepository.findByPollaIdOrderByFechaHoraPartidoAsc(pollaId);
             for (PollaPartido partido : partidos) {
@@ -400,6 +411,10 @@ public class PollaMarcadorService {
             log.info("Persisted final polla points for pollaId={}", pollaId);
         } catch (Exception e) {
             log.warn("Failed to persist final polla points for pollaId={}: {}", pollaId, e.getMessage());
+        } finally {
+            if (locked) {
+                unlockAdvisoryLock(lockKey);
+            }
         }
     }
 

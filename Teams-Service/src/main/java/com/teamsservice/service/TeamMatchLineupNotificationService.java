@@ -38,7 +38,7 @@ public class TeamMatchLineupNotificationService {
     private String frontendUrl;
 
     @Transactional(readOnly = true)
-    public MatchTeamsNotificationResponse notifyMatchTeams(Long teamId, Long matchId, Long currentUserId) {
+    public MatchTeamsNotificationResponse notifyMatchTeams(Long teamId, Long matchId, Long currentUserId, String currentUserEmail) {
         TeamMatch match = teamMatchRepository.findById(matchId)
                 .orElseThrow(() -> new ResourceNotFoundException("Match not found with id: " + matchId));
 
@@ -47,7 +47,9 @@ public class TeamMatchLineupNotificationService {
         }
 
         Team team = match.getTeam();
-        if (!team.getOwnerUserId().equals(currentUserId)) {
+        boolean owner = (currentUserId != null && currentUserId != 0 && team.getOwnerUserId().equals(currentUserId)) ||
+                        (currentUserEmail != null && team.getOwnerEmail().equalsIgnoreCase(currentUserEmail));
+        if (!owner) {
             throw new UnauthorizedException("Only team owner can notify match teams");
         }
 

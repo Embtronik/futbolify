@@ -174,7 +174,8 @@ public class TeamMatchController {
                 teamId,
                 matchId,
                 request,
-                userPrincipal.getUserId());
+                userPrincipal.getUserId(),
+                userPrincipal.getEmail());
 
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
@@ -190,7 +191,8 @@ public class TeamMatchController {
                 teamId,
                 matchId,
                 request.getTeams(),
-                userPrincipal.getUserId());
+                userPrincipal.getUserId(),
+                userPrincipal.getEmail());
 
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
@@ -204,7 +206,8 @@ public class TeamMatchController {
         List<TeamMatchTeamResponse> response = teamMatchTeamService.listMatchTeams(
                 teamId,
                 matchId,
-                userPrincipal.getUserId());
+                userPrincipal.getUserId(),
+                userPrincipal.getEmail());
 
         return ResponseEntity.ok(response);
     }
@@ -222,7 +225,8 @@ public class TeamMatchController {
                 matchId,
                 matchTeamId,
                 request,
-                userPrincipal.getUserId());
+                userPrincipal.getUserId(),
+                userPrincipal.getEmail());
 
         return ResponseEntity.ok(response);
     }
@@ -234,7 +238,7 @@ public class TeamMatchController {
             @PathVariable Long matchTeamId,
             @AuthenticationPrincipal UserPrincipal userPrincipal) {
 
-        teamMatchTeamService.deleteMatchTeam(teamId, matchId, matchTeamId, userPrincipal.getUserId());
+        teamMatchTeamService.deleteMatchTeam(teamId, matchId, matchTeamId, userPrincipal.getUserId(), userPrincipal.getEmail());
         return ResponseEntity.noContent().build();
     }
 
@@ -257,7 +261,8 @@ public class TeamMatchController {
                 matchTeamId,
                 userId,
                 request,
-                userPrincipal.getUserId());
+                userPrincipal.getUserId(),
+                userPrincipal.getEmail());
 
         return ResponseEntity.ok(response);
     }
@@ -275,7 +280,8 @@ public class TeamMatchController {
                 matchId,
                 matchTeamId,
                 userId,
-                userPrincipal.getUserId());
+                userPrincipal.getUserId(),
+                userPrincipal.getEmail());
 
         return ResponseEntity.ok(response);
     }
@@ -293,7 +299,8 @@ public class TeamMatchController {
                 MatchTeamsNotificationResponse response = teamMatchLineupNotificationService.notifyMatchTeams(
                                 teamId,
                                 matchId,
-                                userPrincipal.getUserId());
+                                userPrincipal.getUserId(),
+                                userPrincipal.getEmail());
 
                 return ResponseEntity.ok(response);
         }
@@ -316,7 +323,8 @@ public class TeamMatchController {
                 teamId,
                 matchId,
                 request,
-                userPrincipal.getUserId());
+                userPrincipal.getUserId(),
+                userPrincipal.getEmail());
 
         return ResponseEntity.ok(response);
     }
@@ -334,7 +342,8 @@ public class TeamMatchController {
                 MatchResultNotificationResponse response = teamMatchResultNotificationService.notifyMatchResult(
                                 teamId,
                                 matchId,
-                                userPrincipal.getUserId());
+                                userPrincipal.getUserId(),
+                                userPrincipal.getEmail());
 
                 return ResponseEntity.ok(response);
         }

@@ -48,10 +48,11 @@ public class TeamMatchResultService {
     public MatchResultResponse upsertMatchResult(Long teamId,
                                                 Long matchId,
                                                 MatchResultUpsertRequest request,
-                                                Long currentUserId) {
+                                                Long currentUserId,
+                                                String currentUserEmail) {
 
         TeamMatch match = getMatchOrThrow(teamId, matchId);
-        assertOwner(match.getTeam(), currentUserId);
+        assertOwner(match.getTeam(), currentUserId, currentUserEmail);
 
         List<TeamMatchTeam> teams = teamMatchTeamRepository.findByMatchIdOrderByIdAsc(matchId);
         if (teams.size() != 2) {
@@ -278,14 +279,17 @@ public class TeamMatchResultService {
         return match;
     }
 
-    private void assertOwner(Team team, Long currentUserId) {
-        if (currentUserId == null || !team.getOwnerUserId().equals(currentUserId)) {
+    private void assertOwner(Team team, Long currentUserId, String currentUserEmail) {
+        boolean owner = (currentUserId != null && currentUserId != 0 && team.getOwnerUserId().equals(currentUserId)) ||
+                        (currentUserEmail != null && team.getOwnerEmail().equalsIgnoreCase(currentUserEmail));
+        if (!owner) {
             throw new UnauthorizedException("Only team owner can manage match results");
         }
     }
 
     private void assertMemberOrOwner(Team team, Long teamId, Long currentUserId, String currentUserEmail) {
-        if (currentUserId != null && team.getOwnerUserId().equals(currentUserId)) {
+        if ((currentUserId != null && currentUserId != 0 && team.getOwnerUserId().equals(currentUserId)) ||
+            (currentUserEmail != null && team.getOwnerEmail().equalsIgnoreCase(currentUserEmail))) {
             return;
         }
 

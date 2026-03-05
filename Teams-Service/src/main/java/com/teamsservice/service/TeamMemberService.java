@@ -2,7 +2,9 @@ package com.teamsservice.service;
 
 import com.teamsservice.dto.ApproveMemberRequest;
 import com.teamsservice.dto.JoinTeamRequest;
+import com.teamsservice.dto.NotificationSendRequest;
 import com.teamsservice.dto.TeamMemberResponse;
+import com.teamsservice.dto.UserInfoDto;
 import com.teamsservice.entity.Team;
 import com.teamsservice.entity.TeamMember;
 import com.teamsservice.entity.TeamStatus;
@@ -13,10 +15,12 @@ import com.teamsservice.repository.TeamMemberRepository;
 import com.teamsservice.repository.TeamRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -28,6 +32,10 @@ public class TeamMemberService {
     private final TeamMemberRepository teamMemberRepository;
     private final TeamRepository teamRepository;
     private final AuthServiceClient authServiceClient;
+    private final NotificationServiceClient notificationServiceClient;
+
+    @Value("${app.frontend.url:http://localhost:4200}")
+    private String frontendUrl;
 
     /**
      * Solicitar unirse a un equipo usando el código de unión
@@ -64,7 +72,63 @@ public class TeamMemberService {
         teamMember = teamMemberRepository.save(teamMember);
         log.info("Membership request created: {}", teamMember.getId());
 
+        notifyOwnerOfJoinRequest(team, userEmail);
+
         return mapToResponse(teamMember);
+    }
+
+    /**
+     * Notifica al propietario del equipo que hay una nueva solicitud de membresía.
+     * Envía por email siempre, y por SMS/WhatsApp si el propietario tiene teléfono registrado.
+     */
+    private void notifyOwnerOfJoinRequest(Team team, String requesterEmail) {
+        try {
+            UserInfoDto requesterInfo = authServiceClient.getUserByEmail(requesterEmail);
+            String requesterName = (requesterInfo != null)
+                    ? requesterInfo.getFullName().trim()
+                    : requesterEmail;
+
+            UserInfoDto ownerInfo = authServiceClient.getUserByEmail(team.getOwnerEmail());
+
+            String subject = "Nueva solicitud para unirse a " + team.getName();
+
+            String pendingUrl = frontendUrl + "/dashboard/teams/" + team.getId() + "/pending-requests";
+            String body = "Hola" + (ownerInfo != null ? " " + ownerInfo.getFirstName() : "") + ",\n\n"
+                    + requesterName + " (" + requesterEmail + ") ha solicitado unirse a tu equipo \""
+                    + team.getName() + "\".\n\n"
+                    + "Puedes aprobar o rechazar la solicitud desde:\n"
+                    + pendingUrl + "\n\n"
+                    + "— Futbolify";
+
+            String ownerPhone = null;
+            if (ownerInfo != null
+                    && ownerInfo.getCountryCode() != null
+                    && ownerInfo.getPhoneNumber() != null) {
+                ownerPhone = ownerInfo.getCountryCode() + ownerInfo.getPhoneNumber();
+            }
+
+            List<String> channels = new ArrayList<>();
+            channels.add("EMAIL");
+            if (ownerPhone != null && !ownerPhone.isBlank()) {
+                channels.add("WHATSAPP");
+                channels.add("SMS");
+            }
+
+            NotificationSendRequest notification = NotificationSendRequest.builder()
+                    .channels(channels)
+                    .recipient(team.getOwnerEmail())
+                    .recipientPhone(ownerPhone)
+                    .subject(subject)
+                    .body(body)
+                    .serviceOrigin("teams-service")
+                    .build();
+
+            notificationServiceClient.sendNotification(notification);
+        } catch (Exception e) {
+            // La notificación falla silenciosamente para no bloquear la solicitud de membresía
+            log.warn("Could not notify owner {} of new join request for team {}: {}",
+                    team.getOwnerEmail(), team.getId(), e.getMessage());
+        }
     }
 
     /**

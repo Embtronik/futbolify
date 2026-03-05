@@ -1,7 +1,9 @@
 package com.teamsservice.repository;
 
 import com.teamsservice.entity.PollaPartido;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -26,6 +28,14 @@ public interface PollaPartidoRepository extends JpaRepository<PollaPartido, Long
      * Encuentra partido específico en una polla
      */
     Optional<PollaPartido> findByIdAndPollaId(Long partidoId, Long pollaId);
+
+    /**
+     * Igual que findByIdAndPollaId pero adquiere PESSIMISTIC_WRITE (SELECT FOR UPDATE).
+     * Usar cuando se va a crear/actualizar un pronóstico para serializar operaciones concurrentes.
+     */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT p FROM PollaPartido p WHERE p.id = :id AND p.polla.id = :pollaId")
+    Optional<PollaPartido> findByIdAndPollaIdForUpdate(@Param("id") Long id, @Param("pollaId") Long pollaId);
 
     /**
      * Cuenta partidos finalizados en una polla

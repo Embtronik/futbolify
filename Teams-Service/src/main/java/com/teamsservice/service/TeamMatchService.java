@@ -61,7 +61,7 @@ public class TeamMatchService {
         Team team = teamRepository.findByIdAndStatus(teamId, TeamStatus.ACTIVE)
                 .orElseThrow(() -> new ResourceNotFoundException("Team not found with id: " + teamId));
 
-        if (!team.getOwnerUserId().equals(currentUserId)) {
+        if (!isOwner(team, currentUserId, currentUserEmail)) {
             throw new UnauthorizedException("Only team owner can create matches");
         }
 
@@ -108,7 +108,7 @@ public class TeamMatchService {
         Team team = teamRepository.findByIdAndStatus(teamId, TeamStatus.ACTIVE)
                 .orElseThrow(() -> new ResourceNotFoundException("Team not found with id: " + teamId));
 
-        if (!team.getOwnerUserId().equals(currentUserId)) {
+        if (!isOwner(team, currentUserId, currentUserEmail)) {
             throw new UnauthorizedException("Only team owner can view team matches");
         }
 
@@ -153,7 +153,7 @@ public class TeamMatchService {
 
         // Permitir ver la asistencia al owner o a cualquier miembro aprobado
         Team team = match.getTeam();
-        boolean isOwner = team.getOwnerUserId().equals(currentUserId);
+        boolean isOwner = isOwner(team, currentUserId, currentUserEmail);
         boolean isApprovedMember = teamMemberRepository.findByTeamIdAndUserId(teamId, currentUserId)
                 .map(m -> m.getStatus() == TeamMember.MembershipStatus.APPROVED)
                 .orElse(false);
@@ -276,7 +276,7 @@ public class TeamMatchService {
         }
 
         Team team = match.getTeam();
-        if (!team.getOwnerUserId().equals(currentUserId)) {
+        if (!isOwner(team, currentUserId, currentUserEmail)) {
             throw new UnauthorizedException("Only team owner can manage attendance");
         }
 
@@ -391,6 +391,11 @@ public class TeamMatchService {
 
             notificationServiceClient.sendNotification(notification);
         }
+    }
+
+    private boolean isOwner(Team team, Long currentUserId, String currentUserEmail) {
+        return (currentUserId != null && currentUserId != 0 && team.getOwnerUserId().equals(currentUserId)) ||
+               (currentUserEmail != null && team.getOwnerEmail().equalsIgnoreCase(currentUserEmail));
     }
 
     private TeamMatchResponse mapToResponse(TeamMatch match) {

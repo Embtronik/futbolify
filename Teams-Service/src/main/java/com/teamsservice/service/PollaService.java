@@ -262,8 +262,8 @@ public class PollaService {
             throw new UnauthorizedException("Debes ser participante aceptado para pronosticar");
         }
 
-        // Obtener el partido
-        PollaPartido partido = partidoRepository.findByIdAndPollaId(request.getPollaPartidoId(), pollaId)
+        // Obtener el partido con bloqueo pesimista para serializar pronósticos concurrentes
+        PollaPartido partido = partidoRepository.findByIdAndPollaIdForUpdate(request.getPollaPartidoId(), pollaId)
                 .orElseThrow(() -> new ResourceNotFoundException("Partido no encontrado"));
 
         // Validar que aún está dentro del tiempo límite

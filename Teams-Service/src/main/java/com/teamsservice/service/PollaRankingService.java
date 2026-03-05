@@ -113,10 +113,16 @@ public class PollaRankingService {
 
                 // Si no hay marcador en BD, pedir snapshot (TTL+lock) para LIVE/SCHEDULED.
                 if (partido.getGolesLocal() == null || partido.getGolesVisitante() == null) {
-                    var marcador = marcadorService.getMarcador(pollaId, partido.getId(), userEmail);
-                    actualHome = marcador.getGolesLocal();
-                    actualAway = marcador.getGolesVisitante();
-                    statusShort = marcador.getApiStatusShort();
+                    try {
+                        var marcador = marcadorService.getMarcador(pollaId, partido.getId(), userEmail);
+                        actualHome = marcador.getGolesLocal();
+                        actualAway = marcador.getGolesVisitante();
+                        statusShort = marcador.getApiStatusShort();
+                    } catch (Exception e) {
+                        log.warn("Could not fetch live score for pollaPartidoId={}, skipping from ranking: {}",
+                                partido.getId(), e.getMessage());
+                        continue;
+                    }
                 } else {
                     actualHome = partido.getGolesLocal();
                     actualAway = partido.getGolesVisitante();

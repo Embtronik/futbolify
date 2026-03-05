@@ -39,9 +39,9 @@ public class TeamMatchTeamService {
     private final AuthServiceClient authServiceClient;
 
     @Transactional
-    public TeamMatchTeamResponse createMatchTeam(Long teamId, Long matchId, TeamMatchTeamCreateRequest request, Long currentUserId) {
+    public TeamMatchTeamResponse createMatchTeam(Long teamId, Long matchId, TeamMatchTeamCreateRequest request, Long currentUserId, String currentUserEmail) {
         TeamMatch match = getMatchOrThrow(teamId, matchId);
-        assertOwner(match.getTeam(), currentUserId);
+        assertOwner(match.getTeam(), currentUserId, currentUserEmail);
 
         TeamMatchTeam team = TeamMatchTeam.builder()
                 .match(match)
@@ -54,9 +54,9 @@ public class TeamMatchTeamService {
     }
 
     @Transactional(readOnly = true)
-    public List<TeamMatchTeamResponse> listMatchTeams(Long teamId, Long matchId, Long currentUserId) {
+    public List<TeamMatchTeamResponse> listMatchTeams(Long teamId, Long matchId, Long currentUserId, String currentUserEmail) {
         TeamMatch match = getMatchOrThrow(teamId, matchId);
-        assertOwner(match.getTeam(), currentUserId);
+        assertOwner(match.getTeam(), currentUserId, currentUserEmail);
 
         List<TeamMatchTeam> teams = teamMatchTeamRepository.findByMatchIdOrderByIdAsc(matchId);
         if (teams.isEmpty()) {
@@ -73,21 +73,21 @@ public class TeamMatchTeamService {
     }
 
     @Transactional
-    public List<TeamMatchTeamResponse> bulkCreateMatchTeams(Long teamId, Long matchId, List<TeamMatchTeamCreateRequest> teams, Long currentUserId) {
+    public List<TeamMatchTeamResponse> bulkCreateMatchTeams(Long teamId, Long matchId, List<TeamMatchTeamCreateRequest> teams, Long currentUserId, String currentUserEmail) {
         TeamMatch match = getMatchOrThrow(teamId, matchId);
-        assertOwner(match.getTeam(), currentUserId);
+        assertOwner(match.getTeam(), currentUserId, currentUserEmail);
 
         List<TeamMatchTeamResponse> created = new ArrayList<>();
         for (TeamMatchTeamCreateRequest req : teams) {
-            created.add(createMatchTeam(teamId, matchId, req, currentUserId));
+            created.add(createMatchTeam(teamId, matchId, req, currentUserId, currentUserEmail));
         }
         return created;
     }
 
     @Transactional
-    public TeamMatchTeamResponse updateMatchTeam(Long teamId, Long matchId, Long matchTeamId, TeamMatchTeamCreateRequest request, Long currentUserId) {
+    public TeamMatchTeamResponse updateMatchTeam(Long teamId, Long matchId, Long matchTeamId, TeamMatchTeamCreateRequest request, Long currentUserId, String currentUserEmail) {
         TeamMatch match = getMatchOrThrow(teamId, matchId);
-        assertOwner(match.getTeam(), currentUserId);
+        assertOwner(match.getTeam(), currentUserId, currentUserEmail);
 
         TeamMatchTeam team = teamMatchTeamRepository.findById(matchTeamId)
                 .orElseThrow(() -> new ResourceNotFoundException("Match team not found with id: " + matchTeamId));
@@ -105,9 +105,9 @@ public class TeamMatchTeamService {
     }
 
     @Transactional
-    public void deleteMatchTeam(Long teamId, Long matchId, Long matchTeamId, Long currentUserId) {
+    public void deleteMatchTeam(Long teamId, Long matchId, Long matchTeamId, Long currentUserId, String currentUserEmail) {
         TeamMatch match = getMatchOrThrow(teamId, matchId);
-        assertOwner(match.getTeam(), currentUserId);
+        assertOwner(match.getTeam(), currentUserId, currentUserEmail);
 
         TeamMatchTeam team = teamMatchTeamRepository.findById(matchTeamId)
                 .orElseThrow(() -> new ResourceNotFoundException("Match team not found with id: " + matchTeamId));
@@ -128,9 +128,10 @@ public class TeamMatchTeamService {
                                              Long matchTeamId,
                                              Long targetUserId,
                                              MatchTeamPlayerUpsertRequest request,
-                                             Long currentUserId) {
+                                             Long currentUserId,
+                                             String currentUserEmail) {
         TeamMatch match = getMatchOrThrow(teamId, matchId);
-        assertOwner(match.getTeam(), currentUserId);
+        assertOwner(match.getTeam(), currentUserId, currentUserEmail);
 
         TeamMatchTeam team = teamMatchTeamRepository.findById(matchTeamId)
                 .orElseThrow(() -> new ResourceNotFoundException("Match team not found with id: " + matchTeamId));
@@ -194,9 +195,10 @@ public class TeamMatchTeamService {
                                               Long matchId,
                                               Long matchTeamId,
                                               Long targetUserId,
-                                              Long currentUserId) {
+                                              Long currentUserId,
+                                              String currentUserEmail) {
         TeamMatch match = getMatchOrThrow(teamId, matchId);
-        assertOwner(match.getTeam(), currentUserId);
+        assertOwner(match.getTeam(), currentUserId, currentUserEmail);
 
         TeamMatchTeam team = teamMatchTeamRepository.findById(matchTeamId)
                 .orElseThrow(() -> new ResourceNotFoundException("Match team not found with id: " + matchTeamId));
@@ -223,8 +225,10 @@ public class TeamMatchTeamService {
         return match;
     }
 
-    private void assertOwner(Team team, Long currentUserId) {
-        if (!team.getOwnerUserId().equals(currentUserId)) {
+    private void assertOwner(Team team, Long currentUserId, String currentUserEmail) {
+        boolean owner = (currentUserId != null && currentUserId != 0 && team.getOwnerUserId().equals(currentUserId)) ||
+                        (currentUserEmail != null && team.getOwnerEmail().equalsIgnoreCase(currentUserEmail));
+        if (!owner) {
             throw new UnauthorizedException("Only team owner can manage match teams");
         }
     }
