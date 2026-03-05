@@ -11,49 +11,69 @@ import { RouterLink, Router } from '@angular/router';
 })
 export class LandingComponent {
   constructor(private router: Router) {}
+
+  stats = [
+    { icon: '⚽', value: '+10,000', label: 'Futboleros activos' },
+    { icon: '🏆', value: '+500', label: 'Grupos creados' },
+    { icon: '🎯', value: '+50,000', label: 'Predicciones hechas' },
+    { icon: '🔥', value: '98%', label: 'Satisfacción' }
+  ];
+
   features = [
     {
-      icon: '👥',
-      title: 'Gestión de Equipos',
-      description: 'Invita a jugadores, organiza roles, administra perfiles y mantén tu equipo actualizado en todo momento.',
-      gradient: 'from-green-500 to-emerald-600'
+      icon: '🎯',
+      title: 'Pollas Futboleras',
+      description: 'Predice marcadores de los mejores partidos. Sistema de puntos que premia el marcador exacto con el doble.',
+      colorClass: ''
+    },
+    {
+      icon: '🏆',
+      title: 'Ranking en Tiempo Real',
+      description: 'Tabla de posiciones actualizada automáticamente tras cada jornada. ¿Quién es el crack del grupo?',
+      colorClass: 'gold-accent'
+    },
+    {
+      icon: '📲',
+      title: 'Invitaciones Fáciles',
+      description: 'Comparte un enlace único por WhatsApp o Telegram. Tus amigos se unen en segundos.',
+      colorClass: 'blue-accent'
     },
     {
       icon: '📅',
-      title: 'Calendario Inteligente',
-      description: 'Planifica entrenamientos y partidos. Los jugadores reciben notificaciones y pueden confirmar su asistencia fácilmente.',
-      gradient: 'from-orange-500 to-red-600'
+      title: 'Gestión de Jornadas',
+      description: 'Cierre automático de predicciones antes del pitido. Nunca más un "pero si yo lo dije después".',
+      colorClass: 'orange-accent'
     },
     {
-      icon: '✅',
-      title: 'Control de Asistencias',
-      description: 'Registra asistencias automáticamente, visualiza estadísticas y mantén un histórico detallado de participación.',
-      gradient: 'from-green-500 to-emerald-600'
+      icon: '📊',
+      title: 'Estadísticas Detalladas',
+      description: 'Historial completo de tus predicciones, porcentaje de acierto por competición y racha actual.',
+      colorClass: 'purple-accent'
     },
     {
-      icon: '⚡',
-      title: 'Chat y Comunicación',
-      description: 'Comunícate con tu equipo al instante. Coordina cambios, comparte videos de entrenamientos y celebra victorias juntos.',
-      gradient: 'from-orange-500 to-red-600'
+      icon: '🔒',
+      title: 'Grupos Privados',
+      description: 'Solo entran los que tú invitas. Control total sobre quién ve las predicciones y el ranking.',
+      colorClass: 'red-accent'
     }
   ];
 
   benefits = [
     {
-      title: 'Diseño enfocado en fútbol aficionado',
-      description: 'No somos un software genérico. Futbolify está construido específicamente para los amatistas que quieren organizarse sin complicaciones.'
+      title: 'Diseñada para pollas futboleras',
+      description: 'No somos una app genérica. Cada función existe para que la experiencia de predecir sea justa, divertida y competitiva.'
     },
     {
-      title: '100% Gratis para grupos pequeños',
-      description: 'Crea tu equipo, invita amigos y comienza a organizar. No hay límites artificiales ni pases de pago ocultos.'
+      title: 'Gratis para siempre',
+      description: 'Sin suscripciones, sin límites de predicciones. Crea tu grupo y empieza a competir hoy mismo.'
     },
     {
-      title: 'Fácil de usar desde el móvil',
-      description: 'Interfaz responsive que funciona perfectamente en tu celular. Confirma asistencia, ve el calendario y chatea con tu equipo donde sea.'
+      title: 'Funciona en el móvil',
+      description: 'Haz tus predicciones desde donde estés, antes del pitido inicial. Sin apps que instalar.'
     },
     {
-      title: 'Privado y seguro',
-      description: 'Tus datos y los de tu equipo están seguros. Control total de quién puede ver la información de tu grupo.'
+      title: 'Resolver polémicas del grupo',
+      description: 'Todo queda registrado. Nadie puede cambiar sus predicciones después del partido. El ranking no miente.'
     }
   ];
 
