@@ -501,6 +501,25 @@ public class PollaService {
     }
 
     /**
+     * Elimina (soft-delete) una polla. Solo el creador puede eliminarla.
+     */
+    @Transactional
+    public void deletePolla(Long pollaId, String userEmail) {
+        log.info("Soft deleting polla {} by user {}", pollaId, userEmail);
+
+        Polla polla = pollaRepository.findByIdAndDeletedAtIsNull(pollaId)
+                .orElseThrow(() -> new ResourceNotFoundException("Polla not found with id: " + pollaId));
+
+        if (!polla.getCreadorEmail().equalsIgnoreCase(userEmail)) {
+            throw new UnauthorizedException("Solo el creador puede eliminar la polla");
+        }
+
+        polla.setDeletedAt(LocalDateTime.now());
+        pollaRepository.save(polla);
+        log.info("Polla {} soft deleted successfully", pollaId);
+    }
+
+    /**
      * Permite al creador volver el estado de la polla a CREADA si está en estado ABIERTA
      */
     @Transactional

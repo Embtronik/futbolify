@@ -196,11 +196,17 @@ public class TeamService {
     }
 
     @Transactional
-    public void deleteTeam(Long teamId, Long userId) {
-        log.info("Soft deleting team {} for user {}", teamId, userId);
+    public void deleteTeam(Long teamId, Long userId, String userEmail) {
+        log.info("Soft deleting team {} for user {}", teamId, userEmail);
 
-        Team team = teamRepository.findByIdAndOwnerUserIdAndStatus(teamId, userId, TeamStatus.ACTIVE)
+        Team team = teamRepository.findByIdAndStatus(teamId, TeamStatus.ACTIVE)
                 .orElseThrow(() -> new ResourceNotFoundException("Team not found with id: " + teamId));
+
+        boolean isOwner = (userId != null && userId != 0 && team.getOwnerUserId().equals(userId))
+                || (userEmail != null && team.getOwnerEmail().equalsIgnoreCase(userEmail));
+        if (!isOwner) {
+            throw new ResourceNotFoundException("Team not found with id: " + teamId);
+        }
 
         // Soft delete: cambiar estado a DELETED y registrar fecha
         team.setStatus(TeamStatus.DELETED);

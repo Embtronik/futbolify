@@ -254,6 +254,18 @@ public class PollaController {
     }
 
         /**
+     * DELETE /api/pollas/{id} - Eliminar una polla (soft-delete, solo el creador)
+     */
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deletePolla(
+            @PathVariable Long id,
+            @AuthenticationPrincipal UserPrincipal userPrincipal) {
+        log.info("Deleting polla {} by user {}", id, userPrincipal.getEmail());
+        pollaService.deletePolla(id, userPrincipal.getEmail());
+        return ResponseEntity.noContent().build();
+    }
+
+    /**
      * PUT /api/pollas/{id}/a-creada - Cambia el estado de la polla a CREADA (solo si está ABIERTA y es el creador)
      */
     @PutMapping("/{id}/a-creada")

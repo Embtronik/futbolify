@@ -93,9 +93,9 @@ public class TeamController {
             @PathVariable Long teamId,
             @AuthenticationPrincipal UserPrincipal userPrincipal) {
         
-        log.info("Deleting team: {} for user: {}", teamId, userPrincipal.getUserId());
+        log.info("Deleting team: {} for user: {}", teamId, userPrincipal.getEmail());
         
-        teamService.deleteTeam(teamId, userPrincipal.getUserId());
+        teamService.deleteTeam(teamId, userPrincipal.getUserId(), userPrincipal.getEmail());
         return ResponseEntity.noContent().build();
     }
 }
