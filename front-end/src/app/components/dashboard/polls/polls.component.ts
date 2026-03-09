@@ -690,18 +690,29 @@ export class PollsComponent implements OnInit, AfterViewInit, OnDestroy {
     return currentTeams.includes(teamId);
   }
 
+  isCurrentUserPollCreator(poll: Poll | null | undefined): boolean {
+    if (!poll) return false;
+    const email = this.currentUserEmail || '';
+    if (!email) return false;
+    return (poll.creadorEmail || '').toLowerCase().trim() === email.toLowerCase().trim();
+  }
+
   deletePoll(poll: Poll, event: Event): void {
     event.stopPropagation();
-    if (!confirm(`¿Estás seguro de eliminar la polla "${poll.nombre}"?`)) return;
+    if (!confirm(`¿Estás seguro de eliminar la polla "${poll.nombre}"? Esta acción no se puede deshacer.`)) return;
 
     this.pollService.deletePoll(poll.id).subscribe({
       next: () => {
         this.polls = (this.polls || []).filter((p: any): p is Poll => this.isPoll(p) && p.id !== poll.id);
         this.successMessage = 'Polla eliminada correctamente';
+        if (this.showPollDetailModal && this.selectedPoll?.id === poll.id) {
+          this.closePollDetail();
+        }
         setTimeout(() => this.successMessage = '', 3000);
       },
       error: (error: any) => {
-        this.errorMessage = 'Error al eliminar la polla';
+        this.errorMessage = error?.error?.message || 'Error al eliminar la polla. Solo el creador puede eliminarla.';
+        setTimeout(() => this.errorMessage = '', 4000);
       }
     });
   }

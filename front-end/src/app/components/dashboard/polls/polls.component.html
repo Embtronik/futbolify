@@ -98,7 +98,7 @@
             </button>
             <button 
               class="btn-icon btn-delete" 
-              *ngIf="(p.creadorEmail || '').toLowerCase().trim() === currentUserEmail"
+              *ngIf="isCurrentUserPollCreator(p)"
               (click)="deletePoll(p, $event); $event.stopPropagation()"
               title="Eliminar">
               🗑️
@@ -377,19 +377,27 @@
       </div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-outline" (click)="closePollDetail()">Cerrar</button>
       <button 
-        class="btn btn-primary" 
-        *ngIf="selectedPoll?.estado === 'CREADA' && pollMatches.length > 0"
-        (click)="activatePoll(selectedPoll!, $event)">
-        Activar Polla
+        class="btn btn-danger"
+        *ngIf="isCurrentUserPollCreator(selectedPoll)"
+        (click)="deletePoll(selectedPoll!, $event)">
+        🗑️ Eliminar polla
       </button>
-      <button 
-        class="btn btn-outline" 
-        *ngIf="selectedPoll?.estado === 'ABIERTA'"
-         (click)="revertPollToCreated(selectedPoll, $event)">
-        Volver a editable
-      </button>
+      <div class="modal-footer-right">
+        <button class="btn btn-outline" (click)="closePollDetail()">Cerrar</button>
+        <button 
+          class="btn btn-primary" 
+          *ngIf="selectedPoll?.estado === 'CREADA' && pollMatches.length > 0"
+          (click)="activatePoll(selectedPoll!, $event)">
+          Activar Polla
+        </button>
+        <button 
+          class="btn btn-outline" 
+          *ngIf="selectedPoll?.estado === 'ABIERTA'"
+           (click)="revertPollToCreated(selectedPoll, $event)">
+          Volver a editable
+        </button>
+      </div>
     </div>
   </div>
 </div>

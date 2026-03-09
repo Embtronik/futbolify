@@ -23,6 +23,9 @@ declare var google: any;
         </button>
       </div>
 
+      <div class="alert alert-success" *ngIf="successMessage">{{ successMessage }}</div>
+      <div class="alert alert-error" *ngIf="errorMessage">{{ errorMessage }}</div>
+
       <!-- Lista de grupos -->
       <div *ngIf="teams.length > 0" class="teams-grid">
         <div *ngFor="let team of teams" class="team-card">
@@ -105,6 +108,14 @@ declare var google: any;
           </div>
 
           <div class="modal-footer">
+            <button 
+              type="button"
+              class="btn btn-danger"
+              *ngIf="isTeamOwner(selectedTeam)"
+              [disabled]="deleting"
+              (click)="confirmDelete(selectedTeam!)">
+              {{ deleting ? 'Eliminando...' : '🗑️ Eliminar grupo' }}
+            </button>
             <button type="button" class="btn btn-primary" (click)="closeViewModal()">
               Cerrar
             </button>
@@ -627,9 +638,35 @@ declare var google: any;
     .modal-footer {
       display: flex;
       gap: 12px;
-      justify-content: flex-end;
+      justify-content: space-between;
+      align-items: center;
       padding: 0 24px 24px 24px;
     }
+
+    .btn-danger {
+      padding: 8px 18px;
+      border-radius: 10px;
+      border: 1.5px solid #fca5a5;
+      background: #fff1f1;
+      color: #dc2626;
+      font-weight: 700;
+      font-size: 0.88rem;
+      cursor: pointer;
+      transition: background .15s, border-color .15s;
+      white-space: nowrap;
+    }
+    .btn-danger:hover:not(:disabled) { background: #fee2e2; border-color: #f87171; }
+    .btn-danger:disabled { opacity: 0.6; cursor: not-allowed; }
+
+    .alert {
+      padding: 12px 18px;
+      border-radius: 10px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      margin-bottom: 16px;
+    }
+    .alert-success { background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; }
+    .alert-error   { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
 
     .success-message {
       padding: 24px;
@@ -800,6 +837,9 @@ export class TeamsComponent implements AfterViewInit {
   showViewModal = false;
   creating = false;
   updating = false;
+  deleting = false;
+  successMessage = '';
+  errorMessage = '';
   createdTeam: Team | null = null;
   selectedTeam: Team | null = null;
   selectedFileName = '';
@@ -1250,20 +1290,27 @@ export class TeamsComponent implements AfterViewInit {
   }
 
   confirmDelete(team: Team): void {
-    if (confirm(`¿Estás seguro de que deseas eliminar el grupo "${team.name}"? Esta acción no se puede deshacer.`)) {
-      this.deleteTeam(team.id);
-    }
+    if (!confirm(`¿Estás seguro de que deseas eliminar el grupo "${team.name}"? Esta acción no se puede deshacer.`)) return;
+    this.deleteTeam(team);
   }
 
-  deleteTeam(teamId: number): void {
-    this.teamService.delete(teamId).subscribe({
+  deleteTeam(team: Team): void {
+    this.deleting = true;
+    this.teamService.delete(team.id).subscribe({
       next: () => {
-        this.teams = this.teams.filter(t => t.id !== teamId);
-        alert('¡Grupo eliminado exitosamente!');
+        this.teams = this.teams.filter(t => t.id !== team.id);
+        this.deleting = false;
+        if (this.showViewModal && this.selectedTeam?.id === team.id) {
+          this.closeViewModal();
+        }
+        this.successMessage = `Grupo "${team.name}" eliminado correctamente`;
+        setTimeout(() => this.successMessage = '', 4000);
       },
       error: (error) => {
         console.error('Error deleting team:', error);
-        alert('Error al eliminar el grupo. Por favor intenta de nuevo.');
+        this.deleting = false;
+        this.errorMessage = error?.error?.message || 'No tienes permiso para eliminar este grupo o ocurrió un error.';
+        setTimeout(() => this.errorMessage = '', 5000);
       }
     });
   }
