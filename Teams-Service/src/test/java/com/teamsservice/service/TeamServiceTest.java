@@ -166,10 +166,10 @@ class TeamServiceTest {
     @Test
     void deleteTeam_Success() {
         // Arrange
-        when(teamRepository.findByIdAndOwnerUserIdAndStatus(anyLong(), anyLong(), eq(TeamStatus.ACTIVE))).thenReturn(Optional.of(testTeam));
+        when(teamRepository.findByIdAndStatus(anyLong(), eq(TeamStatus.ACTIVE))).thenReturn(Optional.of(testTeam));
 
         // Act
-        teamService.deleteTeam(1L, userId);
+        teamService.deleteTeam(1L, userId, userEmail);
 
         // Assert
         verify(teamRepository).save(testTeam);
@@ -179,11 +179,11 @@ class TeamServiceTest {
     @Test
     void deleteTeam_NotFound_ThrowsException() {
         // Arrange
-        when(teamRepository.findByIdAndOwnerUserIdAndStatus(anyLong(), anyLong(), eq(TeamStatus.ACTIVE))).thenReturn(Optional.empty());
+        when(teamRepository.findByIdAndStatus(anyLong(), eq(TeamStatus.ACTIVE))).thenReturn(Optional.empty());
 
         // Act & Assert
         assertThrows(ResourceNotFoundException.class, 
-            () -> teamService.deleteTeam(1L, userId));
+            () -> teamService.deleteTeam(1L, userId, userEmail));
         
         verify(teamRepository, never()).save(any(Team.class));
     }
