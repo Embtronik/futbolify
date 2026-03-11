@@ -15,6 +15,9 @@ public interface TeamMemberRepository extends JpaRepository<TeamMember, Long> {
     
     // Verificar si un usuario ya tiene una solicitud para un equipo
     boolean existsByTeamIdAndUserId(Long teamId, Long userId);
+
+    // Verificar si un usuario (por email) ya tiene una solicitud para un equipo
+    boolean existsByTeamIdAndUserEmail(Long teamId, String userEmail);
     
     // Obtener la membresía de un usuario en un equipo
     Optional<TeamMember> findByTeamIdAndUserId(Long teamId, Long userId);
