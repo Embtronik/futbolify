@@ -33,7 +33,7 @@ public class TeamMember {
     @JoinColumn(name = "team_id", nullable = false)
     private Team team;
 
-    @Column(name = "user_id", nullable = false)
+    @Column(name = "user_id", nullable = true)
     private Long userId;
 
     @Column(name = "user_email")

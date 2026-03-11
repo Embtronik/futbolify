@@ -47,10 +47,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 String email = tokenProvider.getEmailFromToken(jwt);
                 List<GrantedAuthority> authorities = tokenProvider.getAuthoritiesFromToken(jwt);
 
-                // Si userId es null, usar 0L como placeholder (auth-service no lo incluye para OAuth)
+                // OAuth2 users may not have a userId claim — keep it null
                 if (userId == null) {
-                    userId = 0L;
-                    log.warn("No userId in token, using placeholder. Email: {}", email);
+                    log.warn("No userId in token (OAuth2 user), email: {}", email);
                 }
 
                 UserPrincipal userPrincipal = new UserPrincipal(userId, email, authorities);

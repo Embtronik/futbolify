@@ -71,6 +71,11 @@ public class DatabaseSchemaPatcher implements ApplicationRunner {
         // indexes (IF NOT EXISTS is supported by PostgreSQL)
         safeExecute("CREATE INDEX IF NOT EXISTS idx_puntaje_partido_polla_partido_id ON polla_puntajes_partido(polla_partido_id)");
         safeExecute("CREATE INDEX IF NOT EXISTS idx_puntaje_partido_email ON polla_puntajes_partido(email_participante)");
+
+        // Allow user_id to be NULL in team_members (OAuth2 users have no numeric userId)
+        safeExecute("ALTER TABLE team_members ALTER COLUMN user_id DROP NOT NULL");
+        // Update existing rows with user_id=0 to NULL (legacy placeholder)
+        safeExecute("UPDATE team_members SET user_id = NULL WHERE user_id = 0");
     }
 
     private void ensureTableExists(String tableName, String createSql) {

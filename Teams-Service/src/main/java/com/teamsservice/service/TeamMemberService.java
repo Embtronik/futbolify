@@ -49,15 +49,15 @@ public class TeamMemberService {
                 .orElseThrow(() -> new ResourceNotFoundException("Team not found with code: " + request.getJoinCode()));
 
         // Verificar que el usuario no sea el propietario
-        // Para OAuth2 users (userId=0), comparar por email
-        boolean isOwner = (userId != 0 && team.getOwnerUserId().equals(userId)) ||
-                          (userId == 0 && team.getOwnerEmail().equalsIgnoreCase(userEmail));
+        // Para OAuth2 users (userId=null), comparar por email
+        boolean isOwner = (userId != null && team.getOwnerUserId().equals(userId)) ||
+                          (userId == null && team.getOwnerEmail().equalsIgnoreCase(userEmail));
         if (isOwner) {
             throw new IllegalArgumentException("You are already the owner of this team");
         }
 
-        // Verificar si ya existe una solicitud (OAuth2 users have userId=0, check by email)
-        boolean alreadyExists = (userId != 0)
+        // Verificar si ya existe una solicitud (OAuth2 users have userId=null, check by email)
+        boolean alreadyExists = (userId != null)
                 ? teamMemberRepository.existsByTeamIdAndUserId(team.getId(), userId)
                 : teamMemberRepository.existsByTeamIdAndUserEmail(team.getId(), userEmail);
         if (alreadyExists) {
