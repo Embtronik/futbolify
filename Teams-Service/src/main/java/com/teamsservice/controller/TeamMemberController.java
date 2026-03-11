@@ -85,6 +85,27 @@ public class TeamMemberController {
     }
 
     /**
+     * Aprobar o rechazar una solicitud de membresía por email del solicitante (solo owner)
+     */
+    @PutMapping("/{teamId}/members/email/{memberEmail}")
+    public ResponseEntity<TeamMemberResponse> approveMembershipByEmail(
+            @PathVariable Long teamId,
+            @PathVariable String memberEmail,
+            @Valid @RequestBody ApproveMemberRequest request,
+            @AuthenticationPrincipal UserPrincipal userPrincipal) {
+
+        log.info("User {} {} membership for email {} in team {}",
+                userPrincipal.getEmail(),
+                request.getApproved() ? "approving" : "rejecting",
+                memberEmail, teamId);
+
+        TeamMemberResponse response = teamMemberService.approveMembershipRequestByEmail(
+                teamId, memberEmail, request, userPrincipal.getEmail());
+
+        return ResponseEntity.ok(response);
+    }
+
+    /**
      * Obtener todos los miembros aprobados de un equipo
      */
     @GetMapping("/{teamId}/members")

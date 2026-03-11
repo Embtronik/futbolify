@@ -200,6 +200,39 @@ public class TeamMemberService {
     }
 
     /**
+     * Aprobar o rechazar una solicitud de membresía por email del solicitante (solo owner)
+     */
+    @Transactional
+    public TeamMemberResponse approveMembershipRequestByEmail(Long teamId, String memberEmail,
+                                                              ApproveMemberRequest request, String ownerEmail) {
+        log.info("User {} {} membership for member email {} in team {}",
+                ownerEmail, request.getApproved() ? "approving" : "rejecting", memberEmail, teamId);
+
+        Team team = teamRepository.findByIdAndStatus(teamId, TeamStatus.ACTIVE)
+                .orElseThrow(() -> new ResourceNotFoundException("Team not found with id: " + teamId));
+
+        if (!team.getOwnerEmail().equalsIgnoreCase(ownerEmail)) {
+            throw new UnauthorizedException("Only team owner can approve membership requests");
+        }
+
+        TeamMember teamMember = teamMemberRepository.findByTeamIdAndUserEmailAndStatus(
+                        teamId, memberEmail, TeamMember.MembershipStatus.PENDING)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "No pending membership request found for email: " + memberEmail));
+
+        teamMember.setStatus(request.getApproved()
+                ? TeamMember.MembershipStatus.APPROVED
+                : TeamMember.MembershipStatus.REJECTED);
+        teamMember.setApprovedBy(team.getOwnerUserId());
+        teamMember.setApprovedAt(LocalDateTime.now());
+
+        teamMember = teamMemberRepository.save(teamMember);
+        log.info("Membership for email {} {}", memberEmail, teamMember.getStatus());
+
+        return mapToResponse(teamMember);
+    }
+
+    /**
      * Obtener todos los miembros aprobados de un equipo
      */
     @Transactional(readOnly = true)
