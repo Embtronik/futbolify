@@ -64,16 +64,18 @@ public class TeamMemberService {
             throw new DuplicateResourceException("You already have a membership request for this team");
         }
 
-        // Crear solicitud de membresía
+        // Crear solicitud de membresía (aprobada automáticamente)
         TeamMember teamMember = TeamMember.builder()
                 .team(team)
                 .userId(userId)
                 .userEmail(userEmail)
-                .status(TeamMember.MembershipStatus.PENDING)
+                .status(TeamMember.MembershipStatus.APPROVED)
+                .approvedBy(team.getOwnerUserId())
+                .approvedAt(LocalDateTime.now())
                 .build();
 
         teamMember = teamMemberRepository.save(teamMember);
-        log.info("Membership request created: {}", teamMember.getId());
+        log.info("Membership auto-approved: {}", teamMember.getId());
 
         notifyOwnerOfJoinRequest(team, userEmail);
 
