@@ -7,6 +7,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.client.RestClientException;
+import org.springframework.web.util.UriComponentsBuilder;
 
 /**
  * Servicio para comunicarse con el auth-service y obtener información de usuarios
@@ -28,8 +29,11 @@ public class AuthServiceClient {
      */
     public UserInfoDto getUserByEmail(String email) {
         try {
-            String url = authServiceUrl + "/api/v1/user/by-email?email=" + email;
-            log.info("Fetching user info from auth-service: {}", url);
+            String url = UriComponentsBuilder
+                    .fromHttpUrl(authServiceUrl + "/api/v1/user/by-email")
+                    .queryParam("email", email)
+                    .toUriString();
+            log.info("Fetching user info from auth-service for email: {}", email);
             
             UserInfoDto userInfo = restTemplate.getForObject(url, UserInfoDto.class);
             log.info("User info retrieved successfully for email {}: {}", email, userInfo != null ? userInfo.getFirstName() + " " + userInfo.getLastName() : "null");

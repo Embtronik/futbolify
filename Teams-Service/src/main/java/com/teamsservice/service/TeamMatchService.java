@@ -1,7 +1,6 @@
 package com.teamsservice.service;
 
 import com.teamsservice.dto.MatchAttendanceSummaryResponse;
-import com.teamsservice.dto.NotificationSendRequest;
 import com.teamsservice.dto.PageResponse;
 import com.teamsservice.dto.TeamMatchAttendanceResponse;
 import com.teamsservice.dto.TeamMatchCreateRequest;
@@ -348,27 +347,14 @@ public class TeamMatchService {
 
         String confirmUrl = String.format("%s/equipos/%d/partidos/%d", frontendUrl, team.getId(), match.getId());
 
+        String subject = "Nuevo partido del equipo " + team.getName();
+
         for (TeamMember member : members) {
             String email = member.getUserEmail();
             if (email == null || email.isBlank()) {
                 continue;
             }
 
-            UserInfoDto userInfo = authServiceClient.getUserByEmail(email);
-
-            String phone = null;
-            if (userInfo != null && userInfo.getCountryCode() != null && userInfo.getPhoneNumber() != null) {
-                phone = userInfo.getCountryCode() + userInfo.getPhoneNumber();
-            }
-
-            List<String> channels = new ArrayList<>();
-            channels.add("EMAIL");
-            if (phone != null && !phone.isBlank()) {
-                channels.add("WHATSAPP");
-                channels.add("SMS");
-            }
-
-            String subject = "Nuevo partido del equipo " + team.getName();
             String body = String.format(
                     "El grupo %s programó un partido el %s en %s.\n\n" +
                     "Ver ubicación en Google Maps: %s\n\n" +
@@ -380,16 +366,7 @@ public class TeamMatchService {
                     confirmUrl
             );
 
-            NotificationSendRequest notification = NotificationSendRequest.builder()
-                    .channels(channels)
-                    .recipient(email)
-                    .recipientPhone(phone)
-                    .subject(subject)
-                    .body(body)
-                    .serviceOrigin("teams-service")
-                    .build();
-
-            notificationServiceClient.sendNotification(notification);
+            notificationServiceClient.sendWithPhoneLookup(email, subject, body, "teams-service");
         }
     }
 

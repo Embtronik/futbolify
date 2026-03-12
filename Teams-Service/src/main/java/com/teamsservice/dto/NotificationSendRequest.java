@@ -22,4 +22,6 @@ public class NotificationSendRequest {
     private String subject;
     private String body;
     private String serviceOrigin;
+    @Builder.Default
+    private boolean continueOnError = true;
 }
